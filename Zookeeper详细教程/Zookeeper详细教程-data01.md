@@ -25,13 +25,13 @@
 
 ​	一个集群是一个分布式系统，有多台服务器组成。为了提高并发度和可靠性，多台服务器运行着同一种服务。当多个服务在运行时就需要协调各服务的进度，有时候需要保证当某个服务在进行某个操作时，其他的服务都不能进行该操作，即对该操作进行加锁，如果当前机器挂掉后，并释放fail over到其他的机器继续执行该服务。
 
-![image-20200513003823079](images\image-20200513003823079.png)
+![image-20200513003823079](images/image-20200513003823079.png)
 
 **3、集群管理**
 
 ​	一个集群优势会因为各种软硬件故障或者网络故障，出现某种服务器挂掉而被移除集群，而某些服务器加入到集群中的情况，zookeeper会将这些服务器加入/移出的情况下通知给集群汇总的其他正常工作的服务器，以及时调用存储和计算等任务的分配和执行等。此外zookeeper还会对故障的服务器做出诊断并尝试修复。
 
-![image-20200513004430681](images\image-20200513004430681.png)
+![image-20200513004430681](images/image-20200513004430681.png)
 
 **4、生成分布式唯一ID**
 
@@ -59,7 +59,7 @@
 
  	Zookeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一颗树，每一个节点称做一个ZNode。每一个Znode默认能够存储1MB的数据，每个ZNode都可以通过其路径唯一标识。
 
-![image-20200513104945468](images\image-20200513104945468.png)
+![image-20200513104945468](images/image-20200513104945468.png)
 
 如何来描述一个ZNode呢？一个znode大体上分为3部分：
 
@@ -124,7 +124,7 @@ mkdir data
 dataDir=/root/apps/zookeeper/zookeeper-3.4.14/data
 ```
 
-![image-20200513230216216](images\image-20200513230216216.png)
+![image-20200513230216216](images/image-20200513230216216.png)
 
 6.zookeeper启动命令
 
@@ -176,7 +176,7 @@ Created /tmp
 tmp
 ```
 
-![](images\image-20200513235836104.png)
+![](images/image-20200513235836104.png)
 
 3.创建临时节点，临时节点会在回话过期后被删除;
 
@@ -456,7 +456,7 @@ setAcl /test2 ip:192.168.60.130:rewda //将节点权限设置为Ip:192.168.60.13
   zkCli.sh -server 192.168.60.130    
   ```
 
-  ![image-20200514201404534](images\image-20200514201404534.png)
+  ![image-20200514201404534](images/image-20200514201404534.png)
 
 - Auth授权模式
 
@@ -581,7 +581,7 @@ echo -n super:admin | openssl dgst -binary -sha1 | openssl base64
 
 那么打开zookeeper目录下的/bin/zkServer.sh 服务器脚本，找到如下一行：
 
-![image-20200514212640310](images\image-20200514212640310.png)
+![image-20200514212640310](images/image-20200514212640310.png)
 
 之后启动zookeeper，输入如下的命令添加权限
 
@@ -829,11 +829,11 @@ getData(String path, boolean b, AsyncCallback.DataCallback callBack, Object ctx)
 - **callBack** -异步回调接口
 - **ctx** -传递上下文参数
 
-![image-20200517084541194](images\image-20200517084541194.png)
+![image-20200517084541194](images/image-20200517084541194.png)
 
 //异步方式获取
 
-![image-20200517084851983](D:\Typora\markdown笔记\Zookeeper详细教程\assert\image-20200517084851983.png)
+![image-20200517084851983](images/image-20200517084851983.png)
 
 ##### 5.6 查看子节点
 
@@ -909,7 +909,7 @@ exists(String path, boolean b, AsyncCallback.StatCallBack, Object ctx)
 
 ​	客户端首先将Watcher注册到服务端，同时将Watcher对象保存到客户端的Watch管理器中。当Zookeeper服务端监听的数据状态发生变化时，服务端会主动同时客户端，接着客户端的Watch管理器会触发相关Watcher来回调相应处理逻辑，从而完成整体的数据发布/订阅流程。
 
-![image-20200517223229316](D:\Typora\markdown笔记\Zookeeper详细教程\assert\image-20200517223229316.png)
+![image-20200517223229316](images/image-20200517223229316.png)
 
 ##### 6.3 wahcher特性
 
@@ -1095,7 +1095,7 @@ echo "1" > myid
 
 zab广播模式工作原理，通过类似两阶段提交协议的方式解决数据一致性：
 
-![image-20200525002051091](D:\Typora\markdown笔记\Zookeeper详细教程\assert\image-20200525002051091.png)
+![image-20200525002051091](images/image-20200525002051091.png)
 
 1. leader从客户端收到一个写请求
 2. leader生成一个新的事务并未这个事务生成一个唯一的ZXID
@@ -1325,7 +1325,7 @@ ruok：测试服务是否处于正确运行状态
 echo ruok | nv 192.168.60.120 2181
 ```
 
-![image-20200621234818012](D:\Typora\markdown笔记\Zookeeper详细教程\assert\image-20200621234818012.png)
+![image-20200621234818012](images/image-20200621234818012.png)
 
 ##### 11.9 stat命令
 
