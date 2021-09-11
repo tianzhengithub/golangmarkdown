@@ -1867,7 +1867,7 @@ WATCH KEY [KEY ...]
 
 ##### 15.2 示例 DISCARD放弃队列运行
 
-![image-20200725223959473](D:\Typora\markdown笔记\images\image-20200725223959473.png)
+![image-20200725223959473](D:\Typora\markdown笔记\Redis详细教程\images\image-20200725223959473.png)
 
 1. **输入MULTI命令，输入的命令都会依次进入命令队列中，但不会执行。**
 2. **直到输入Exec后，Redis会将之前的命令队列中的命令依次执行。**
