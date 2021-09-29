@@ -1707,6 +1707,8 @@ kubectl get pod,svc
 
 # 3. 资源管理
 
+![image-20210929210928504](D:\app\golang\k8s详细教程\images\image-20210929210928504.png)
+
 ## 3.1 资源管理介绍
 
 在kubernetes中，所有的内容都抽象为资源，用户需要通过操作资源来管理kubernetes。
