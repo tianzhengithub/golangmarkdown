@@ -623,6 +623,8 @@ docker pull registry.cn-shanghai.aliyuncs.com/leozhanggg/flannel:v0.12.0-ppc64le
 docker pull registry.cn-shanghai.aliyuncs.com/leozhanggg/flannel:v0.12.0-s390x
 
 然后再改名
+kubectl taint nodes --all node-role.kubernetes.io/master-
+
 
 docker tag registry.cn-shanghai.aliyuncs.com/leozhanggg/flannel:v0.12.0-amd64 quay.io/coreos/flannel:v0.12.0-amd64
 
@@ -632,5 +634,19 @@ docker tag registry.cn-shanghai.aliyuncs.com/leozhanggg/flannel:v0.12.0-arm quay
 
 docker tag registry.cn-shanghai.aliyuncs.com/leozhanggg/flannel:v0.12.0-ppc64le quay.io/coreos/flannel:v0.12.0-ppc64le
 
+```
+
+
+
+执行如下命令清除目录、删除网络设备（注：与 master 有类似但又不同）：
+
+```
+ifconfig cni0 down
+ip link delete cni0
+ifconfig flannel.1 down
+ip link delete flannel.1
+rm /var/lib/cni/ -rf
+rm /etc/kubernetes/ -rf
+rm /var/lib/kubelet/ -rf 
 ```
 
