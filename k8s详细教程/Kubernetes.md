@@ -181,7 +181,7 @@ kubeadm 是官方社区推出的一个用于快速部署kubernetes 集群的工�
 | node01   | 192.168.5.4 | docker，kubectl，kubeadm，kubelet |
 | node02   | 192.168.5.5 | docker，kubectl，kubeadm，kubelet |
 
-#### 2.2.2 环境初始化
+#### 2.2 环境初始化
 
 ##### 2.2.1 检查操作系统的版本
 
@@ -291,7 +291,7 @@ EOF
 [root@master ~]# lsmod | grep -e -ip_vs -e nf_conntrack_ipv4
 ```
 
-#### 2.3 安装docker
+##### 2.2.9 安装docker
 
 ```powershell
 # 1、切换镜像源
@@ -319,7 +319,7 @@ EOF
 [root@master ~]# systemctl enable docker
 ```
 
-#### 2.4 安装Kubernetes组件
+##### 2.2.10 安装Kubernetes组件
 
 ```powershell
 # 1、由于kubernetes的镜像在国外，速度比较慢，这里切换成国内的镜像源
@@ -343,23 +343,148 @@ KUBE_PROXY_MODE="ipvs"
 
 # 5、设置kubelet开机自启
 [root@master ~]# systemctl enable kubelet
-
-
-kubeadm init --apiserver-advertise-address=192.168.5.3 --image-repository registry.aliyuncs.com/google_containers --kubernetes-version v1.21.1 --service-cidr=10.96.0.0/12 --pod-network-cidr=10.244.0.0/16
 ```
 
-#### 2.2.8 kubeadm中的命令
+##### 2.2.11 准备集群镜像
+
+```powershell
+# 在安装kubernetes集群之前，必须要提前准备好集群需要的镜像，所需镜像可以通过下面命令查看
+[root@master ~]# kubeadm config images list
+
+# 下载镜像
+# 此镜像kubernetes的仓库中，由于网络原因，无法连接，下面提供了一种替换方案
+images = (
+	kube-apiserver:v1.17.4
+	kube-controller-manager:v1.17.4
+	kube-scheduler:v1.17.4
+	kube-proxy:v1.17.4
+	pause:3.1
+	etcd:3.4.3-0
+	coredns:1.6.5
+)
+
+for imageName in ${images[@]};do
+	docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName
+	docker tag registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName k8s.gcr.io/$imageName
+	docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName 
+done
+
+```
+
+##### 2.2.11 集群初始化
+
+>下面的操作只需要在master节点上执行即可
+
+```powershell
+# 创建集群
+[root@master ~]# kubeadm init 
+	--apiserver-advertise-address=192.168.90.100 
+	--image-repository registry.aliyuncs.com/google_containers 
+	--kubernetes-version v1.21.1 
+	--service-cidr=10.96.0.0/12 
+	--pod-network-cidr=10.244.0.0/16
+# 创建必要文件
+[root@master ~]# mkdir -p $HOME/.kube
+[root@master ~]# sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+[root@master ~]# sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+> 下面的操作只需要在node节点上执行即可
+
+```powershell
+kubeadm join 192.168.0.100:6443 --token awk15p.t6bamck54w69u4s8 \
+    --discovery-token-ca-cert-hash sha256:a94fa09562466d32d29523ab6cff122186f1127599fa4dcd5fa0152694f17117 
+```
+
+在master上查看节点信息
+
+```powershell
+[root@master ~]# kubectl get nodes
+NAME    STATUS   ROLES     AGE   VERSION
+master  NotReady  master   6m    v1.17.4
+node1   NotReady   <none>  22s   v1.17.4
+node2   NotReady   <none>  19s   v1.17.4
+```
+
+##### 2.2.13 安装网络插件，只在master节点操作即可
+
+```powershell
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+```
+
+由于外网不好访问，如果出现无法访问的情况，可以直接用下面的 记得文件名是kube-flannel.yml，位置：/root/kube-flannel.yml内容：
+
+```powershell
+https://github.com/flannel-io/flannel/tree/master/Documentation/kube-flannel.yml
+```
+
+![截屏2021-10-01 下午10.23.00](images/截屏2021-10-01 下午10.23.00.png)
+
+##### 2.2.14 使用kubeadm reset重置集群
+
+```
+#在master节点之外的节点进行操作
+kubeadm reset
+systemctl stop kubelet
+systemctl stop docker
+rm -rf /var/lib/cni/
+rm -rf /var/lib/kubelet/*
+rm -rf /etc/cni/
+ifconfig cni0 down
+ifconfig flannel.1 down
+ifconfig docker0 down
+ip link delete cni0
+ip link delete flannel.1
+##重启kubelet
+systemctl restart kubelet
+##重启docker
+systemctl restart docker
+```
+
+使用配置文件启动fannel
+
+```powershell
+kubectl apply -f kube-flannel.yml
+```
+
+等待它安装完毕 发现已经是 集群的状态已经是Ready
+
+![img](images/2232696-20210621233106024-1676033717.png)
+
+#### 2.2.13 kubeadm中的命令
 
 ```powershell
 # 生成 新的token
 [root@master ~]# kubeadm token create --print-join-command
 ```
 
+#### 2.3 集群测试
 
+##### 2.3.1 创建一个nginx服务
 
+```powershell
+kubectl create deployment nginx  --image=nginx:1.14-alpine
+```
 
+##### 2.3.2 暴露端口
 
+```powershell
+kubectl expose deploy nginx  --port=80 --target-port=80  --type=NodePort
+```
 
+##### 2.3.3 查看服务
+
+```powershell
+kubectl get god,svc
+```
+
+##### 2.3.4 查看pod
+
+![img](images/2232696-20210621233130477-111035427.png)
+
+浏览器测试结果：
+
+![img](images/2232696-20210621233157075-1117518703.png)
 
 ```shell
 hostnamectl set-hostname k8s-master01 && bash
