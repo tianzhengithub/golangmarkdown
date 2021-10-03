@@ -1323,7 +1323,7 @@ spec:
 
 删除：kubectl delete -f deploy-nginx.yaml
 
-## 4.5 Service
+#### 4.5 Service
 
 通过上节课的学习，已经能够利用Deployment来创建一组Pod来提供具有高可用性的服务。
 
@@ -1338,9 +1338,7 @@ Service可以看作是一组同类Pod**对外的访问接口**。借助Service�
 
 ![image-20200408194716912](Kubenetes.assets/image-20200408194716912.png)
 
-**操作一：创建集群内部可访问的Service**
-
-
+##### 4.5.1 创建集群内部可访问的Service
 
 ```shell
 # 暴露Service
@@ -1367,7 +1365,7 @@ svc-nginx1   ClusterIP   10.109.179.231   <none>        80/TCP    3m51s   run=ng
 </html>
 ```
 
-**操作二：创建集群外部也可访问的Service**
+##### 4.5.2 创建集群外部也可访问的Service
 
 ```shell
 # 上面创建的Service的type类型为ClusterIP，这个ip地址只用集群内部可访问
@@ -1385,13 +1383,14 @@ svc-nginx2    NodePort    10.100.94.0      <none>        80:31928/TCP   9s     r
 http://192.168.5.4:31928/
 ```
 
-**删除Service**
+##### 4.5.3 删除Service
 
 ```shell
-[root@master ~]# kubectl delete svc svc-nginx-1 -n dev service "svc-nginx-1" deleted
+[root@master ~]# kubectl delete svc svc-nginx-1 -n dev 
+service "svc-nginx-1" deleted
 ```
 
-**配置方式**
+##### 4.5.4 配置方式
 
 创建一个svc-nginx.yaml，内容如下：
 
@@ -1422,13 +1421,11 @@ spec:
 >
 > 至此，已经掌握了Namespace、Pod、Deployment、Service资源的基本操作，有了这些操作，就可以在kubernetes集群中实现一个服务的简单部署和访问了，但是如果想要更好的使用kubernetes，就需要深入学习这几种资源的细节和原理。
 
+### 5. Pod详解
 
+#### 5.1 Pod介绍
 
-# 5. Pod详解
-
-## 5.1 Pod介绍
-
-### 5.1.1 Pod结构
+##### 5.1.1 Pod结构
 
 ![image-20200407121501907](Kubenetes.assets/image-20200407121501907-1626781151898.png)
 
@@ -1446,7 +1443,7 @@ spec:
     这里是Pod内部的通讯，Pod的之间的通讯采用虚拟二层网络技术来实现，我们当前环境用的是Flannel
     ```
 
-### 5.1.2 Pod定义
+##### 5.1.2 Pod定义
 
 下面是Pod的资源清单：
 
@@ -1586,7 +1583,7 @@ FIELDS:
 - volumes <[]Object> 存储卷，用于定义Pod上面挂在的存储信息
 - restartPolicy <string> 重启策略，表示Pod在遇到故障的时候的处理策略
 
-## 5.2 Pod配置
+#### 5.2 Pod配置
 
 本小节主要来研究`pod.spec.containers`属性，这也是pod配置中最为关键的一项配置。
 
@@ -1608,7 +1605,7 @@ FIELDS:
    resources <Object>      # 资源限制和资源请求的设置
 ```
 
-### 5.2.1 基本配置
+##### 5.2.1 基本配置
 
 创建pod-base.yaml文件，内容如下：
 
@@ -1656,11 +1653,9 @@ pod-base   1/2     Running   4          95s
 [root@k8s-master01 pod]# kubectl describe pod pod-base -n dev
 ```
 
-### 5.2.2 镜像拉取
+##### 5.2.2 镜像拉取
 
 创建pod-imagepullpolicy.yaml文件，内容如下：
-
-
 
 ```yaml
 apiVersion: v1
