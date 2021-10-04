@@ -1710,7 +1710,7 @@ Events:
   Normal   Started    7s (x3 over 25s)  kubelet, node1     Started container busybox
 ```
 
-### 5.2.3 启动命令
+##### 5.2.3 启动命令
 
 在前面的案例中，一直有一个问题没有解决，就是的busybox容器一直没有成功运行，那么到底是什么原因导致这个容器的故障呢？
 
@@ -1780,7 +1780,7 @@ pod-command   2/2     Runing   0          2s
  4 如果command和args都写了，那么Dockerfile的配置被忽略，执行command并追加上args参数
 ```
 
-### 5.2.4 环境变量
+##### 5.2.4 环境变量
 
 创建pod-env.yaml文件，内容如下：
 
@@ -1819,7 +1819,7 @@ admin
 
 这种方式不是很推荐，推荐将这些配置单独存储在配置文件中，这种方式将在后面介绍。
 
-### 5.2.5 端口设置
+##### 5.2.5 端口设置
 
 本小节来介绍容器的端口设置，也就是containers的ports选项。
 
@@ -1879,7 +1879,7 @@ spec:
 
 访问容器中的程序需要使用的是`Podip:containerPort`
 
-### 5.2.6 资源配额
+##### 5.2.6 资源配额
 
 容器中的程序要运行，肯定是要占用一定资源的，比如cpu和内存等，如果不对某个容器的资源做限制，那么它就可能吃掉大量资源，导致其它容器无法运行。针对这种情况，kubernetes提供了对内存和cpu的资源进行配额的机制，这种机制主要通过resources选项实现，他有两个子选项：
 
@@ -1946,7 +1946,7 @@ pod-resources   0/1     Pending   0          20s
 Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 node(s) had taint {node-role.kubernetes.io/master: }, that the pod didn't tolerate, 2 Insufficient memory.(内存不足)
 ```
 
-## 5.3 Pod生命周期
+#### 5.3 Pod生命周期
 
 我们一般将pod对象从创建至终的这段时间范围称为pod的生命周期，它主要包含下面的过程：
 
@@ -1967,7 +1967,7 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
 - 失败（Failed）：所有容器都已经终止，但至少有一个容器终止失败，即容器返回了非0值的退出状态
 - 未知（Unknown）：apiserver无法正常获取到pod对象的状态信息，通常由网络通信失败所导致
 
-### 5.3.1 创建和终止
+##### 5.3.1 创建和终止
 
 **pod的创建过程**
 
@@ -1997,7 +1997,7 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
 8. 宽限期结束后，若pod中还存在仍在运行的进程，那么pod对象会收到立即终止的信号
 9. kubelet请求apiServer将此pod资源的宽限期设置为0从而完成删除操作，此时pod对于用户已不可见
 
-### 5.3.2 初始化容器
+##### 5.3.2 初始化容器
 
 初始化容器是在pod的主容器启动之前要运行的容器，主要是做一些主容器的前置工作，它具有两大特征：
 
@@ -2070,7 +2070,7 @@ pod-initcontainer                1/1     Running           0          90s
 [root@k8s-master01 ~]# ifconfig ens33:2 192.168.5.15 netmask 255.255.255.0 up
 ```
 
-### 5.3.3 钩子函数
+##### 5.3.3 钩子函数
 
 钩子函数能够感知自身生命周期中的事件，并在相应的时刻到来时运行用户指定的程序代码。
 
@@ -2158,7 +2158,7 @@ pod-hook-exec  1/1     Running    0          29s    10.244.2.48   node2
 postStart...
 ```
 
-### 5.3.4 容器探测
+##### 5.3.4 容器探测
 
 容器探测用于检测容器中的应用实例是否正常工作，是保障业务可用性的一种传统机制。如果经过探测，实例的状态不符合预期，那么kubernetes就会把该问题实例" 摘除 "，不承担业务流量。kubernetes提供了两种探针来实现容器探测，分别是：
 
@@ -2389,7 +2389,7 @@ spec:
       timeoutSeconds: 5 # 探测超时时间为5s
 ```
 
-### 5.3.5 重启策略
+##### 5.3.5 重启策略
 
 在上一节中，一旦容器探测出现了问题，kubernetes就会对容器所在的Pod进行重启，其实这是由pod的重启策略决定的，pod的重启策略有 3 种，分别如下：
 
