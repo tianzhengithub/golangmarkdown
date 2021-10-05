@@ -2441,7 +2441,7 @@ NAME                   READY   STATUS    RESTARTS   AGE
 pod-restartpolicy      0/1     Running   0          5min42s
 ```
 
-## 5.4 Pod调度
+#### 5.4 Pod调度
 
 在默认情况下，一个Pod在哪个Node节点上运行，是由Scheduler组件采用相应的算法计算出来的，这个过程是不受人工控制的。但是在实际使用中，这并不满足的需求，因为很多情况下，我们想控制某些Pod到达某些节点上，那么应该怎么做呢？这就要求了解kubernetes对Pod的调度规则，kubernetes提供了四大类调度方式：
 
@@ -2450,7 +2450,7 @@ pod-restartpolicy      0/1     Running   0          5min42s
 - 亲和性调度：NodeAffinity、PodAffinity、PodAntiAffinity
 - 污点（容忍）调度：Taints、Toleration
 
-### 5.4.1 定向调度
+##### 5.4.1 定向调度
 
 定向调度，指的是利用在pod上声明nodeName或者nodeSelector，以此将Pod调度到期望的node节点上。注意，这里的调度是强制的，这就意味着即使要调度的目标Node不存在，也会向上面进行调度，只不过pod运行失败而已。
 
@@ -2558,7 +2558,7 @@ Events:
   Warning  FailedScheduling  <unknown>  default-scheduler  0/3 nodes are available: 3 node(s) didn't match node selector.
 ```
 
-### 5.4.2 亲和性调度
+##### 5.4.2 亲和性调度
 
 上一节，介绍了两种定向调度的方式，使用起来非常方便，但是也有一定的问题，那就是如果没有满足条件的Node，那么Pod将不会被运行，即使在集群中还有可用Node列表也不行，这就限制了它的使用场景。
 
@@ -2894,7 +2894,7 @@ NAME                           READY   STATUS    RESTARTS   AGE   IP            
 pod-podantiaffinity-required   1/1     Running   0          30s   10.244.1.96   node2  ..
 ```
 
-### 5.4.3 污点和容忍
+##### 5.4.3 污点和容忍
 
 **污点（Taints）**
 
