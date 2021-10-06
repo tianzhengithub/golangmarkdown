@@ -2580,7 +2580,7 @@ Affinity主要分为三类：
 
 首先来看一下`NodeAffinity`的可配置项：
 
-```shell
+```markdown
 pod.spec.affinity.nodeAffinity
   requiredDuringSchedulingIgnoredDuringExecution  Node节点必须满足指定的所有规则才可以，相当于硬限制
     nodeSelectorTerms  节点选择列表
@@ -2721,7 +2721,7 @@ PodAffinity主要实现以运行的Pod为参照，实现让新创建的Pod跟参
 
 首先来看一下`PodAffinity`的可配置项：
 
-```shell
+```markdown
 pod.spec.affinity.podAffinity
   requiredDuringSchedulingIgnoredDuringExecution  硬限制
     namespaces       指定参照pod的namespace
@@ -2745,7 +2745,7 @@ pod.spec.affinity.podAffinity
     weight 倾向权重，在范围1-100
 ```
 
-```
+```markdown
 topologyKey用于指定调度时作用域,例如:
     如果指定为kubernetes.io/hostname，那就是以Node节点为区分范围
 	如果指定为beta.kubernetes.io/os,则以Node节点的操作系统类型来区分
@@ -2830,7 +2830,7 @@ Events:
 
 # 然后重新创建pod，查看效果
 [root@k8s-master01 ~]# kubectl delete -f  pod-podaffinity-required.yaml
-pod "pod-podaffinity-required" deleted
+pod "pod-podaffinity-required" de leted
 [root@k8s-master01 ~]# kubectl create -f pod-podaffinity-required.yaml
 pod/pod-podaffinity-required created
 
@@ -3028,9 +3028,9 @@ FIELDS:
 
  
 
-# 6. Pod控制器详解
+### 6. Pod控制器详解
 
-## 6.1 Pod控制器介绍
+#### 6.1 Pod控制器介绍
 
 Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方式可以将其分为两类：
 
@@ -3052,7 +3052,7 @@ Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方
 - Cronjob：它创建的Pod负责周期性任务控制，不需要持续后台运行
 - StatefulSet：管理有状态应用
 
-## 6.2 ReplicaSet(RS)
+#### 6.2 ReplicaSet(RS)
 
 ReplicaSet的主要作用是**保证一定数量的pod正常运行**，它会持续监听这些Pod的运行状态，一旦Pod发生故障，就会重启或重建。同时它还支持对pod数量的扩缩容和镜像版本的升降级。
 
@@ -3229,7 +3229,7 @@ pc-replicaset-dslhb   1/1     Running   0          75s
 replicaset.apps "pc-replicaset" deleted
 ```
 
-## 6.3 Deployment(Deploy)
+#### 6.3 Deployment(Deploy)
 
 为了更好的解决服务编排的问题，kubernetes在V1.2版本开始，引入了Deployment控制器。值得一提的是，这种控制器并不直接管理pod，而是通过管理ReplicaSet来简介管理Pod，即：Deployment管理ReplicaSet，ReplicaSet管理Pod。所以Deployment比ReplicaSet功能更加强大。
 
@@ -3278,7 +3278,7 @@ spec: # 详情描述
         - containerPort: 80
 ```
 
-**创建deployment**
+##### 6.3.1 创建deployment
 
 创建pc-deployment.yaml，内容如下：
 
@@ -3329,7 +3329,7 @@ pc-deployment-6696798b78-smpvp   1/1     Running   0          107s
 pc-deployment-6696798b78-wvjd8   1/1     Running   0          107s
 ```
 
-**扩缩容**
+##### 6.3.2 扩缩容
 
 ```shell
 # 变更副本数量为5个
@@ -3367,7 +3367,7 @@ pc-deployment-6696798b78-wvjd8   1/1     Running   0          5m23s
 
 deployment支持两种更新策略:`重建更新`和`滚动更新`,可以通过`strategy`指定策略类型,支持两个属性:
 
-```yaml
+```markdown
 strategy：指定新的Pod替换旧的Pod的策略， 支持两个属性：
   type：指定策略类型，支持两种策略
     Recreate：在创建出新的Pod之前会先杀掉所有已存在的Pod
@@ -3486,7 +3486,7 @@ pc-deployment-6696798b11   0         0         0       5m37s
 pc-deployment-c848d76789   4         4         4       72s
 ```
 
-**版本回退**
+##### 6.3.3 版本回退
 
 deployment支持版本升级过程中的暂停、继续功能以及版本回退等诸多功能，下面具体来看.
 
@@ -3533,7 +3533,7 @@ pc-deployment-966bf7f44    0         0         0       37m
 pc-deployment-c848d767     0         0         0       71m
 ```
 
-**金丝雀发布**
+##### 6.3.4 金丝雀发布
 
 Deployment控制器支持控制更新过程中的控制，如“暂停(pause)”或“继续(resume)”更新操作。
 
@@ -3591,7 +3591,7 @@ pc-deployment-6c9f56fcfb-rf84v   1/1     Running   0          37s
 deployment.apps "pc-deployment" deleted
 ```
 
-## 6.4 Horizontal Pod Autoscaler(HPA)
+#### 6.4 Horizontal Pod Autoscaler(HPA)
 
 在前面的课程中，我们已经可以实现通过手工执行`kubectl scale`命令实现Pod扩容或缩容，但是这显然不符合Kubernetes的定位目标--自动化、智能化。 Kubernetes期望可以实现通过监测Pod的使用情况，实现pod数量的自动调整，于是就产生了Horizontal Pod Autoscaler（HPA）这种控制器。
 
@@ -3601,7 +3601,7 @@ HPA可以获取每个Pod利用率，然后和HPA中定义的指标进行对比�
 
 接下来，我们来做一个实验
 
-**1 安装metrics-server**
+##### 6.4.1 安装metrics-server
 
 metrics-server可以用来收集集群中的资源使用情况
 
@@ -3646,7 +3646,7 @@ etcd-master                       14m          145Mi
 # 至此,metrics-server安装完成
 ```
 
-**2 准备deployment和servie**
+##### 6.4.2 准备deployment和servie
 
 创建pc-hpa-pod.yaml文件，内容如下：
 
@@ -3679,6 +3679,8 @@ spec:
 ```
 
 ```shell
+# 创建deployment
+[root@k8s-master01 1.8+]# kubectl run nginx --image=nginx:1.17.1 --requests=cpu=100m -n dev
 # 创建service
 [root@k8s-master01 1.8+]# kubectl expose deployment nginx --type=NodePort --port=80 -n dev
 ```
@@ -3696,7 +3698,7 @@ NAME            TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
 service/nginx   NodePort   10.101.18.29   <none>        80:31830/TCP   35s
 ```
 
-**3 部署HPA**
+##### 6.4.3 部署HPA
 
 创建pc-hpa.yaml文件，内容如下：
 
@@ -3711,7 +3713,7 @@ spec:
   maxReplicas: 10 #最大pod数量
   targetCPUUtilizationPercentage: 3 # CPU使用率指标
   scaleTargetRef:   # 指定要控制的nginx信息
-    apiVersion: apps/v1
+    apiVersion:  /v1
     kind: Deployment
     name: nginx
 ```
@@ -3727,7 +3729,7 @@ NAME     REFERENCE          TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
 pc-hpa   Deployment/nginx   0%/3%     1         10        1          62s
 ```
 
-**4 测试**
+##### 6.4.4 测试
 
 使用压测工具对service地址`192.168.5.4:31830`进行压测，然后通过控制台查看hpa和pod的变化
 
@@ -3809,7 +3811,7 @@ nginx-7df9756ccc-m9gsj   1/1     Terminating         0          6m50s
 nginx-7df9756ccc-sl9c6   1/1     Terminating         0          6m50s
 ```
 
-## 6.5 DaemonSet(DS)
+#### 6.5 DaemonSet(DS)
 
 DaemonSet类型的控制器可以保证在集群中的每一台（或指定）节点上都运行一个副本。一般适用于日志收集、节点监控等场景。也就是说，如果一个Pod提供的功能是节点级别的（每个节点都需要且只需要一个），那么这类Pod就适合使用DaemonSet类型的控制器创建。
 
@@ -3896,7 +3898,7 @@ pc-daemonset-k224w   1/1     Running   0          37s   10.244.2.74   node2
 daemonset.apps "pc-daemonset" deleted
 ```
 
-## 6.6 Job
+#### 6.6 Job
 
 Job，主要用于负责**批量处理(一次要处理指定数量任务)**短暂的**一次性(每个任务仅运行一次就结束)**任务。Job特点如下：
 
@@ -3940,7 +3942,7 @@ spec: # 详情描述
         command: ["bin/sh","-c","for i in 9 8 7 6 5 4 3 2 1; do echo $i;sleep 2;done"]
 ```
 
-```
+```markdown
 关于重启策略设置的说明：
     如果指定为OnFailure，则job会在pod出现故障时重启容器，而不是创建pod，failed次数不变
     如果指定为Never，则job会在pod出现故障时创建新的pod，并且故障pod不会消失，也不会重启，failed次数加1
@@ -4022,9 +4024,9 @@ pc-job-5vg2j   0/1     Completed           0          12s
 job.batch "pc-job" deleted
 ```
 
-## 6.7 CronJob(CJ)
+#### 6.7 CronJob(CJ)
 
-CronJob控制器以Job控制器资源为其管控对象，并借助它管理pod资源对象，Job控制器定义的作业任务在其控制器资源创建之后便会立即执行，但CronJob可以以类似于Linux操作系统的周期性任务作业计划的方式控制其运行**时间点**及**重复运行**的方式。也就是说，**CronJob可以在特定的时间点(反复的)去运行job任务**。
+CronJob控制器以 Job控制器资源为其管控对象，并借助它管理pod资源对象，Job控制器定义的作业任务在其控制器资源创建之后便会立即执行，但CronJob可以以类似于Linux操作系统的周期性任务作业计划的方式控制其运行**时间点**及**重复运行**的方式。也就是说，**CronJob可以在特定的时间点(反复的)去运行job任务**。
 
 ![img](Kubenetes.assets/image-20200618213149531.png)
 
@@ -4069,7 +4071,7 @@ spec: # 详情描述
             command: ["bin/sh","-c","for i in 9 8 7 6 5 4 3 2 1; do echo $i;sleep 20;done"]
 ```
 
-```yaml
+```markdown
 需要重点解释的几个选项：
 schedule: cron表达式，用于指定任务的执行时间
     */1    *      *    *     *
@@ -4142,11 +4144,9 @@ cronjob.batch "pc-cronjob" deleted
 
  
 
+### 7. Service详解
 
-
-# 7. Service详解
-
-## 7.1 Service介绍
+#### 7.1 Service介绍
 
 在kubernetes中，pod是应用程序的载体，我们可以通过pod的ip来访问应用程序，但是pod的ip地址不是固定的，这也就意味着不方便直接采用pod的ip对服务进行访问。
 
@@ -4177,13 +4177,13 @@ TCP  10.97.97.97:80 rr
 
 kube-proxy目前支持三种工作模式:
 
-**userspace 模式**
+##### 7.1.1 userspace 模式
 
 userspace模式下，kube-proxy会为每一个Service创建一个监听端口，发向Cluster IP的请求被Iptables规则重定向到kube-proxy监听的端口上，kube-proxy根据LB算法选择一个提供服务的Pod并和其建立链接，以将请求转发到Pod上。  该模式下，kube-proxy充当了一个四层负责均衡器的角色。由于kube-proxy运行在userspace中，在进行转发处理时会增加内核和用户空间之间的数据拷贝，虽然比较稳定，但是效率比较低。
 
 ![img](Kubenetes.assets/image-20200509151424280.png)
 
-**iptables 模式**
+##### 7.1.2 iptables 模式
 
 iptables模式下，kube-proxy为service后端的每个Pod创建对应的iptables规则，直接将发向Cluster IP的请求重定向到一个Pod IP。  该模式下kube-proxy不承担四层负责均衡器的角色，只负责创建iptables规则。该模式的优点是较userspace模式效率更高，但不能提供灵活的LB策略，当后端Pod不可用时也无法进行重试。
 
