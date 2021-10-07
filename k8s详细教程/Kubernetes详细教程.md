@@ -5727,13 +5727,13 @@ rules:
 
 - apiGroups: 支持的API组列表
 
-  ```
+  ```bash
   "","apps", "autoscaling", "batch"
   ```
 
 - resources：支持的资源对象列表
 
-  ```
+  ```bash
   "services", "endpoints", "pods","secrets","configmaps","crontabs","deployments","jobs",
   "nodes","rolebindings","clusterroles","daemonsets","replicasets","statefulsets",
   "horizontalpodautoscalers","replicationcontrollers","cronjobs"
@@ -5741,7 +5741,7 @@ rules:
 
 - verbs：对资源对象的操作方法列表
 
-  ```
+  ```bash
   "get", "list", "watch", "create", "update", "patch", "delete", "exec"
   ```
 
