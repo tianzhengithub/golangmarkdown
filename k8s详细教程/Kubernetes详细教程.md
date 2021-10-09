@@ -439,10 +439,10 @@ systemctl restart docker
 
 ##### 2.6.15 重启kubelet和docker
 
-```
-##重启kubelet
+```powershell
+# 重启kubelet
 systemctl restart kubelet
-##重启docker
+# 重启docker
 systemctl restart docker
 ```
 
