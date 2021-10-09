@@ -60,8 +60,6 @@ kubernetes的本质是**一组服务器集群**，它可以在集群的每个节
 - **版本回退**：如果发现新发布的程序版本有问题，可以立即回退到原来的版本
 - **存储编排**：可以根据容器自身的需求自动创建存储卷
 
-![image-20200526203726071](Kubenetes.assets/image-20200526203726071-1626780706899.png)
-
 #### 1.3 kubernetes组件
 
 一个kubernetes集群主要是由**控制节点(master)**、**工作节点(node)**构成，每个节点上都会安装不同的组件。
@@ -439,6 +437,15 @@ systemctl restart kubelet
 systemctl restart docker
 ```
 
+##### 2.6.15 重启kubelet和docker
+
+```
+##重启kubelet
+systemctl restart kubelet
+##重启docker
+systemctl restart docker
+```
+
 使用配置文件启动fannel
 
 ```powershell
@@ -449,7 +456,7 @@ kubectl apply -f kube-flannel.yml
 
 ![img](images/2232696-20210621233106024-1676033717.png)
 
-##### 2.6.15 kubeadm中的命令
+##### 2.6.16 kubeadm中的命令
 
 ```powershell
 # 生成 新的token
@@ -533,7 +540,7 @@ YAML支持以下几种数据类型：
 - 对象：键值对的集合，又称为映射（mapping）/ 哈希（hash） / 字典（dictionary）
 - 数组：一组按次序排列的值，又称为序列（sequence） / 列表（list）
 
-```
+```yml
 # 纯量, 就是指的一个简单的值，字符串、布尔值、整数、浮点数、Null、时间、日期
 # 1 布尔类型
 c1: true (或者True)
@@ -553,7 +560,9 @@ c8: line1
     line2     # 字符串过多的情况可以拆成多行，每一行会被转化成一个空格
 ```
 
-```
+
+
+```yaml
 # 对象
 # 形式一(推荐):
 heima:
@@ -563,7 +572,7 @@ heima:
 heima: {age: 15,address: Beijing}
 ```
 
-```
+```yaml
 # 数组
 # 形式一(推荐):
 address:
@@ -587,15 +596,23 @@ address: [顺义,昌平]
 
 - 命令式对象管理：直接使用命令去操作kubernetes资源
 
-  `kubectl run nginx-pod --image=nginx:1.17.1 --port=80`
+  ``` powershell
+  kubectl run nginx-pod --image=nginx:1.17.1 --port=80
+  ```
 
 - 命令式对象配置：通过命令配置和配置文件去操作kubernetes资源
 
-  `kubectl create/patch -f nginx-pod.yaml`
+  ```powershell
+  kubectl create/patch -f nginx-pod.yaml
+  ```
 
 - 声明式对象配置：通过apply命令和配置文件去操作kubernetes资源
 
-  `kubectl apply -f nginx-pod.yaml`
+  ```powershell
+  kubectl apply -f nginx-pod.yaml
+  ```
+  
+  
 
 | 类型           | 操作对象 | 适用环境 | 优点           | 缺点                             |
 | :------------- | :------- | :------- | :------------- | :------------------------------- |
@@ -810,7 +827,7 @@ namespace/dev unchanged
 pod/nginxpod unchanged
 ```
 
-```
+```powershell
 总结:
     其实声明式对象配置就是使用apply描述一个资源最终的状态（在yaml中定义状态）
     使用apply操作资源：
