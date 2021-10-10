@@ -2030,7 +2030,7 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
 
 假设要以主容器来运行nginx，但是要求在运行nginx之前先要能够连接上mysql和redis所在服务器
 
-为了简化测试，事先规定好mysql`(192.168.5.4)`和redis`(192.168.5.5)`服务器的地址
+为了简化测试，事先规定好mysql`(192.168.90.14)`和redis`(192.168.90.15)`服务器的地址
 
 创建pod-initcontainer.yaml，内容如下：
 
@@ -2050,10 +2050,10 @@ spec:
   initContainers:
   - name: test-mysql
     image: busybox:1.30
-    command: ['sh', '-c', 'until ping 192.168.5.14 -c 1 ; do echo waiting for mysql...; sleep 2; done;']
+    command: ['sh', '-c', 'until ping 192.168.90.14 -c 1 ; do echo waiting for mysql...; sleep 2; done;']
   - name: test-redis
     image: busybox:1.30
-    command: ['sh', '-c', 'until ping 192.168.5.15 -c 1 ; do echo waiting for reids...; sleep 2; done;']
+    command: ['sh', '-c', 'until ping 192.168.90.15 -c 1 ; do echo waiting for reids...; sleep 2; done;']
 ```
 
 ```shell
@@ -2083,8 +2083,8 @@ pod-initcontainer                0/1     PodInitializing   0          89s
 pod-initcontainer                1/1     Running           0          90s
 
 # 接下来新开一个shell，为当前服务器新增两个ip，观察pod的变化
-[root@k8s-master01 ~]# ifconfig ens33:1 192.168.5.14 netmask 255.255.255.0 up
-[root@k8s-master01 ~]# ifconfig ens33:2 192.168.5.15 netmask 255.255.255.0 up
+[root@k8s-master01 ~]# ifconfig ens33:1 192.168.90.14 netmask 255.255.255.0 up
+[root@k8s-master01 ~]# ifconfig ens33:2 192.168.90.15 netmask 255.255.255.0 up
 ```
 
 ##### 5.3.3 钩子函数
