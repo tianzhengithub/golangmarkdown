@@ -1246,7 +1246,7 @@ spec:
 # --port   指定端口
 # --replicas  指定创建pod数量
 # --namespace  指定namespace
-[root@master ~]# kubectl run deploy nginx --image=nginx:latest --port=80 --replicas=3 -n dev
+[root@master ~]# kubectl run nginx --image=nginx:latest --port=80 --replicas=3 -n dev
 deployment.apps/nginx created
 
 # 查看创建的Pod
