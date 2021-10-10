@@ -480,7 +480,7 @@ kubectl expose deploy nginx  --port=80 --target-port=80  --type=NodePort
 ##### 2.7.3 查看服务
 
 ```powershell
-kubectl get god,svc
+kubectl get pod,svc
 ```
 
 ##### 2.7.4 查看pod
