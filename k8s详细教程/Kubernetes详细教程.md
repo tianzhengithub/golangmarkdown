@@ -4206,7 +4206,7 @@ iptables模式下，kube-proxy为service后端的每个Pod创建对应的iptable
 
 ![img](Kubenetes.assets/image-20200509152947714.png)
 
-**ipvs 模式**
+##### 7.1.3 ipvs 模式
 
 ipvs模式和iptables类似，kube-proxy监控Pod的变化并创建相应的ipvs规则。ipvs相对iptables转发效率更高。除此以外，ipvs支持更多的LB算法。
 
