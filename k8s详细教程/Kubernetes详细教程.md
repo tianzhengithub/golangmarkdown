@@ -349,7 +349,7 @@ KUBE_PROXY_MODE="ipvs"
 
 # 下载镜像
 # 此镜像kubernetes的仓库中，由于网络原因，无法连接，下面提供了一种替换方案
-images = (
+images=(
 	kube-apiserver:v1.17.4
 	kube-controller-manager:v1.17.4
 	kube-scheduler:v1.17.4
