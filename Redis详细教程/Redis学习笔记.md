@@ -729,7 +729,7 @@ SETRANG STRING range value : 替换字符串
 3、取值语法：
 	GET KEY_NAME : Redis GET 命令用于获取指定 key 的值。如果 key 不存在，返回 nil。如果key存储的值不是字符串类型，返回一个错误。
 
-    GETRANGE  key start end : 用于获取存储在指定key中字符串的子字符串。字符串的截取范围由 start 和 end 两个偏移量来决定(包括 start 和 end 在内)
+  GETRANGE  key start end : 用于获取存储在指定key中字符串的子字符串。字符串的截取范围由 start 和 end 两个偏移量来决定(包括 start 和 end 在内)
 
 	GETBIT key offset ：对 key 所存储的字符串值，获取指定偏移量上的为(bit)；
 GETTEST语法 ： GETSET KEY_NAME VALUE : GETSET 命令用于设置指定 key 的值，并返回key的旧值。当key不存在是，返回 nil
@@ -745,8 +745,8 @@ DEL KEY_NAME : 删除指定的key，如果存在，返回数字类型。
 7、GETSET NAME VALUE : 一次性设置和读取(返回旧值，写上新值)
 8、自增/自减：
   INCR KEY_Name : Incr 命令将key中存储的数组值增1。如果 key 不存在，那么key的值会先被初始化为0，然后在执行INCR操作
-  自增:INCRBY KEY_Name ：增量值Incrby 命令将key中存储的数字加上指定的增量值
-  自减：DECR KEY_Name 或 DECYBY KEY_NAME 减值：DECR 命令将key中存储的数字减少1
+  自增: INCRBY KEY_Name : 增量值Incrby 命令将key中存储的数字加上指定的增量值
+  自减: DECR KEY_Name 或 DECYBY KEY_NAME 减值：DECR 命令将key中存储的数字减少1
 
 ：(注意这些key对应的必须是数字类型字符串，否则会出错。)
 
@@ -768,8 +768,8 @@ DEL KEY_NAME : 删除指定的key，如果存在，返回数字类型。
 
 - **3、计数器(常规key-value缓存应用。常规计数：微博数，粉丝数)**
 
-```xaml
-INCR等指令本身就具有原则操作的特定，所以我们完全可以利用redis的INCR，INCRBY,DECR,DECRBY等指令来实现原子计数的效果。假如，在某种场景下有3个客户端痛死读取了mynum的值(值为2)，然后对其同时进行了加1的操作，那么，最后mynum的值一定是5。
+```bash
+INCR 等指令本身就具有原子操作的特定，所以我们完全可以利用redis的INCR，INCRBY,DECR,DECRBY等指令来实现原子计数的效果。假如，在某种场景下有3个客户端同时读取了mynum的值(值为2)，然后对其同时进行了加1的操作，那么，最后mynum的值一定是5。
 不少网站都利用redis的这个特性来实现业务上的统计计数需求。
 ```
 
@@ -786,11 +786,11 @@ Redis 中每一个hash 可以存储 2的32次方 -1 键值对(40 多亿)
 常用命令
 
 ```java
-1、赋值语法：
+一、赋值语法：
 	1、 HSET KEY FIELD VALUE   ： 为指定的KEY,设定FILD/VALUE
 	2、 HMSET KEY FIELD VALUE [FIELD1，VALUE]... : 同时将多个 field-value(域-值)对设置到哈希表key中。
 
-2、取值语法：
+二、取值语法：
     HGET KEY FIELD  :获取存储在HASH中的值，根据FIELD得到VALUE
     HMGET KEY FIELD [FIELD1]   :获取key所有给定字段的值
     HGETALL KEY     :返回HASH表中所有的字段和值
@@ -798,10 +798,10 @@ Redis 中每一个hash 可以存储 2的32次方 -1 键值对(40 多亿)
  HKEYS KEY : 获取所有哈希表中的字段
  HLEN  KEY : 获取哈希表中字段的数量
 
-3、删除语法：
+三、删除语法：
      HDEL KEY FIELD[FIELD2]  :删除一个或多个HASH表字段
  
-4、其它语法：
+四、其它语法：
      HSETNX KEY FIELD VALUE : 只有在字段field 不存在时，设置哈希表字段的值
      
      HINCRBY KEY FIELD INCREMENT :为哈希key中的指定字段的整数值加上增量 increment。
