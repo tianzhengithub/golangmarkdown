@@ -349,7 +349,7 @@ KUBE_PROXY_MODE="ipvs"
 
 # 下载镜像
 # 此镜像kubernetes的仓库中，由于网络原因，无法连接，下面提供了一种替换方案
-images = (
+images=(
 	kube-apiserver:v1.17.4
 	kube-controller-manager:v1.17.4
 	kube-scheduler:v1.17.4
@@ -376,7 +376,11 @@ done
 [root@master ~]# kubeadm init 
 	--apiserver-advertise-address=192.168.90.100 
 	--image-repository registry.aliyuncs.com/google_containers 
+<<<<<<< HEAD
 	--kubernetes-version=v1.21.1
+=======
+	--kubernetes-version v1.17.4 
+>>>>>>> 532c8e5d4b1a4a7d1f87f7bac05647493048d555
 	--service-cidr=10.96.0.0/12 
 	--pod-network-cidr=10.244.0.0/16
 # 创建必要文件
