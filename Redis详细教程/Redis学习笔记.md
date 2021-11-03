@@ -1321,18 +1321,18 @@ RPOPLPUSH source destination
 
 2、取值语法：
 	ZCARD key ：获取有序结合的成员数
-    ZCOUNT key min max :计算在有序结合中指定区间分数的成员数
-###############################################################
-127.0.0.1:6379> ZADD kim 1 tian
-(integer) 0
-127.0.0.1:6379> zadd kim 2 yuan 3 xing
-(integer) 2
-127.0.0.1:6379> zcount kim 1 2
-(integer) 2
-127.0.0.1:6379> 
-###############################################################
-    ZRANK  key member  :返回有序集合中指定成员的所有
-    ZRANGE KEY START STOP  [WITHSCORES]:通过索引区间返回有序集合成指定区间内的成员(低到高)
+  ZCOUNT key min max :计算在有序结合中指定区间分数的成员数
+
+	127.0.0.1:6379> ZADD kim 1 tian
+	(integer) 0
+	127.0.0.1:6379> zadd kim 2 yuan 3 xing
+	(integer) 2
+	127.0.0.1:6379> zcount kim 1 2
+	(integer) 2
+	127.0.0.1:6379> 
+
+  ZRANK  key member  :返回有序集合中指定成员的所有
+  ZRANGE KEY START STOP  [WITHSCORES]:通过索引区间返回有序集合成指定区间内的成员(低到高)
 	ZRANGEBYSCORE KEY MIN MAX [WITHSCORES] [LIMIT] :通过分数返回有序集合指定区间内的成员
 	ZREVRANGE KEY START STOP [WITHSCORES] :返回有序集中是定区间内的成员，通过索引，分数从高到底
 	ZREVERANGEBYSCORE KEY MAX MIN [WITHSCORES] :返回有序集中指定分数区间的成员，分数从高到低排序
