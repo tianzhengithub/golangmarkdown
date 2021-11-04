@@ -292,45 +292,45 @@ Redis的配置文件位于Redis安装目录下，文件名称为redis.conf
 ##### 4.2 Redis.conf
 
 ```java
-**1、Redis默认不是以守护进程的方式运行，可以通过该配置项修改，使用yes启用守护进程
+1、Redis默认不是以守护进程的方式运行，可以通过该配置项修改，使用yes启用守护进程
     daemonize no
-**2、当Redis以守护进程方式运行时，Redis默认会把pid写入/var/run/redis.pid文件，可以通过pidfile指定 
+2、当Redis以守护进程方式运行时，Redis默认会把pid写入/var/run/redis.pid文件，可以通过pidfile指定 
     pidfile /var/run/redis.pid
 
-**3、指定Redis监听端口，默认端口为6379；’
+3、指定Redis监听端口，默认端口为6379；’
     port 6379
-**4、绑定的主机地址
+4、绑定的主机地址
     bind 127.0.0.1
-**5、当客户端限制多长时间后关闭连接，如果指定为0，表示关闭该功能
+5、当客户端限制多长时间后关闭连接，如果指定为0，表示关闭该功能
     timeout 300
-**6、指定日志记录几倍，Redis总共支持四个级别：debug，verbose，notice，warning，默认为verbose
+6、指定日志记录几倍，Redis总共支持四个级别：debug，verbose，notice，warning，默认为verbose
     loglevel verbos
-**7、日志记录方式，默认为标准输出，如果配置Redis为守护进程方式运行，而这里又配置日志记录方式标准输出，则日志将会发送给/dev/null
+7、日志记录方式，默认为标准输出，如果配置Redis为守护进程方式运行，而这里又配置日志记录方式标准输出，则日志将会发送给/dev/null
     logfile stdout
-**8、设置数据库的数量，默认数据库为0，可以使用SELECT<dbid>命令在连接上指定数据库id
+8、设置数据库的数量，默认数据库为0，可以使用SELECT<dbid>命令在连接上指定数据库id
     databases 16
-**9、指定在多长时间内，有多少次更新操作，就将数据同步到数据文件，可以多个条件配合
+9、指定在多长时间内，有多少次更新操作，就将数据同步到数据文件，可以多个条件配合
     save<seconds><changes>
     Redis默认配置文件中提供了三个条件
     save 900 1
     save 300 10
     save 60 10000
     分别表示900秒(15分钟)内有1个更改，300秒(5分钟)内有10个更改以及60秒内有10000个更改。
-**10、指定存储至本地数据库时是否压缩数据，默认为yes，Redis采用LZF(压缩算法)压缩，如果为了节省CPU时间，可以关闭该选项，但会导致数据库文件变的巨大
+10、指定存储至本地数据库时是否压缩数据，默认为yes，Redis采用LZF(压缩算法)压缩，如果为了节省CPU时间，可以关闭该选项，但会导致数据库文件变的巨大
     rdbcompression yes
 ```
 
 **中间10个**
 
-```xml
-**11、指定本地数据库文件名，默认为dump.rdb
+```java
+11、指定本地数据库文件名，默认为dump.rdb
 	dbfilename dump.rdb
-**12、指定本地数据库存放目录
+12、指定本地数据库存放目录
 	dir ./
-**13、设置当本机为slav服务时，设置master服务的IP地址及端口，在Redis启动时，它会自动从master进行数据同步slaveof<masterip> <masterport>
-**14、当master服务设置了密码保护时，slav服务连接master的密码
+13、设置当本机为slav服务时，设置master服务的IP地址及端口，在Redis启动时，它会自动从master进行数据同步slaveof<masterip> <masterport>
+14、当master服务设置了密码保护时，slav服务连接master的密码
     masterauth<master-password>
-**15、设置Redis连接密码，如果配置了连接密码，客户端在连接Redis是需要通过AUTH <password>命令提供密码，默认关闭
+15、设置Redis连接密码，如果配置了连接密码，客户端在连接Redis是需要通过AUTH <password>命令提供密码，默认关闭
     requirepass foobared
 16、设置同一时间最大客户端连接数，默认是无限制，Redis可以同时打开的客户端连接数为Redis进程可以打开的最大文件描述符数，如果设置maxclients 0，表示不作限制。当客户端连接数到达限制是，Redis会关闭新的连接并向客户端返回max number of clients reached错误信息
     maxclients 128
@@ -342,9 +342,9 @@ Redis的配置文件位于Redis安装目录下，文件名称为redis.conf
 19、指定更新日志文件名，默认为appendonly.aof
     appendfulename appendonly.aof
 20、指定更新日志条件，共有3个可选值：
-    no：表示等操作系统进行数据缓存同步到磁盘(快)
-    always：表示每次更新操作后活动调用fsync()将数据写到磁盘(慢，安全)
-    everysec：表示每秒同步一个(折中，默认值)
+    no: 表示等操作系统进行数据缓存同步到磁盘(快)
+    always: 表示每次更新操作后活动调用fsync()将数据写到磁盘(慢，安全)
+    everysec: 表示每秒同步一个(折中，默认值)
     appendfsync everysec
 ```
 
@@ -1832,13 +1832,13 @@ Redis事务可以一次指定多个命令（允许在一个单独的步骤中执
 
 **常用命令**
 
-```javascript
-DISCARD:
+```properties
+DISCARD :
 	取消事务，放弃执行事务块内的所有命令。
+MULTI :
+	标记一个事务块的开始。
 EXEC :
 	执行所有事务块内的命令。
-MULTI:
-	标记一个事务块的开始。
 UNWATCH:
 	取消watch命令对所有key的监视。
 
