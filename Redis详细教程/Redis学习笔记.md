@@ -845,18 +845,18 @@ Redis 中每一个hash 可以存储 2的32次方 -1 键值对(40 多亿)
 
 **常用命令**
 
-```xml
+```properties
 1、赋值语法： 
 	LPUSH KEY VALUE1 [VALUE2] :将一个或多个值插入到列表头部（从左侧添加）
-    RPUSH KEY VALUE1 [VALUE2] ：在列表中添加一个或多个值（从有侧添加）
+  RPUSH KEY VALUE1 [VALUE2] ：在列表中添加一个或多个值（从有侧添加）
 	LPUSHX KEY VAKUE :将一个值插入到已存在的列表头部。如果列表不在，操作无效
 	RPUSHX KEY VALUE :一个值插入已经在的列表尾部（最右边）。如果列表不在，操作无效
 ```
 
-```xml
+```properties
 2、取值语法：
 	LLEN KEY   :获取列表长度
-    LINDEX KEY INDEX	:通过索引获取列表中的元素
+  LINDEX KEY INDEX	:通过索引获取列表中的元素
 	LRANGE KEY START STOP	:获取列表指定范围内的元素
 ```
 
@@ -870,28 +870,28 @@ start：页大小（页数-1）
 
 stop：（页大小页数）-1
 
-```xml
+```properties
 3、删除语法：
-	LPOP KEY 移除并获取列表的第一个元素（从左侧删除）
-	RPOP KEY 移除列表的最后一个元素，返回值为移除的元素（从右侧删除）
+	LPOP KEY :移除并获取列表的第一个元素（从左侧删除）
+	RPOP KEY :移除列表的最后一个元素，返回值为移除的元素（从右侧删除）
 
-	BLPOP key1 [key2]timeout 移除并获取列表的第一个元素，如果列表没有元素会阻塞列表知道等待超时或发现可弹出元素为止。
+	BLPOP key1 [key2]timeout :移除并获取列表的第一个元素，如果列表没有元素会阻塞列表知道等待超时或发现可弹出元素为止。
 ```
 
-```xml
+```properties
 4、修改语法：
 	LSET KEY INDEX VALUE :通过索引设置列表元素的值
-	LINSERT KEY BEFORE|AFTER WORIL VALUE ：在列表的元素前或者后 插入元素 描述：将值 value 插入到列表key当中，位于值world之前或之后。
+	LINSERT KEY BEFORE|AFTER WORIL VALUE :在列表的元素前或者后 插入元素 描述：将值 value 插入到列表key当中，位于值world之前或之后。
 ```
 
 **高级命令**
 
-```xml
+```properties
 高级语法：
 	RPOPLPUSH source destiation : 移除列表的最后一个元素，并将该元素添加到另外一个列表并返回
 	示例描述：
 		RPOPLPUSH a1  a2  : a1的最后元素移到a2的左侧
-		RPOPLPUSH a1  a1  ： 循环列表，将最后元素移到最左侧
+		RPOPLPUSH a1  a1  : 循环列表，将最后元素移到最左侧
    BRPOPLPUSH source destination timeout  :从列表中弹出一个值，将弹出的元素插入到另外一个列表中并返回它；如果列表没有元素会阻塞列表知道等待超时或发现可弹出的元素为止。
 ```
 
