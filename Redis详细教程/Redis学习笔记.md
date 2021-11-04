@@ -1879,7 +1879,7 @@ WATCH KEY [KEY ...]
 
 如果执行的某个命令报出了错误，则只有报错的命令不会被执行，**而其他的命令都会执行，不会回滚**。
 
-![image-20200726083122351](C:\Users\田源兴\AppData\Roaming\Typora\typora-user-images\image-20200726083122351.png)
+
 
 ##### 15.4  示例4 事务的错误处理
 
