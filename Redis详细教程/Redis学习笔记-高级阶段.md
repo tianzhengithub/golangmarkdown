@@ -2092,7 +2092,7 @@ l 在备份周期在一定间隔时间做一次备份，所以如果Redis意外d
 
 以日志的形式来记录每个写操作（增量保存），将Redis执行过的所有写指令记录下来(读操作不记录)， 只许追加文件但不可以改写文件，redis启动之初会读取该文件重新构建数据，换言之，redis 重启的话就根据日志文件的内容将写指令从前到后执行一次以完成数据的恢复工作
 
-AOF持久化流程
+###### 13.1.2 AOF持久化流程
 
 （1）客户端的请求写命令会被append追加到AOF缓冲区内；
 
@@ -2106,41 +2106,32 @@ AOF持久化流程
 
  
 
-AOF默认不开启
+###### 13.1.3 AOF默认不开启
 
 可以在redis.conf中配置文件名称，默认为 appendonly.aof
 
 AOF文件的保存路径，同RDB的路径一致。
 
-AOF和RDB同时开启，redis听谁的？
+###### 13.1.4 AOF和RDB同时开启，redis听谁的？
 
 AOF和RDB同时开启，系统默认取AOF的数据（数据不会存在丢失）
 
-AOF启动/修复/恢复
+###### 13.1.5 AOF启动/修复/恢复
 
-l AOF的备份机制和性能虽然和RDB不同, 但是备份和恢复的操作同RDB一样，都是拷贝备份文件，需要恢复时再拷贝到Redis工作目录下，启动系统即加载。
+- AOF的备份机制和性能虽然和RDB不同, 但是备份和恢复的操作同RDB一样，都是拷贝备份文件，需要恢复时再拷贝到Redis工作目录下，启动系统即加载。
 
-l 正常恢复
+- 正常恢复
+  1. 修改默认的appendonly no，改为yes
+  2. 将有数据的aof文件复制一份保存到对应目录(查看目录：config get dir)
+  3. 恢复：重启redis然后重新加载
 
-n 修改默认的appendonly no，改为yes
+- 异常恢复
+  1. 修改默认的appendonly no，改为yes
+  2. 如遇到AOF文件损坏，通过/usr/local/bin/redis-check-aof--fix appendonly.aof进行恢复
+  3. 备份被写坏的AOF文件
+  4. 恢复：重启redis，然后重新加载
 
-n 将有数据的aof文件复制一份保存到对应目录(查看目录：config get dir)
-
-n 恢复：重启redis然后重新加载
-
- 
-
-l 异常恢复
-
-n 修改默认的appendonly no，改为yes
-
-n 如遇到AOF文件损坏，通过/usr/local/bin/redis-check-aof--fix appendonly.aof进行恢复
-
-n 备份被写坏的AOF文件
-
-n 恢复：重启redis，然后重新加载
-
-AOF同步频率设置
+###### 13.1.6 AOF同步频率设置
 
 appendfsync always
 
@@ -2154,15 +2145,13 @@ appendfsync no
 
 redis不主动进行同步，把同步时机交给操作系统。
 
-Rewrite压缩
+###### 13.1.7 Rewrite压缩
 
- 
-
-1是什么：
+1. 是什么：
 
 AOF采用文件追加方式，文件会越来越大为避免出现此种情况，新增了重写机制, 当AOF文件的大小超过所设定的阈值时，Redis就会启动AOF文件的内容压缩， 只保留可以恢复数据的最小指令集.可以使用命令bgrewriteaof
 
-2重写原理，如何实现重写
+2. 重写原理，如何实现重写
 
 AOF文件持续增长而过大时，会fork出一条新进程来将文件重写(也是先写临时文件最后再rename)，redis4.0版本后的重写，是指上就是把rdb 的快照，以二级制的形式附在新的aof头部，作为已有的历史数据，替换掉原来的流水账操作。
 
@@ -2204,31 +2193,31 @@ auto-aof-rewrite-min-size：设置重写的基准值，最小文件64MB。达到
 
  
 
-优势
+###### 13.1.8 优势
 
 ![img](images/wps2AR7wB.png) 
 
-n 备份机制更稳健，丢失数据概率更低。
+- 备份机制更稳健，丢失数据概率更低。
 
-n 可读的日志文本，通过操作AOF稳健，可以处理误操作。
+- 可读的日志文本，通过操作AOF稳健，可以处理误操作。
 
-劣势
+###### 13.1.9 劣势
 
-n 比起RDB占用更多的磁盘空间。
+- 比起RDB占用更多的磁盘空间。
 
-n 恢复备份速度要慢。
+- 恢复备份速度要慢。
 
-n 每次读写都同步的话，有一定的性能压力。
+- 每次读写都同步的话，有一定的性能压力。
 
-n 存在个别Bug，造成恢复不能。
+- 存在个别Bug，造成恢复不能。
 
- 小总结
+######  13.1.10 小总结
 
 ![img](images/wpsaEfREu.png) 
 
-总结(Which one)
+##### 13.2 总结(Which one)
 
-用哪个好
+###### 13.2.1 用哪个好
 
 官方推荐两个都启用。
 
@@ -2238,49 +2227,47 @@ n 存在个别Bug，造成恢复不能。
 
 如果只是做纯内存缓存，可以都不用。
 
-官网建议
+###### 13.2.2 官网建议
 
 ![img](images/wpsgqLf0O.png) 
 
-l RDB持久化方式能够在指定的时间间隔能对你的数据进行快照存储
+- RDB持久化方式能够在指定的时间间隔能对你的数据进行快照存储
+- AOF持久化方式记录每次对服务器写的操作,当服务器重启的时候会重新执行这些命令来恢复原始的数据,AOF命令以redis协议追加保存每次写的操作到文件末尾. 
+- Redis还能对AOF文件进行后台重写,使得AOF文件的体积不至于过大
+- 只做缓存：如果你只希望你的数据在服务器运行的时候存在,你也可以不使用任何持久化方式.
+- 同时开启两种持久化方式
+- 在这种情况下,当redis重启的时候会优先载入AOF文件来恢复原始的数据, 因为在通常情况下AOF文件保存的数据集要比RDB文件保存的数据集要完整.
+- RDB的数据不实时，同时使用两者时服务器重启也只会找AOF文件。那要不要只使用AOF呢？ 
+- 建议不要，因为RDB更适合用于备份数据库(AOF在不断变化不好备份)， 快速重启，而且不会有AOF可能潜在的bug，留着作为一个万一的手段。
+- 性能建议
 
-l AOF持久化方式记录每次对服务器写的操作,当服务器重启的时候会重新执行这些命令来恢复原始的数据,AOF命令以redis协议追加保存每次写的操作到文件末尾. 
+```properties
+因为RDB文件只用作后备用途，建议只在Slave上持久化RDB文件，而且只要15分钟备份一次就够了，只保留save 900 1这条规则。
+ 
+如果使用AOF，好处是在最恶劣情况下也只会丢失不超过两秒数据，启动脚本较简单只load自己的AOF文件就可以了。
+代价,一是带来了持续的IO，二是AOF rewrite的最后将rewrite过程中产生的新数据写到新文件造成的阻塞几乎是不可避免的。
+只要硬盘许可，应该尽量减少AOF rewrite的频率，AOF重写的基础大小默认值64M太小了，可以设到5G以上。
+默认超过原大小100%大小时重写可以改到适当的数值。
+```
 
-l Redis还能对AOF文件进行后台重写,使得AOF文件的体积不至于过大
 
-l 只做缓存：如果你只希望你的数据在服务器运行的时候存在,你也可以不使用任何持久化方式.
 
-l 同时开启两种持久化方式
+#### 十四、Redis_主从复制
 
-l 在这种情况下,当redis重启的时候会优先载入AOF文件来恢复原始的数据, 因为在通常情况下AOF文件保存的数据集要比RDB文件保存的数据集要完整.
-
-l RDB的数据不实时，同时使用两者时服务器重启也只会找AOF文件。那要不要只使用AOF呢？ 
-
-l 建议不要，因为RDB更适合用于备份数据库(AOF在不断变化不好备份)， 快速重启，而且不会有AOF可能潜在的bug，留着作为一个万一的手段。
-
-l 性能建议
-
-因为RDB文件只用作后备用途，建议只在Slave上持久化RDB文件，而且只要15分钟备份一次就够了，只保留save 900 1这条规则。 如果使用AOF，好处是在最恶劣情况下也只会丢失不超过两秒数据，启动脚本较简单只load自己的AOF文件就可以了。代价,一是带来了持续的IO，二是AOF rewrite的最后将rewrite过程中产生的新数据写到新文件造成的阻塞几乎是不可避免的。只要硬盘许可，应该尽量减少AOF rewrite的频率，AOF重写的基础大小默认值64M太小了，可以设到5G以上。默认超过原大小100%大小时重写可以改到适当的数值。
-
- 
-
-Redis_主从复制
-
-是什么
+##### 14.1 是什么
 
 主机数据更新后根据配置和策略， 自动同步到备机的master/slaver机制，Master以写为主，Slave以读为主
 
-能干嘛
+##### 14.2 能干嘛
 
-l 读写分离，性能扩展
-
-l 容灾快速恢复
+- 读写分离，性能扩展
+- 容灾快速恢复
 
  
 
 ![img](images/wpssiKt5I.png) 
 
-怎么玩：主从复制
+##### 14.3 怎么玩：主从复制
 
 拷贝多个redis.conf文件include(写绝对路径)
 
@@ -2298,7 +2285,7 @@ Appendonly 关掉或者换名字
 
  
 
-新建redis6379.conf，填写以下内容
+###### 14.3.1 新建redis6379.conf，填写以下内容
 
 include /myredis/redis.conf
 
@@ -2310,27 +2297,27 @@ dbfilename dump6379.rdb
 
 ![img](images/wps6NT9j1.png) 
 
-新建redis6380.conf，填写以下内容
+###### 14.3.2 新建redis6380.conf，填写以下内容
 
 ![img](images/wpscRiwkq.png) 
 
-新建redis6381.conf，填写以下内容
+###### 14.3.3 新建redis6381.conf，填写以下内容
 
 ![img](images/wpsNa2CSj.png) 
 
-slave-priority 10
+**slave-priority 10**
 
 设置从机的优先级，值越小，优先级越高，用于选举主机时使用。默认100
 
-启动三台redis服务器
+###### 14.3.4 启动三台redis服务器
 
 ![img](images/wpsVQEbPi.png) 
 
-查看系统进程，看看三台服务器是否启动
+###### 14.3.5 查看系统进程，看看三台服务器是否启动
 
 ![img](images/wpsYvvWfS.png) 
 
-查看三台主机运行情况
+###### 14.3.6 查看三台主机运行情况
 
 info replication
 
@@ -2340,7 +2327,7 @@ info replication
 
 ![img](images/wpsUBbGKU.png) 
 
-配从(库)不配主(库) 
+###### 14.3.7 配从(库)不配主(库) 
 
 slaveof  <ip><port>
 
@@ -2364,9 +2351,9 @@ slaveof  <ip><port>
 
 ![img](images/wpswd4AF5.png) 
 
-常用3招
+##### 14.4 常用3招
 
-一主二仆
+###### 14.4.1 一主二仆
 
 切入点问题？slave1、slave2是从头开始复制还是从切入点开始复制?比如从k4进来，那之前的k1,k2,k3是否也可以复制？
 
@@ -2386,7 +2373,7 @@ slaveof  <ip><port>
 
  
 
-薪火相传
+###### 14.4.2 薪火相传
 
 上一个Slave可以是下一个slave的Master，Slave同样可以接收其他 slaves的连接和同步请求，那么该slave作为了链条中下一个的master, 可以有效减轻master的写压力,去中心化降低风险。
 
@@ -2402,7 +2389,7 @@ slaveof  <ip><port>
 
 ![img](images/wps3To71P.png) 
 
-反客为主
+###### 14.4.3 反客为主
 
 当一个master宕机后，后面的slave可以立刻升为master，其后面的slave不用做任何修改。
 
@@ -2410,53 +2397,49 @@ slaveof  <ip><port>
 
 ![img](images/wpsjFmEkL.png) 
 
-复制原理
+##### 14.5 复制原理
 
-l Slave启动成功连接到master后会发送一个sync命令
-
-l Master接到命令启动后台的存盘进程，同时收集所有接收到的用于修改数据集命令， 在后台进程执行完毕之后，master将传送整个数据文件到slave,以完成一次完全同步
-
-l 全量复制：而slave服务在接收到数据库文件数据后，将其存盘并加载到内存中。
-
-l 增量复制：Master继续将新的所有收集到的修改命令依次传给slave,完成同步
-
-l 但是只要是重新连接master,一次完全同步（全量复制)将被自动执行
+- Slave启动成功连接到master后会发送一个sync命令
+- Master接到命令启动后台的存盘进程，同时收集所有接收到的用于修改数据集命令， 在后台进程执行完毕之后，master将传送整个数据文件到slave,以完成一次完全同步
+- 全量复制：而slave服务在接收到数据库文件数据后，将其存盘并加载到内存中。
+- 增量复制：Master继续将新的所有收集到的修改命令依次传给slave,完成同步
+- 但是只要是重新连接master,一次完全同步（全量复制)将被自动执行
 
 ![img](images/wpsu0ReF8.png) 
 
-哨兵模式(sentinel)
+##### 14.6 哨兵模式(sentinel)
 
-是什么
+###### 14.6.1 是什么
 
 反客为主的自动版，能够后台监控主机是否故障，如果故障了根据投票数自动将从库转换为主库
 
 ![img](images/wpsWKkVzp.png) 
 
-怎么玩(使用步骤)
+###### 14.6.2 怎么玩(使用步骤)
 
-调整为一主二仆模式，6379带着6380、6381
+- 调整为一主二仆模式，6379带着6380、6381
 
 ![img](images/wpsuFaVS7.png) 
 
-自定义的/myredis目录下新建sentinel.conf文件，名字绝不能错
+- 自定义的/myredis目录下新建sentinel.conf文件，名字绝不能错
 
-配置哨兵,填写内容
+- 配置哨兵,填写内容
 
-sentinel monitor mymaster 127.0.0.1 6379 1
+  sentinel monitor mymaster 127.0.0.1 6379 1
 
-其中mymaster为监控对象起的服务器名称， 1 为至少有多少个哨兵同意迁移的数量。 
+  其中mymaster为监控对象起的服务器名称， 1 为至少有多少个哨兵同意迁移的数量。 
 
-启动哨兵
+- 启动哨兵
 
-/usr/local/bin
+  /usr/local/bin
 
-redis做压测可以用自带的redis-benchmark工具
+  redis做压测可以用自带的redis-benchmark工具
 
-执行redis-sentinel  /myredis/sentinel.conf 
+  执行redis-sentinel  /myredis/sentinel.conf 
 
 ![img](images/wpsWUnKND.png) 
 
-当主机挂掉，从机选举中产生新的主机
+- 当主机挂掉，从机选举中产生新的主机
 
 (大概10秒左右可以看到哨兵窗口日志，切换了新的主机)
 
@@ -2466,11 +2449,11 @@ redis做压测可以用自带的redis-benchmark工具
 
 ![img](images/wpsKO5GHN.png) 
 
-复制延时
+- 复制延时
 
 由于所有的写操作都是先在Master上操作，然后同步更新到Slave上，所以从Master同步到Slave机器有一定的延迟，当系统很繁忙的时候，延迟问题会更加严重，Slave机器数量的增加也会使这个问题更加严重。
 
-故障恢复
+###### 14.6.3 故障恢复
 
 ![img](images/wpsWVLIkq.png) 
 
@@ -2480,15 +2463,37 @@ redis做压测可以用自带的redis-benchmark工具
 
 每个redis实例启动后都会随机生成一个40位的runid
 
-主从复制
+###### 14.6.4 主从复制
 
-private static JedisSentinelPool **jedisSentinelPool**=null;  public static  Jedis getJedisFromSentinel(){ if(**jedisSentinelPool**==null){       Set<String> sentinelSet=new HashSet<>();       sentinelSet.add("192.168.11.103:26379");        JedisPoolConfig jedisPoolConfig =new JedisPoolConfig();       jedisPoolConfig.setMaxTotal(10); **//最大可用连接数**** **jedisPoolConfig.setMaxIdle(5); **//最大闲置连接数**** **jedisPoolConfig.setMinIdle(5); **//最小闲置连接数**** **jedisPoolConfig.setBlockWhenExhausted(true); **//连接耗尽是否等待**** **jedisPoolConfig.setMaxWaitMillis(2000); **//等待时间**** **jedisPoolConfig.setTestOnBorrow(true); **//取连接的时候进行一下测试 ping pong**** **** ****jedisSentinelPool**=new JedisSentinelPool("mymaster",sentinelSet,jedisPoolConfig); return **jedisSentinelPool**.getResource();     }else{ return **jedisSentinelPool**.getResource();     } }
+```java
+private static JedisSentinelPool jedisSentinelPool=null;
 
- 
+public static  Jedis getJedisFromSentinel(){
+if(jedisSentinelPool==null){
+            Set<String> sentinelSet=new HashSet<>();
+            sentinelSet.add("192.168.11.103:26379");
 
-Redis集群
+            JedisPoolConfig jedisPoolConfig =new JedisPoolConfig();
+            jedisPoolConfig.setMaxTotal(10); //最大可用连接数
+jedisPoolConfig.setMaxIdle(5); //最大闲置连接数
+jedisPoolConfig.setMinIdle(5); //最小闲置连接数
+jedisPoolConfig.setBlockWhenExhausted(true); //连接耗尽是否等待
+jedisPoolConfig.setMaxWaitMillis(2000); //等待时间
+jedisPoolConfig.setTestOnBorrow(true); //取连接的时候进行一下测试 ping pong
 
-问题
+jedisSentinelPool=new JedisSentinelPool("mymaster",sentinelSet,jedisPoolConfig);
+return jedisSentinelPool.getResource();
+        }else{
+return jedisSentinelPool.getResource();
+        }
+}
+```
+
+
+
+#### 十五、Redis集群
+
+##### 15.1 问题
 
 容量不够，redis如何进行扩容？
 
@@ -2498,75 +2503,83 @@ Redis集群
 
 之前通过代理主机来解决，但是redis3.0中提供了解决方案。就是无中心化集群配置。
 
-什么是集群
+##### 15.2 什么是集群
 
 Redis 集群实现了对Redis的水平扩容，即启动N个redis节点，将整个数据库分布存储在这N个节点中，每个节点存储总数据的1/N。
 
 Redis 集群通过分区（partition）来提供一定程度的可用性（availability）： 即使集群中有一部分节点失效或者无法进行通讯， 集群也可以继续处理命令请求。
 
-删除持久化数据
+##### 15.3 删除持久化数据
 
 将rdb,aof文件都删除掉。
 
-制作6个实例，6379,6380,6381,6389,6390,6391
+##### 15.4 制作6个实例，6379,6380,6381,6389,6390,6391
 
-配置基本信息
+###### 15.4.1 配置基本信息
 
-开启daemonize yes
+​	开启daemonize yes
 
-Pid文件名字
+​	Pid文件名字
 
-指定端口
+​	指定端口
 
-Log文件名字
+​	Log文件名字
 
-Dump.rdb名字
+​	Dump.rdb名字
 
-Appendonly 关掉或者换名字
+​	Appendonly 关掉或者换名字
 
-redis cluster配置修改
+###### 15.4.2 redis cluster配置修改
 
-cluster-enabled yes  打开集群模式
+​	cluster-enabled yes  打开集群模式
 
-cluster-config-file nodes-6379.conf 设定节点配置文件名
+​	cluster-config-file nodes-6379.conf 设定节点配置文件名
 
-cluster-node-timeout 15000  设定节点失联时间，超过该时间（毫秒），集群自动进行主从切换。
+​	cluster-node-timeout 15000  设定节点失联时间，超过该时间（毫秒），集群自动进行主从切换。
 
-include /home/bigdata/redis.confport 6379pidfile "/var/run/redis_6379.pid"dbfilename "dump6379.rdb"dir "/home/bigdata/redis_cluster"logfile "/home/bigdata/redis_cluster/redis_err_6379.log"cluster-enabled yescluster-config-file nodes-6379.confcluster-node-timeout 15000
+```properties
+include /home/bigdata/redis.conf
+port 6379
+pidfile "/var/run/redis_6379.pid"
+dbfilename "dump6379.rdb"
+dir "/home/bigdata/redis_cluster"
+logfile "/home/bigdata/redis_cluster/redis_err_6379.log"
+cluster-enabled yes
+cluster-config-file nodes-6379.conf
+cluster-node-timeout 15000
+```
 
- 
 
- 
 
-修改好redis6379.conf文件，拷贝多个redis.conf文件
+###### 15.4.3 修改好redis6379.conf文件，拷贝多个redis.conf文件
 
 ![img](images/wpsHJosTE.png) 
 
  
 
-使用查找替换修改另外5个文件
+###### 15.4.4 使用查找替换修改另外5个文件
 
 例如：:%s/6379/6380  
 
-启动6个redis服务
+###### 15.4.5 启动6个redis服务
 
 ![img](images/wps3jmGkU.png) 
 
-将六个节点合成一个集群
+##### 15.5 将六个节点合成一个集群
 
 组合之前，请确保所有redis实例启动后，nodes-xxxx.conf文件都生成正常。
 
 ![img](images/wpsgQNKrD.png) 
 
-l 合体：
+- 合体：
 
 cd  /opt/redis-6.2.1/src
 
- 
+ ```xml
+ redis-cli --cluster create --cluster-replicas 1 192.168.11.101:6379 192.168.11.101:6380 192.168.11.101:6381 192.168.11.101:6389 192.168.11.101:6390 192.168.11.101:6391
+ ```
 
-redis-cli --cluster create --cluster-replicas 1 192.168.11.101:6379 192.168.11.101:6380 192.168.11.101:6381 192.168.11.101:6389 192.168.11.101:6390 192.168.11.101:6391
 
- 
 
 此处不要用127.0.0.1， 请用真实IP地址
 
@@ -2576,21 +2589,21 @@ redis-cli --cluster create --cluster-replicas 1 192.168.11.101:6379 192.168.11.1
 
 ![img](images/wpsdFtG2B.png) 
 
-l 普通方式登录
+- 普通方式登录
 
 可能直接进入读主机，存储数据时，会出现MOVED重定向操作。所以，应该以集群方式登录。
 
 ![img](images/wpsPROCBG.png) 
 
--c 采用集群策略连接，设置数据会自动切换到相应的写主机
+##### 15.6 -c 采用集群策略连接，设置数据会自动切换到相应的写主机
 
 ![img](images/wpsdvhQ5a.png) 
 
-通过 cluster nodes 命令查看集群信息
+##### 15.7 通过 cluster nodes 命令查看集群信息
 
 ![img](images/wpsjQJy6v.png) 
 
-redis cluster 如何分配这六个节点?
+##### 15.8 redis cluster 如何分配这六个节点?
 
 一个集群至少要有三个主节点。
 
@@ -2598,7 +2611,7 @@ redis cluster 如何分配这六个节点?
 
 分配原则尽量保证每个主数据库运行在不同的IP地址，每个从库和主库不在一个IP地址上。
 
-什么是slots
+##### 15.9 什么是slots
 
 [OK] All nodes agree about slots configuration.
 
@@ -2620,7 +2633,7 @@ redis cluster 如何分配这六个节点?
 
 节点 C 负责处理 10923 号至 16383 号插槽。
 
-在集群中录入值
+##### 15.10 在集群中录入值
 
 在redis-cli每次录入、查询键值，redis都会计算出该key应该送往的插槽，如果不是该客户端对应服务器的插槽，redis会报错，并告知应前往的redis实例地址和端口。
 
@@ -2636,13 +2649,13 @@ redis-cli客户端提供了 –c 参数实现自动重定向。
 
 ![img](images/wpsTiprHP.png) 
 
-查询集群中的值
+##### 15.11 查询集群中的值
 
 CLUSTER GETKEYSINSLOT <slot><count> 返回 count 个 slot 槽中的键。
 
 ![img](images/wps095ctS.png) 
 
-故障恢复
+##### 15.12 故障恢复
 
 如果主节点下线？从节点能否自动升为主节点？注意：15秒超时
 
@@ -2662,19 +2675,25 @@ redis.conf中的参数  cluster-require-full-coverage
 
  
 
-集群的Jedis开发
+##### 15.13 集群的Jedis开发
 
 即使连接的不是主机，集群会自动切换主机存储。主机写，从机读。
 
 无中心化主从集群。无论从哪台主机写的数据，其他主机上都能读到数据。
 
- 
+```java
+public class JedisClusterTest {
+  public static void main(String[] args) { 
+     Set<HostAndPort>set =new HashSet<HostAndPort>();
+     set.add(new HostAndPort("192.168.31.211",6379));
+     JedisCluster jedisCluster=new JedisCluster(set);
+     jedisCluster.set("k1", "v1");
+     System.out.println(jedisCluster.get("k1"));
+  }
+}
+```
 
-public class JedisClusterTest { public static void main(String[] args) {   Set<HostAndPort>set =new HashSet<HostAndPort>();   set.add(new HostAndPort("192.168.31.211",6379));   JedisCluster jedisCluster=new JedisCluster(set);   jedisCluster.set("k1", "v1");   System.**out****.println(****jedisCluster****.get(****"k1"****));** }}
-
- 
-
-Redis 集群提供了以下好处
+##### 15.14 Redis 集群提供了以下好处
 
 实现扩容
 
@@ -2682,7 +2701,7 @@ Redis 集群提供了以下好处
 
 无中心配置相对简单
 
-Redis 集群的不足
+##### 15.15 Redis 集群的不足
 
 多键操作是不被支持的 
 
@@ -2690,13 +2709,11 @@ Redis 集群的不足
 
 由于集群方案出现较晚，很多公司已经采用了其他的集群方案，而代理或者客户端分片的方案想要迁移至redis cluster，需要整体迁移而不是逐步过渡，复杂度较大。
 
- 
+#### 十六、Redis应用问题解决
 
-Redis应用问题解决
+##### 16.1 缓存穿透
 
-缓存穿透
-
-问题描述
+##### 16.1.1 问题描述
 
 key对应的数据在数据源并不存在，每次针对此key的请求从缓存获取不到，请求都会压到数据源，从而可能压垮数据源。比如用一个不存在的用户id获取用户信息，不论缓存还是数据库都没有，若黑客利用此漏洞进行攻击可能压垮数据库。
 
@@ -2704,7 +2721,7 @@ key对应的数据在数据源并不存在，每次针对此key的请求从缓�
 
  
 
-解决方案
+##### 16.1.2 解决方案
 
 一个一定不存在缓存及查询不到的数据，由于缓存是不命中时被动写的，并且出于容错考虑，如果从存储层查不到数据则不写入缓存，这将导致这个不存在的数据每次请求都要到存储层去查询，失去了缓存的意义。
 
@@ -2726,9 +2743,9 @@ key对应的数据在数据源并不存在，每次针对此key的请求从缓�
 
  
 
-缓存击穿
+##### 16.2 缓存击穿
 
-问题描述
+###### 16.2.1 问题描述
 
 key对应的数据存在，但在redis中过期，此时若有大量并发请求过来，这些请求发现缓存过期一般都会从后端DB加载数据并回设到缓存，这个时候大并发的请求可能会瞬间把后端DB压垮。
 
@@ -2736,7 +2753,7 @@ key对应的数据存在，但在redis中过期，此时若有大量并发请求
 
  
 
-解决方案
+###### 16.2.2 解决方案
 
 key可能会在某些时间点被超高并发地访问，是一种非常“热点”的数据。这个时候，需要考虑一个问题：缓存被“击穿”的问题。
 
@@ -2762,9 +2779,9 @@ key可能会在某些时间点被超高并发地访问，是一种非常“热�
 
  
 
-缓存雪崩
+##### 16.3 缓存雪崩
 
-问题描述
+###### 16.3.1 问题描述
 
 key对应的数据存在，但在redis中过期，此时若有大量并发请求过来，这些请求发现缓存过期一般都会从后端DB加载数据并回设到缓存，这个时候大并发的请求可能会瞬间把后端DB压垮。
 
@@ -2782,7 +2799,7 @@ key对应的数据存在，但在redis中过期，此时若有大量并发请求
 
  
 
-解决方案
+###### 16.3.2 解决方案
 
 缓存失效时的雪崩效应对底层系统的冲击非常可怕！
 
@@ -2804,31 +2821,31 @@ key对应的数据存在，但在redis中过期，此时若有大量并发请求
 
  
 
-分布式锁
+##### 16.4 分布式锁
 
-问题描述
+###### 16.4.1 问题描述
 
 随着业务发展的需要，原单体单机部署的系统被演化成分布式集群系统后，由于分布式系统多线程、多进程并且分布在不同机器上，这将使原单机部署情况下的并发控制锁策略失效，单纯的Java API并不能提供分布式锁的能力。为了解决这个问题就需要一种跨JVM的互斥机制来控制共享资源的访问，这就是分布式锁要解决的问题！
 
 分布式锁主流的实现方案：
 
-\1. 基于数据库实现分布式锁
+1. 基于数据库实现分布式锁
 
-\2. 基于缓存（Redis等）
+2. 基于缓存（Redis等）
 
-\3. 基于Zookeeper
+3. 基于Zookeeper
 
 每一种分布式锁解决方案都有各自的优缺点：
 
-\1. 性能：redis最高
+1. 性能：redis最高
 
-\2. 可靠性：zookeeper最高
+2. 可靠性：zookeeper最高
 
 这里，我们就基于redis实现分布式锁。
 
  
 
-解决方案：使用redis实现分布式锁
+###### 16.4.2 解决方案：使用redis实现分布式锁
 
 redis:命令
 
@@ -2844,11 +2861,11 @@ XX ：只在键已经存在时，才对键进行设置操作。
 
 ![img](images/wpsT1AbpB.jpg) 
 
-\1. 多个客户端同时获取锁（setnx）
+1. 多个客户端同时获取锁（setnx）
 
-\2. 获取成功，执行业务逻辑{从db获取数据，放入缓存}，执行完成释放锁（del）
+2. 获取成功，执行业务逻辑{从db获取数据，放入缓存}，执行完成释放锁（del）
 
-\3. 其他客户端等待重试
+3. 其他客户端等待重试
 
  
 
@@ -2856,7 +2873,38 @@ XX ：只在键已经存在时，才对键进行设置操作。
 
 Redis: set num 0
 
-@GetMapping("testLock") public void testLock(){   **//1获取锁，setne**** **  Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", "111");   **//2获取锁成功、查询num的值**** **  if(lock){     Object value = redisTemplate.opsForValue().get("num");     **//2.1判断num为空return**** **    if(StringUtils.**isEmpty**(value)){       return;     }     **//2.2有值就转成成int**** **    int num = Integer.**parseInt**(value+"");     **//2.3把redis的num加1**** **    redisTemplate.opsForValue().set("num", ++num);     **//2.4释放锁，del**** **    redisTemplate.delete("lock");    }else{     **//3获取锁失败、每隔0.1秒再获取**** **    try {       Thread.**sleep**(100);       testLock();     } catch (InterruptedException e) {       e.printStackTrace();     }   } }
+```java
+@GetMapping("testLock")
+public void testLock(){
+    //1获取锁，setne
+    Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", "111");
+    //2获取锁成功、查询num的值
+    if(lock){
+        Object value = redisTemplate.opsForValue().get("num");
+        //2.1判断num为空return
+        if(StringUtils.isEmpty(value)){
+            return;
+        }
+        //2.2有值就转成成int
+        int num = Integer.parseInt(value+"");
+        //2.3把redis的num加1
+        redisTemplate.opsForValue().set("num", ++num);
+        //2.4释放锁，del
+        redisTemplate.delete("lock");
+
+    }else{
+        //3获取锁失败、每隔0.1秒再获取
+        try {
+            Thread.sleep(100);
+            testLock();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+
 
  
 
@@ -2876,15 +2924,13 @@ ab -n 1000 -c 100 http://192.168.140.1:8080/test/testLock
 
 解决：设置过期时间，自动释放锁。
 
-优化之设置锁的过期时间
+###### 16.4.4 优化之设置锁的过期时间
 
 设置过期时间有两种方式：
 
- 
+1. 首先想到通过expire设置过期时间（缺乏原子性：如果在setnx和expire之间出现异常，锁也无法释放）
 
-\1. 首先想到通过expire设置过期时间（缺乏原子性：如果在setnx和expire之间出现异常，锁也无法释放）
-
-\2. 在set时指定过期时间（推荐）
+2. 在set时指定过期时间（推荐）
 
 ![img](images/wpsarfSaJ.jpg) 
 
@@ -2900,21 +2946,21 @@ ab -n 1000 -c 100 http://192.168.140.1:8080/test/testLock
 
 场景：如果业务逻辑的执行时间是7s。执行流程如下
 
-\1. index1业务逻辑没执行完，3秒后锁被自动释放。
+1. index1业务逻辑没执行完，3秒后锁被自动释放。
 
-\2. index2获取到锁，执行业务逻辑，3秒后锁被自动释放。
+2. index2获取到锁，执行业务逻辑，3秒后锁被自动释放。
 
-\3. index3获取到锁，执行业务逻辑
+3. index3获取到锁，执行业务逻辑
 
-\4. index1业务逻辑执行完成，开始调用del释放锁，这时释放的是index3的锁，导致index3的业务只执行1s就被别人释放。
+4. index1业务逻辑执行完成，开始调用del释放锁，这时释放的是index3的锁，导致index3的业务只执行1s就被别人释放。
 
-最终等于没锁的情况。
-
- 
+最终等于没锁的情况。 
 
 解决：setnx获取锁时，设置一个指定的唯一值（例如：uuid）；释放前获取这个值，判断是否自己的锁
 
-优化之UUID防误删
+
+
+###### 16.4.5 优化之UUID防误删
 
 ![img](images/wps7fNm8n.jpg) 
 
@@ -2926,7 +2972,7 @@ ab -n 1000 -c 100 http://192.168.140.1:8080/test/testLock
 
 场景：
 
-\1. index1执行删除时，查询到的lock值确实和uuid相等
+1. index1执行删除时，查询到的lock值确实和uuid相等
 
 uuid=v1
 
@@ -2934,13 +2980,13 @@ set(lock,uuid)；
 
 ![img](images/wpsgY79Hv.jpg) 
 
-\2. index1执行删除前，lock刚好过期时间已到，被redis自动释放
+2. index1执行删除前，lock刚好过期时间已到，被redis自动释放
 
 在redis中没有了lock，没有了锁。
 
 ![img](images/wpsGHqSkG.jpg) 
 
-\3. index2获取了lock
+3. index2获取了lock
 
 index2线程获取到了cpu的资源，开始执行方法
 
@@ -2948,7 +2994,7 @@ uuid=v2
 
 set(lock,uuid)；
 
-\4. index1执行删除，此时会把index2的lock删除
+4. index1执行删除，此时会把index2的lock删除
 
 index1 因为已经在方法中了，所以不需要重新上锁。index1有执行的权限。index1已经比较完成了，这个时候，开始执行
 
@@ -2958,11 +3004,62 @@ index1 因为已经在方法中了，所以不需要重新上锁。index1有执�
 
  
 
-优化之LUA脚本保证删除的原子性
+###### 16.4.6 优化之LUA脚本保证删除的原子性
 
-@GetMapping("testLockLua") public void testLockLua() {** **  **//1 声明一个uuid ,将做为一个value 放入我们的key所对应的值中**** **  String uuid = UUID.**randomUUID**().toString();   **//2 定义一个锁：lua 脚本可以使用同一把锁，来实现删除！**** **  String skuId = "25"; **// 访问skuId 为25号的商品 100008348542**** **  String locKey = "lock:" + skuId; **// 锁住的是每个商品的数据**** **** **  **// 3 获取锁**** **  Boolean lock = redisTemplate.opsForValue().setIfAbsent(locKey, uuid, 3, TimeUnit.*SECONDS\**\***);    **// 第一种： lock 与过期时间中间不写任何的代码。**** **  **// redisTemplate.expire("lock",10, TimeUnit.SECONDS);//设置过期时间**** **  **// 如果true**** **  if (lock) {     **// 执行的业务逻辑开始**** **    **// 获取缓存中的num 数据**** **    Object value = redisTemplate.opsForValue().get("num");     **// 如果是空直接返回**** **    if (StringUtils.**isEmpty**(value)) {       return;     }     **// 不是空 如果说在这出现了异常！ 那么delete 就删除失败！ 也就是说锁永远存在！**** **    int num = Integer.**parseInt**(value + "");     **// 使num 每次+1 放入缓存**** **    redisTemplate.opsForValue().set("num", String.**valueOf**(++num));     **/\*使用lua脚本来锁\*/**** **    **// 定义lua 脚本**** **    String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";     **// 使用redis执行lua执行**** **    DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();     redisScript.setScriptText(script);     **// 设置一下返回值类型 为Long**** **    **// 因为删除判断的时候，返回的0,给其封装为数据类型。如果不封装那么默认返回String 类型，**** **    **// 那么返回字符串与0 会有发生错误。**** **    redisScript.setResultType(Long.class);     **// 第一个要是script 脚本 ，第二个需要判断的key，第三个就是key所对应的值。**** **    redisTemplate.execute(redisScript, Arrays.**asList**(locKey), uuid);   } else {     **// 其他线程等待**** **    try {       **// 睡眠**** **      Thread.**sleep**(1000);       **// 睡醒了之后，调用方法。**** **      testLockLua();     } catch (InterruptedException e) {       e.printStackTrace();     }   } }
+```java
+@GetMapping("testLockLua")
+public void testLockLua() {
+    //1 声明一个uuid ,将做为一个value 放入我们的key所对应的值中
+    String uuid = UUID.randomUUID().toString();
+    //2 定义一个锁：lua 脚本可以使用同一把锁，来实现删除！
+    String skuId = "25"; // 访问skuId 为25号的商品 100008348542
+    String locKey = "lock:" + skuId; // 锁住的是每个商品的数据
 
- 
+    // 3 获取锁
+    Boolean lock = redisTemplate.opsForValue().setIfAbsent(locKey, uuid, 3, TimeUnit.SECONDS);
+
+    // 第一种： lock 与过期时间中间不写任何的代码。
+    // redisTemplate.expire("lock",10, TimeUnit.SECONDS);//设置过期时间
+    // 如果true
+    if (lock) {
+        // 执行的业务逻辑开始
+        // 获取缓存中的num 数据
+        Object value = redisTemplate.opsForValue().get("num");
+        // 如果是空直接返回
+        if (StringUtils.isEmpty(value)) {
+            return;
+        }
+        // 不是空 如果说在这出现了异常！ 那么delete 就删除失败！ 也就是说锁永远存在！
+        int num = Integer.parseInt(value + "");
+        // 使num 每次+1 放入缓存
+        redisTemplate.opsForValue().set("num", String.valueOf(++num));
+        /*使用lua脚本来锁*/
+        // 定义lua 脚本
+        String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+        // 使用redis执行lua执行
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+        redisScript.setScriptText(script);
+        // 设置一下返回值类型 为Long
+        // 因为删除判断的时候，返回的0,给其封装为数据类型。如果不封装那么默认返回String 类型，
+        // 那么返回字符串与0 会有发生错误。
+        redisScript.setResultType(Long.class);
+        // 第一个要是script 脚本 ，第二个需要判断的key，第三个就是key所对应的值。
+        redisTemplate.execute(redisScript, Arrays.asList(locKey), uuid);
+    } else {
+        // 其他线程等待
+        try {
+            // 睡眠
+            Thread.sleep(1000);
+            // 睡醒了之后，调用方法。
+            testLockLua();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+
 
 Lua 脚本详解：
 
@@ -2970,9 +3067,11 @@ Lua 脚本详解：
 
 项目中正确使用：
 
-| 1. 定义key，key应该是为每个sku定义的，也就是每个sku有一把锁。String locKey ="lock:"+skuId; **//** **锁住的是每个商品的数据**Boolean lock = redisTemplate.opsForValue().setIfAbsent(locKey, uuid,3,TimeUnit.*SECONDS\**\***); |
-| ------------------------------------------------------------ |
-| ![img](images/wpsuzBUiR.jpg)                                 |
+```java
+1. 定义key，key应该是为每个sku定义的，也就是每个sku有一把锁。
+String locKey ="lock:"+skuId; // 锁住的是每个商品的数据
+Boolean lock = redisTemplate.opsForValue().setIfAbsent(locKey, uuid,3,TimeUnit.SECONDS);
+```
 
  
 
@@ -2980,19 +3079,36 @@ Lua 脚本详解：
 
 1、加锁
 
-**// 1.** **从****redis****中获取锁****,set** **k1 v1 px 20000 nx**** **String uuid = UUID.**randomUUID**().toString(); Boolean lock = this.redisTemplate.opsForValue()    .setIfAbsent("lock", uuid, 2, TimeUnit.*SECONDS\**\***);
+```java
+// 1. 从redis中获取锁,set k1 v1 px 20000 nx
+String uuid = UUID.randomUUID().toString();
+Boolean lock = this.redisTemplate.opsForValue()
+      .setIfAbsent("lock", uuid, 2, TimeUnit.SECONDS);
+```
 
  
 
 2、使用lua释放锁
 
-**// 2.** **释放锁** **del**** **String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"; **//** **设置****lua****脚本返回的数据类型**** **DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(); **//** **设置****lua****脚本返回类型为****Long**** **redisScript.setResultType(Long.class); redisScript.setScriptText(script); redisTemplate.execute(redisScript, Arrays.**asList**("lock"),uuid);
+```java
+// 2. 释放锁 del
+String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+// 设置lua脚本返回的数据类型
+DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+// 设置lua脚本返回类型为Long
+redisScript.setResultType(Long.class);
+redisScript.setScriptText(script);
+redisTemplate.execute(redisScript, Arrays.asList("lock"),uuid);
+```
 
- 
+
 
 3、重试
 
-Thread.**sleep**(500); testLock();
+```java
+Thread.sleep(500);
+testLock();
+```
 
  
 
@@ -3008,11 +3124,11 @@ Thread.**sleep**(500); testLock();
 
  
 
-Redis6.0新功能
+#### 十七、 Redis6.0新功能
 
-ACL
+#### 17.1 ACL
 
-简介
+###### 17.1.1 简介
 
 Redis ACL是Access Control List（访问控制列表）的缩写，该功能允许根据可以执行的命令和可以访问的键来限制某些连接。
 
@@ -3028,7 +3144,7 @@ Redis ACL是Access Control List（访问控制列表）的缩写，该功能允�
 
  
 
-命令
+###### 17.1.2 命令
 
 1、使用acl list命令展现用户权限列表
 
@@ -3099,17 +3215,15 @@ acl setuser user2 on >password ~cached:* +get
 
  
 
-IO多线程
+##### 17.2 IO多线程
 
-简介
+###### 17.2.1 简介
 
 Redis6终于支撑多线程了，告别单线程了吗？
 
 IO多线程其实指客户端交互部分的网络IO交互处理模块多线程，而非执行命令多线程。Redis6执行命令依然是单线程。
 
- 
-
-原理架构
+###### 17.2.2 原理架构
 
 Redis 6 加入多线程,但跟 Memcached 这种从 IO处理到数据访问多线程的实现模式有些差异。Redis 的多线程部分只是用来处理网络数据的读写和协议解析，执行命令仍然是单线程。之所以这么设计是不想因为多线程而变得复杂，需要去控制 key、lua、事务，LPUSH/LPOP 等等的并发问题。整体的设计大体如下:
 
@@ -3125,7 +3239,7 @@ io-threads 4
 
  
 
-工具支持 Cluster
+##### 17.3 工具支持 Cluster
 
 之前老版Redis想要搭集群需要单独安装ruby环境，Redis 5 将 redis-trib.rb 的功能集成到 redis-cli 。另外官方 redis-benchmark 工具开始支持 cluster 模式了，通过多线程的方式对多个分片进行压测。
 
@@ -3133,7 +3247,7 @@ io-threads 4
 
  
 
-Redis新功能持续关注
+##### 17.4 Redis新功能持续关注
 
 Redis6新功能还有：
 
