@@ -340,35 +340,35 @@ Redis是单线程+多路IO复用技术
 
 ##### 3.1 Redis键(key)
 
-keys *查看当前库所有key   (匹配：keys *1)
+**keys *** 查看当前库所有key   (匹配：keys *1)
 
-exists key判断某个key是否存在
+**exists key:**	判断某个key是否存在
 
-type key 查看你的key是什么类型
+**type key :**	查看你的key是什么类型
 
-del key    删除指定的key数据
+**del key :**   删除指定的key数据
 
-unlink key  根据value选择非阻塞删除
+**unlink key:**  根据value选择非阻塞删除
 
 仅将keys从keyspace元数据中删除，真正的删除会在后续异步操作。
 
-expire key 10  10秒钟：为给定的key设置过期时间
+**expire key 10:**  10秒钟：为给定的key设置过期时间
 
-ttl key 查看还有多少秒过期，-1表示永不过期，-2表示已过期
+**ttl key:**	 查看还有多少秒过期，-1表示永不过期，-2表示已过期
 
  
 
-select命令切换数据库
+**select:**	命令切换数据库
 
-dbsize查看当前数据库的key的数量
+**dbsize:**	查看当前数据库的key的数量
 
-flushdb清空当前库
+**flushdb:**	清空当前库
 
-flushall通杀全部库
+**flushall:**	通杀全部库
 
-Redis字符串(String)
+##### 3.2 Redis字符串(String)
 
-简介
+###### 3.2.1 简介
 
 String是Redis最基本的类型，你可以理解成与Memcached一模一样的类型，一个key对应一个value。
 
@@ -376,9 +376,9 @@ String类型是二进制安全的。意味着Redis的string可以包含任何数
 
 String类型是Redis最基本的数据类型，一个Redis中字符串value最多可以是512M
 
-常用命令
 
- 
+
+###### 3.2.2 常用命令
 
 set  <key><value>添加键值对
 
@@ -420,43 +420,43 @@ incrby / decrby  <key><步长>将 key 中储存的数字值增减。自定义步
 
 原子性![img](images/wpszouWWt.png) 所谓原子操作是指不会被线程调度机制打断的操作；这种操作一旦开始，就一直运行到结束，中间不会有任何 context switch （切换到另一个线程）。（1）在单线程中， 能够在单条指令中完成的操作都可以认为是"原子操作"，因为中断只能发生于指令之间。（2）在多线程中，不能被其它进程（线程）打断的操作就叫原子操作。Redis单命令的原子性主要得益于Redis的单线程。案例：java中的i++是否是原子操作？不是i=0;两个线程分别对i进行++100次,值是多少？ 2~200i=0i++i=99 i=1 i++i=2i=0  i++ i=1 i++ i=100 
 
-mset  <key1><value1><key2><value2>  ..... 
-
-同时设置一个或多个 key-value对  
-
-mget  <key1><key2><key3> .....
-
-同时获取一个或多个 value  
-
-msetnx <key1><value1><key2><value2>  ..... 
-
-同时设置一个或多个 key-value 对，当且仅当所有给定 key 都不存在。
-
-原子性，有一个失败则都失败
+> **mset**  <key1><value1><key2><value2>  ..... 
+>
+> 同时设置一个或多个 key-value对  
+>
+> **mget**  <key1><key2><key3> .....
+>
+> 同时获取一个或多个 value  
+>
+> **msetnx** <key1><value1><key2><value2>  ..... 
+>
+> 同时设置一个或多个 key-value 对，当且仅当所有给定 key 都不存在。
+>
+> 原子性，有一个失败则都失败
+>
+>  
+>
+> **getrange**  <key><起始位置><结束位置>
+>
+> 获得值的范围，类似java中的substring，前包，后包
+>
+> **setrange**  <key><起始位置><value>
+>
+> 用 <value>  覆写<key>所储存的字符串值，从<起始位置>开始(索引从0开始)。
+>
+>  
+>
+> **setex**  <key><过期时间><value>
+>
+> 设置键值的同时，设置过期时间，单位秒。
+>
+> **getset** <key><value>
+>
+> 以新换旧，设置了新值同时获得旧值。
 
  
 
-getrange  <key><起始位置><结束位置>
-
-获得值的范围，类似java中的substring，前包，后包
-
-setrange  <key><起始位置><value>
-
-用 <value>  覆写<key>所储存的字符串值，从<起始位置>开始(索引从0开始)。
-
- 
-
-setex  <key><过期时间><value>
-
-设置键值的同时，设置过期时间，单位秒。
-
-getset <key><value>
-
-以新换旧，设置了新值同时获得旧值。
-
- 
-
-数据结构
+###### 3.2.3 数据结构
 
 String的数据结构为简单动态字符串(Simple Dynamic String,缩写SDS)。是可以修改的字符串，内部结构实现上类似于Java的ArrayList，采用预分配冗余空间的方式来减少内存的频繁分配.
 
@@ -466,9 +466,9 @@ String的数据结构为简单动态字符串(Simple Dynamic String,缩写SDS)�
 
  
 
-Redis列表(List)
+##### 3.3 Redis列表(List)
 
-简介
+###### 3.3.1 简介
 
 单键多值
 
@@ -480,43 +480,43 @@ Redis 列表是简单的字符串列表，按照插入顺序排序。你可以�
 
  
 
-常用命令
+###### 3.3.2 常用命令
 
-lpush/rpush  <key><value1><value2><value3> .... 从左边/右边插入一个或多个值。
-
-lpop/rpop  <key>从左边/右边吐出一个值。值在键在，值光键亡。
+> **lpush/rpush**  <key><value1><value2><value3> .... 从左边/右边插入一个或多个值。
+>
+> **lpop/rpop**  <key>从左边/右边吐出一个值。值在键在，值光键亡。
+>
+>  
+>
+> **rpoplpush**  <key1><key2>从<key1>列表右边吐出一个值，插到<key2>列表左边。
+>
+>  
+>
+> **lrange** <key><start><stop>
+>
+> 按照索引下标获得元素(从左到右)
+>
+> **lrange mylist 0 -1**  0左边第一个，-1右边第一个，（0-1表示获取所有）
+>
+> **lindex** <key><index>按照索引下标获得元素(从左到右)
+>
+> **llen** <key>获得列表长度 
+>
+>  
+>
+> **linsert** <key>  before <value><newvalue>在<value>的后面插入<newvalue>插入值
+>
+> **lrem** <key><n><value>从左边删除n个value(从左到右)
+>
+> **lset**<key><index><value>将列表key下标为index的值替换成value
 
  
 
-rpoplpush  <key1><key2>从<key1>列表右边吐出一个值，插到<key2>列表左边。
+###### 3.3.3 数据结构
 
- 
+​	List的数据结构为快速链表quickList。
 
-lrange <key><start><stop>
-
-按照索引下标获得元素(从左到右)
-
-lrange mylist 0 -1  0左边第一个，-1右边第一个，（0-1表示获取所有）
-
-lindex <key><index>按照索引下标获得元素(从左到右)
-
-llen <key>获得列表长度 
-
- 
-
-linsert <key>  before <value><newvalue>在<value>的后面插入<newvalue>插入值
-
-lrem <key><n><value>从左边删除n个value(从左到右)
-
-lset<key><index><value>将列表key下标为index的值替换成value
-
- 
-
-数据结构
-
-List的数据结构为快速链表quickList。
-
-首先在列表元素较少的情况下会使用一块连续的内存存储，这个结构是ziplist，也即是压缩列表。
+​	首先在列表元素较少的情况下会使用一块连续的内存存储，这个结构是ziplist，也即是压缩列表。
 
 它将所有的元素紧挨着一起存储，分配的是一块连续的内存。
 
@@ -530,9 +530,9 @@ Redis将链表和ziplist结合起来组成了quicklist。也就是将多个zipli
 
  
 
-Redis集合(Set)
+##### 3.4 Redis集合(Set)
 
-简介
+###### 3.4.1 简介
 
 Redis set对外提供的功能与list类似是一个列表的功能，特殊之处在于set是可以自动排重的，当你需要存储一个列表数据，又不希望出现重复数据时，set是一个很好的选择，并且set提供了判断某个成员是否在一个set集合内的重要接口，这个也是list所不能提供的。
 
@@ -542,7 +542,7 @@ Redis的Set是string类型的无序集合。它底层其实是一个value为null
 
  
 
-常用命令
+###### 3.4.2 常用命令
 
  
 
@@ -572,7 +572,7 @@ sdiff <key1><key2>返回两个集合的差集元素(key1中的，不包含key2�
 
  
 
-数据结构
+###### 3.4.3 数据结构
 
 Set数据结构是dict字典，字典是用哈希表实现的。
 
@@ -580,9 +580,9 @@ Java中HashSet的内部实现使用的是HashMap，只不过所有的value都指
 
  
 
-Redis哈希(Hash)
+##### 3.5 Redis哈希(Hash)
 
-简介
+###### 3.5.1 简介
 
 Redis hash 是一个键值对集合。
 
@@ -604,37 +604,37 @@ Redis hash是一个string类型的field和value的映射表，hash特别适合�
 
  
 
-常用命令
+###### 3.5.2 常用命令
 
  
 
-hset <key><field><value>给<key>集合中的  <field>键赋值<value>
-
-hget <key1><field>从<key1>集合<field>取出 value 
-
-hmset <key1><field1><value1><field2><value2>... 批量设置hash的值
-
-hexists<key1><field>查看哈希表 key 中，给定域 field 是否存在。 
-
-hkeys <key>列出该hash集合的所有field
-
-hvals <key>列出该hash集合的所有value
-
-hincrby <key><field><increment>为哈希表 key 中的域 field 的值加上增量 1  -1
-
-hsetnx <key><field><value>将哈希表 key 中的域 field 的值设置为 value ，当且仅当域 field 不存在 .
+> **hset** <key><field><value>给<key>集合中的  <field>键赋值<value>
+>
+> **hget** <key1><field>从<key1>集合<field>取出 value 
+>
+> **hmset** <key1><field1><value1><field2><value2>... 批量设置hash的值
+>
+> **hexists**<key1><field>查看哈希表 key 中，给定域 field 是否存在。 
+>
+> **hkeys** <key>列出该hash集合的所有field
+>
+> **hvals** <key>列出该hash集合的所有value
+>
+> **hincrby** <key><field><increment>为哈希表 key 中的域 field 的值加上增量 1  -1
+>
+> **hsetnx** <key><field><value>将哈希表 key 中的域 field 的值设置为 value ，当且仅当域 field 不存在 .
 
  
 
-数据结构
+###### 3.5.3 数据结构
 
 Hash类型对应的数据结构是两种：ziplist（压缩列表），hashtable（哈希表）。当field-value长度较短且个数较少时，使用ziplist，否则使用hashtable。
 
  
 
-Redis有序集合Zset(sorted set) 
+##### 3.6 Redis有序集合Zset(sorted set) 
 
-简介
+###### 3.6.1 简介
 
 Redis有序集合zset与普通集合set非常相似，是一个没有重复元素的字符串集合。
 
@@ -646,43 +646,43 @@ Redis有序集合zset与普通集合set非常相似，是一个没有重复元�
 
  
 
-常用命令
+###### 3.6.2 常用命令
 
- 
+> zadd  <key><score1><value1><score2><value2>…
+>
+> 将一个或多个 member 元素及其 score 值加入到有序集 key 当中。
+>
+> zrange <key><start><stop>  [WITHSCORES]  
+>
+> 返回有序集 key 中，下标在<start><stop>之间的元素
+>
+> 带WITHSCORES，可以让分数一起和值返回到结果集。
+>
+> zrangebyscore key minmax [withscores] [limit offset count]
+>
+> 返回有序集 key 中，所有 score 值介于 min 和 max 之间(包括等于 min 或 max )的成员。有序集成员按 score 值递增(从小到大)次序排列。 
+>
+> zrevrangebyscore key maxmin [withscores] [limit offset count]        
+>
+> 同上，改为从大到小排列。 
+>
+> zincrby <key><increment><value>    为元素的score加上增量
+>
+> zrem  <key><value>删除该集合下，指定值的元素 
+>
+> zcount <key><min><max>统计该集合，分数区间内的元素个数 
+>
+> zrank <key><value>返回该值在集合中的排名，从0开始。
+>
+> 案例：如何利用zset实现一个文章访问量的排行榜？
 
-zadd  <key><score1><value1><score2><value2>…
 
-将一个或多个 member 元素及其 score 值加入到有序集 key 当中。
-
-zrange <key><start><stop>  [WITHSCORES]  
-
-返回有序集 key 中，下标在<start><stop>之间的元素
-
-带WITHSCORES，可以让分数一起和值返回到结果集。
-
-zrangebyscore key minmax [withscores] [limit offset count]
-
-返回有序集 key 中，所有 score 值介于 min 和 max 之间(包括等于 min 或 max )的成员。有序集成员按 score 值递增(从小到大)次序排列。 
-
-zrevrangebyscore key maxmin [withscores] [limit offset count]        
-
-同上，改为从大到小排列。 
-
-zincrby <key><increment><value>    为元素的score加上增量
-
-zrem  <key><value>删除该集合下，指定值的元素 
-
-zcount <key><min><max>统计该集合，分数区间内的元素个数 
-
-zrank <key><value>返回该值在集合中的排名，从0开始。
-
-案例：如何利用zset实现一个文章访问量的排行榜？
 
 ![img](images/wps2DNHKu.png) 
 
  
 
-数据结构
+###### 3.6.3 数据结构
 
 SortedSet(zset)是Redis提供的一个非常特别的数据结构，一方面它等价于Java的数据结构Map<String, Double>，可以给每一个元素value赋予一个权重score，另一方面它又类似于TreeSet，内部的元素会按照权重score进行排序，可以得到每个元素的名次，还可以通过score的范围来获取元素的列表。
 
@@ -694,7 +694,7 @@ zset底层使用了两个数据结构
 
  
 
-跳跃表（跳表）
+###### 3.6.4 跳跃表（跳表）
 
 1、简介
 
@@ -730,11 +730,11 @@ zset底层使用了两个数据结构
 
  
 
-Redis配置文件介绍
+#### 四、Redis配置文件介绍
 
 自定义目录：/myredis/redis.conf
 
-###Units单位### 
+##### 4.1 Units单位
 
 配置大小单位,开头定义了一些基本的度量单位，只支持bytes，不支持bit
 
@@ -742,15 +742,15 @@ Redis配置文件介绍
 
 ![img](images/wpskauzTC.png) 
 
-###INCLUDES包含###
+##### 4.2 INCLUDES包含
 
 ![img](images/wps1A11xr.png) 
 
 类似jsp中的include，多实例的情况可以把公用的配置文件提取出来
 
-###网络相关配置 ###
+##### 4.3 网络相关配置
 
-bind
+###### 4.3.1 bind
 
 默认情况bind=127.0.0.1只能接受本机的访问请求
 
@@ -766,19 +766,19 @@ bind
 
 ![img](images/wpsSjGu58.png) 
 
-protected-mode
+###### 4.3.2 protected-mode
 
 将本机访问保护模式设置no
 
 ![img](images/wpsVgzx6B.png) 
 
-Port
+###### 4.3.3 Port
 
 端口号，默认 6379
 
 ![img](images/wpsyAAKA9.png) 
 
-tcp-backlog
+###### 4.3.4 tcp-backlog
 
 设置tcp的backlog，backlog其实是一个连接队列，backlog队列总和=未完成三次握手队列 + 已经完成三次握手队列。
 
@@ -788,13 +788,13 @@ tcp-backlog
 
 ![img](images/wps4N45mL.png) 
 
-timeout
+###### 4.3.5 timeout
 
 一个空闲的客户端维持多少秒会关闭，0表示关闭该功能。即永不关闭。
 
 ![img](images/wps0HFl14.png) 
 
-tcp-keepalive
+###### 4.3.6 tcp-keepalive
 
 对访问客户端的一种心跳检测，每个n秒检测一次。
 
@@ -802,9 +802,9 @@ tcp-keepalive
 
 ![img](images/wpsomc1nX.png) 
 
-###GENERAL通用###
+##### 4.4 GENERAL通用
 
-daemonize
+###### 4.4.1 daemonize
 
 是否为后台进程，设置为yes
 
@@ -812,13 +812,13 @@ daemonize
 
 ![img](images/wpszywqZp.png) 
 
-pidfile
+###### 4.4.2 pidfile
 
 存放pid文件的位置，每个实例会产生一个不同的pid文件
 
 ![img](images/wpszbcKRZ.png) 
 
-loglevel 
+###### 4.4.3 loglevel 
 
 指定日志记录级别，Redis总共支持四个级别：debug、verbose、notice、warning，默认为notice
 
@@ -826,13 +826,13 @@ loglevel
 
 ![img](images/wpsvf4219.png) 
 
-logfile 
+###### 4.4.4 logfile 
 
 日志文件名称
 
 ![img](images/wpstpgjdo.png) 
 
-databases 16 
+###### 4.4.5 databases 16 
 
 设定库的数量 默认16，默认数据库为0，可以使用SELECT <dbid>命令在连接上指定数据库id
 
@@ -840,9 +840,9 @@ databases 16
 
  
 
-###SECURITY安全###
+##### 4.5 SECURITY安全
 
-设置密码
+###### 4.5.1 设置密码
 
 ![img](images/wpsfHOK4h.png) 
 
@@ -854,9 +854,9 @@ databases 16
 
 ![img](images/wps1feu1f.png) 
 
-#### LIMITS限制 ###
+##### 4.6 LIMITS限制 
 
-maxclients
+###### 4.6.1 maxclients
 
 Ø 设置redis同时可以与多少个客户端进行连接。
 
@@ -866,7 +866,7 @@ maxclients
 
 ![img](images/wpsEl2jUr.png) 
 
-maxmemory 
+###### 4.6.2 maxmemory 
 
 Ø 建议必须设置，否则，将内存占满，造成服务器宕机
 
@@ -878,7 +878,7 @@ maxmemory
 
 ![img](images/wps0taWyw.png) 
 
-maxmemory-policy
+###### 4.6.3 maxmemory-policy
 
 Ø volatile-lru：使用LRU算法移除key，只对设置了过期时间的键；（最近最少使用）
 
@@ -894,7 +894,7 @@ maxmemory-policy
 
 ![img](images/wpsDEojw6.png) 
 
-maxmemory-samples
+###### 4.6.4 maxmemory-samples
 
 Ø 设置样本数量，LRU算法和最小TTL算法都并非是精确的算法，而是估算值，所以你可以设置样本的大小，redis默认会检查这么多个key并选择其中LRU的那个。
 
@@ -904,19 +904,17 @@ maxmemory-samples
 
  
 
-Redis的发布和订阅
+#### 五、Redis的发布和订阅
 
-什么是发布和订阅
+##### 5.1 什么是发布和订阅
 
 Redis 发布订阅 (pub/sub) 是一种消息通信模式：发送者 (pub) 发送消息，订阅者 (sub) 接收消息。
-
- 
 
 Redis 客户端可以订阅任意数量的频道。
 
  
 
-Redis的发布和订阅
+##### 5.2 Redis的发布和订阅
 
 1、客户端可以订阅频道如下图
 
@@ -930,7 +928,7 @@ Redis的发布和订阅
 
  
 
-发布订阅命令行实现
+##### 5.3 发布订阅命令行实现
 
 1、 打开一个客户端订阅channel1
 
@@ -954,11 +952,11 @@ publish channel1 hello
 
  
 
-Redis新数据类型
+#### 六、Redis新数据类型
 
-Bitmaps
+##### 6.1 Bitmaps
 
-简介
+###### 6.1.1 简介
 
 现代计算机用二进制（位） 作为信息的基础单位， 1个字节等于8位， 例如“abc”字符串是由3个字节组成， 但实际在计算机存储时将其用二进制表示， “abc”分别对应的ASCII码分别是97、 98、 99， 对应的二进制分别是01100001、 01100010和01100011，如下图
 
@@ -976,7 +974,7 @@ Bitmaps
 
  
 
-命令
+###### 6.1.2 命令
 
 1、setbit
 
@@ -1144,7 +1142,7 @@ bitop and unique:users:and:20201104_03
 
  
 
-Bitmaps与set对比
+###### 6.1.3 Bitmaps与set对比
 
 假设网站有1亿用户， 每天独立访问的用户有5千万， 如果每天用集合类型和Bitmaps分别存储活跃用户可以得到表
 
@@ -1180,11 +1178,9 @@ Bitmaps与set对比
 
  
 
- 
+##### 6.2 HyperLogLog
 
-HyperLogLog
-
-简介
+###### 6.2.1 简介
 
 在工作当中，我们经常会遇到与统计相关的功能需求，比如统计网站PV（PageView页面访问量）,可以使用Redis的incr、incrby轻松实现。
 
@@ -1214,7 +1210,7 @@ Redis HyperLogLog 是用来做基数统计的算法，HyperLogLog 的优点是�
 
  
 
-命令
+###### 6.2.2 命令
 
 1、pfadd 
 
@@ -1270,15 +1266,15 @@ pfmerge<destkey><sourcekey> [sourcekey ...]  将一个或多个HLL合并后的�
 
  
 
-Geospatial
+##### 6.3 Geospatial
 
-简介
+###### 6.3.1 简介
 
 Redis 3.2 中增加了对GEO类型的支持。GEO，Geographic，地理信息的缩写。该类型，就是元素的2维坐标，在地图上就是经纬度。redis基于该类型，提供了经纬度设置，查询，范围查询，距离查询，经纬度Hash等常见操作。
 
  
 
-命令
+###### 6.3.2 命令
 
 1、geoadd
 
@@ -1290,19 +1286,11 @@ geoadd<key>< longitude><latitude><member> [longitude latitude member...]  添加
 
 ![img](images/wpsMxAmPE.jpg) 
 
- 
-
- 
-
 （2）实例
 
 geoadd china:city 121.47 31.23 shanghai
 
 geoadd china:city 106.50 29.53 chongqing 114.05 22.52 shenzhen 116.38 39.90 beijing
-
- 
-
- 
 
 ![img](images/wpsqJNuHc.jpg) 
 
@@ -1316,41 +1304,23 @@ geoadd china:city 106.50 29.53 chongqing 114.05 22.52 shenzhen 116.38 39.90 beij
 
 2、geopos  
 
- 
-
 （1）格式
 
 geopos  <key><member> [member...]  获得指定地区的坐标值
 
 ![img](images/wpsJGSoaK.jpg) 
 
- 
-
- 
-
- 
-
 （2）实例
 
 ![img](images/wpspgtNar.jpg) 
 
- 
-
- 
-
 3、geodist
-
- 
 
 （1）格式
 
 geodist<key><member1><member2>  [m|km|ft|mi ]  获取两个位置之间的直线距离
 
 ![img](images/wps6LOrq5.jpg) 
-
- 
-
- 
 
 （2）实例
 
@@ -1370,8 +1340,6 @@ ft 表示单位为英尺。
 
 如果用户没有显式地指定单位参数， 那么 GEODIST 默认使用米作为单位
 
- 
-
 4、georadius
 
 （1）格式
@@ -1382,23 +1350,29 @@ georadius<key>< longitude><latitude>radius m|km|ft|mi  以给定的经纬度为�
 
 经度 纬度 距离 单位
 
- 
-
 （2）实例
 
 ![img](images/wpsYPkw7s.jpg) 
 
+
+
+#### 七、Redis_Jedis_测试
+
+##### 7.1 Jedis所需要的jar包
+
+> <dependency> 
+>
+> ​	<groupId>redis.clients</groupId> 
+>
+> ​	<artifactId>jedis</artifactId> 
+>
+> ​	<version>3.2.0</version> 
+>
+> </dependency>
+
  
 
-Redis_Jedis_测试
-
-Jedis所需要的jar包
-
-<dependency> <groupId>redis.clients</groupId> <artifactId>jedis</artifactId> <version>3.2.0</version> </dependency>
-
- 
-
-连接Redis注意事项
+##### 7.2 连接Redis注意事项
 
 禁用Linux的防火墙：Linux(CentOS7)里执行命令
 
@@ -1406,47 +1380,113 @@ systemctl stop/disable firewalld.service
 
 redis.conf中注释掉bind 127.0.0.1 ,然后 protected-mode no
 
-Jedis常用操作
+##### 7.3 Jedis常用操作
 
-创建动态的工程
+###### 7.3.1 创建动态的工程
+
+###### 7.3.2 创建测试程序
+
+> package com.atguigu.jedis;
+>
+> import redis.clients.jedis.Jedis;
+>
+> public class Demo01 {public static void main(String[] args) {
+>
+> ​	Jedis jedis = new Jedis("192.168.137.3",6379);
+>
+> ​	String pong = jedis.ping();
+>
+> ​	System.out.println("连接成功："+pong);
+>
+> ​	jedis.close();
+>
+> ​	}
+>
+> }
+
+##### 7.4 测试相关数据类型
+
+###### 7.4.1 Jedis-API:   Key
+
+```java
+jedis.set("k1", "v1");
+jedis.set("k2", "v2");
+jedis.set("k3", "v3");
+Set<String> keys = jedis.keys("*");
+System.out.println(keys.size());
+for (String key : keys) {
+	System.out.println(key);
+}
+System.out.println(jedis.exists("k1"));
+System.out.println(jedis.ttl("k1"));         
+System.out.println(jedis.get("k1"));
+```
+
+###### 7.4.2 Jedis-API:   String
+
+```java
+jedis.mset("str1","v1","str2","v2","str3","v3");
+System.out.println(jedis.mget("str1","str2","str3"));
+```
+
+###### 7.4.3 Jedis-API:   List
+
+```java
+List<String> list = jedis.lrange("mylist",0,-1);
+for (String element : list) {
+System.out.println(element);
+}
+```
+
+###### 7.4.4 Jedis-API:   set
+
+```java
+jedis.sadd("orders", "order01");
+jedis.sadd("orders", "order02");
+jedis.sadd("orders", "order03");
+jedis.sadd("orders", "order04");
+Set<String> smembers = jedis.smembers("orders");
+for (String order : smembers) {
+System.out.println(order);
+}
+jedis.srem("orders", "order02");
+```
+
+###### 7.4.5 Jedis-API:   hash
+
+```java
+jedis.hset("hash1","userName","lisi");
+System.out.println(jedis.hget("hash1","userName"));
+Map<String,String> map = new HashMap<String,String>();
+map.put("telphone","13810169999");
+map.put("address","atguigu");
+map.put("email","abc@163.com");
+jedis.hmset("hash2",map);
+List<String> result = jedis.hmget("hash2", "telphone","email");
+for (String element : result) {
+System.out.println(element);
+}
+```
+
+###### 7.4.6 Jedis-API:   zset
+
+```java
+jedis.zadd("zset01", 100d, "z3");
+jedis.zadd("zset01", 90d, "l4");
+jedis.zadd("zset01", 80d, "w5");
+jedis.zadd("zset01", 70d, "z6");
+ 
+Set<String> zrange = jedis.zrange("zset01", 0, -1);
+for (String e : zrange) {
+System.out.println(e);
+}
+```
 
  
 
-创建测试程序
+#### 八、Redis_Jedis_实例
 
-package com.atguigu.jedis;import redis.clients.jedis.Jedis;public class Demo01 {public static void main(String[] args) {Jedis jedis = new Jedis("192.168.137.3",6379);String pong = jedis.ping();System.out.println("连接成功："+pong);jedis.close();}}
-
-测试相关数据类型
-
-Jedis-API:   Key
-
-jedis.set("k1", "v1");jedis.set("k2", "v2");jedis.set("k3", "v3");Set<String> keys = jedis.keys("*");System.out.println(keys.size());for (String key : keys) {System.out.println(key);}System.out.println(jedis.exists("k1"));System.out.println(jedis.ttl("k1"));         System.out.println(jedis.get("k1"));
-
-Jedis-API:   String
-
-jedis.mset("str1","v1","str2","v2","str3","v3");System.**out**.println(jedis.mget("str1","str2","str3"));
-
-Jedis-API:   List
-
-List<String> list = jedis.lrange("mylist",0,-1);for (String element : list) {System.out.println(element);}
-
-Jedis-API:   set
-
-jedis.sadd("orders", "order01");jedis.sadd("orders", "order02");jedis.sadd("orders", "order03");jedis.sadd("orders", "order04");Set<String> smembers = jedis.smembers("orders");for (String order : smembers) {System.out.println(order);}jedis.srem("orders", "order02");
-
-Jedis-API:   hash
-
-jedis.hset("hash1","userName","lisi");System.out.println(jedis.hget("hash1","userName"));Map<String,String> map = new HashMap<String,String>();map.put("telphone","13810169999");map.put("address","atguigu");map.put("email","abc@163.com");jedis.hmset("hash2",map);List<String> result = jedis.hmget("hash2", "telphone","email");for (String element : result) {System.out.println(element);}
-
-Jedis-API:   zset
-
-jedis.zadd("zset01", 100d, "z3");jedis.zadd("zset01", 90d, "l4");jedis.zadd("zset01", 80d, "w5");jedis.zadd("zset01", 70d, "z6"); Set<String> zrange = jedis.zrange("zset01", 0, -1);for (String e : zrange) {System.out.println(e);}
-
- 
-
-Redis_Jedis_实例
-
-完成一个手机验证码功能
+##### 8.1 完成一个手机验证码功能
 
 要求：
 
@@ -1462,47 +1502,124 @@ Redis_Jedis_实例
 
  
 
-Redis与Spring Boot整合
+#### 九、Redis与Spring Boot整合
 
 Spring Boot整合Redis非常简单，只需要按如下步骤整合即可
 
-整合步骤
+##### 9.1 整合步骤
 
 1、 在pom.xml文件中引入redis相关依赖
 
+ ```xml
+ <!-- redis -->
+ <dependency>
+ <groupId>org.springframework.boot</groupId>
+ <artifactId>spring-boot-starter-data-redis</artifactId>
+ </dependency>
  
-
-**<!-- redis -->**** **<dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-data-redis</artifactId> </dependency>  **<!-- spring2.X****集成****redis****所需****common-pool2-->**** **<dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-pool2</artifactId> <version>2.6.0</version> </dependency>
-
- 
+ <!-- spring2.X集成redis所需common-pool2-->
+ <dependency>
+ <groupId>org.apache.commons</groupId>
+ <artifactId>commons-pool2</artifactId>
+ <version>2.6.0</version>
+ </dependency>
+ ```
 
 2、 application.properties配置redis配置
 
- 
-
-**#Redis****服务器地址**** **spring.redis.host=192.168.140.136 **#Redis****服务器连接端口**** **spring.redis.port=6379 **#Redis****数据库索引（默认为****0****）**** **spring.redis.database= 0 **#****连接超时时间（毫秒）**** **spring.redis.timeout=1800000 **#****连接池最大连接数（使用负值表示没有限制）**** **spring.redis.lettuce.pool.max-active=20 **#****最大阻塞等待时间****(****负数表示没限制****)**** **spring.redis.lettuce.pool.max-wait=-1 **#****连接池中的最大空闲连接**** **spring.redis.lettuce.pool.max-idle=5 **#****连接池中的最小空闲连接**** **spring.redis.lettuce.pool.min-idle=0
-
- 
+ ```properties
+ #Redis服务器地址
+ spring.redis.host=192.168.140.136
+ #Redis服务器连接端口
+ spring.redis.port=6379
+ #Redis数据库索引（默认为0）
+ spring.redis.database= 0
+ #连接超时时间（毫秒）
+ spring.redis.timeout=1800000
+ #连接池最大连接数（使用负值表示没有限制）
+ spring.redis.lettuce.pool.max-active=20
+ #最大阻塞等待时间(负数表示没限制)
+ spring.redis.lettuce.pool.max-wait=-1
+ #连接池中的最大空闲连接
+ spring.redis.lettuce.pool.max-idle=5
+ #连接池中的最小空闲连接
+ spring.redis.lettuce.pool.min-idle=0 
+ ```
 
 3、 添加redis配置类
 
+ ```java
+ @EnableCaching
+ @Configuration
+ public class RedisConfig extends CachingConfigurerSupport {
  
-
-@EnableCaching @Configuration public class RedisConfig extends CachingConfigurerSupport {    @Bean   public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {     RedisTemplate<String, Object> template = new RedisTemplate<>();     RedisSerializer<String> redisSerializer = new StringRedisSerializer();     Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);     ObjectMapper om = new ObjectMapper();     om.setVisibility(PropertyAccessor.*ALL\**\***, JsonAutoDetect.Visibility.*ANY\**\***);     om.enableDefaultTyping(ObjectMapper.DefaultTyping.*NON_FINAL\**\***);     jackson2JsonRedisSerializer.setObjectMapper(om);     template.setConnectionFactory(factory); **//key序列化方式**** **    template.setKeySerializer(redisSerializer); **//value序列化**** **    template.setValueSerializer(jackson2JsonRedisSerializer); **//value hashmap序列化**** **    template.setHashValueSerializer(jackson2JsonRedisSerializer);     return template;   }    @Bean   public CacheManager cacheManager(RedisConnectionFactory factory) {     RedisSerializer<String> redisSerializer = new StringRedisSerializer();     Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class); **//解决查询缓存转换异常的问题**** **    ObjectMapper om = new ObjectMapper();     om.setVisibility(PropertyAccessor.*ALL\**\***, JsonAutoDetect.Visibility.*ANY\**\***);     om.enableDefaultTyping(ObjectMapper.DefaultTyping.*NON_FINAL\**\***);     jackson2JsonRedisSerializer.setObjectMapper(om); **// 配置序列化（解决乱码的问题）,过期时间600秒**** **    RedisCacheConfiguration config = RedisCacheConfiguration.**defaultCacheConfig**()         .entryTtl(Duration.**ofSeconds**(600))         .serializeKeysWith(RedisSerializationContext.SerializationPair.**fromSerializer**(redisSerializer))         .serializeValuesWith(RedisSerializationContext.SerializationPair.**fromSerializer**(jackson2JsonRedisSerializer))         .disableCachingNullValues();     RedisCacheManager cacheManager = RedisCacheManager.**builder**(factory)         .cacheDefaults(config)         .build();     return cacheManager;   } }
-
+     @Bean
+     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
+         RedisTemplate<String, Object> template = new RedisTemplate<>();
+         RedisSerializer<String> redisSerializer = new StringRedisSerializer();
+         Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+         ObjectMapper om = new ObjectMapper();
+         om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+         om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+         jackson2JsonRedisSerializer.setObjectMapper(om);
+         template.setConnectionFactory(factory);
+ //key序列化方式
+         template.setKeySerializer(redisSerializer);
+ //value序列化
+         template.setValueSerializer(jackson2JsonRedisSerializer);
+ //value hashmap序列化
+         template.setHashValueSerializer(jackson2JsonRedisSerializer);
+         return template;
+     }
  
+     @Bean
+     public CacheManager cacheManager(RedisConnectionFactory factory) {
+         RedisSerializer<String> redisSerializer = new StringRedisSerializer();
+         Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+ //解决查询缓存转换异常的问题
+         ObjectMapper om = new ObjectMapper();
+         om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+         om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+         jackson2JsonRedisSerializer.setObjectMapper(om);
+ // 配置序列化（解决乱码的问题）,过期时间600秒
+         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
+                 .entryTtl(Duration.ofSeconds(600))
+                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer))
+                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jackson2JsonRedisSerializer))
+                 .disableCachingNullValues();
+         RedisCacheManager cacheManager = RedisCacheManager.builder(factory)
+                 .cacheDefaults(config)
+                 .build();
+         return cacheManager;
+     }
+ } 
+ ```
 
 4、测试一下
 
 RedisTestController中添加测试方法
 
-@RestController @RequestMapping("/redisTest") public class RedisTestController {   @Autowired   private RedisTemplate redisTemplate;   @GetMapping   public String testRedis() {     **//设置值到redis**** **    redisTemplate.opsForValue().set("name","lucy");     **//从redis获取值**** **    String name = (String)redisTemplate.opsForValue().get("name");     return name;   } }
+```java
+@RestController
+@RequestMapping("/redisTest")
+public class RedisTestController {
+    @Autowired
+    private RedisTemplate redisTemplate;
 
- 
+    @GetMapping
+    public String testRedis() {
+        //设置值到redis
+        redisTemplate.opsForValue().set("name","lucy");
+        //从redis获取值
+        String name = (String)redisTemplate.opsForValue().get("name");
+        return name;
+    }
+} 
+```
 
-Redis_事务_锁机制_秒杀
+#### 十、Redis_事务_锁机制_秒杀
 
-Redis的事务定义
+##### 10.1 Redis的事务定义
 
 ![img](images/wpsiVuy1s.png) 
 
@@ -1510,7 +1627,7 @@ Redis事务是一个单独的隔离操作：事务中的所有命令都会序列
 
 Redis事务的主要作用就是串联多个命令防止别的命令插队。
 
-Multi、Exec、discard
+##### 10.2 Multi、Exec、discard
 
 从输入Multi命令开始，输入的命令都会依次进入命令队列中，但不会执行，直到输入Exec后，Redis会将之前的命令队列中的命令依次执行。
 
@@ -1525,7 +1642,7 @@ Multi、Exec、discard
 | ![img](images/wps7f8BVN.png) 组队阶段报错，提交失败         |
 | ![img](images/wpsvFRZqh.png) 组队成功，提交有成功有失败情况 |
 
-事务的错误处理
+##### 10.3 事务的错误处理
 
 组队中某个命令出现了报告错误，执行时整个的所有队列都会被取消。
 
@@ -1535,13 +1652,13 @@ Multi、Exec、discard
 
 ![img](images/wpsXR5GDM.png) 
 
-为什么要做成事务
+##### 10.4 为什么要做成事务
 
 想想一个场景：有很多人有你的账户,同时去参加双十一抢购
 
-事务冲突的问题
+##### 10.5 事务冲突的问题
 
-例子
+###### 10.5.1 例子
 
 一个请求想给金额减8000
 
@@ -1551,25 +1668,25 @@ Multi、Exec、discard
 
 ![img](images/wpsc2P7SS.png) 
 
-悲观锁
+###### 10.5.2 悲观锁
 
 ![img](images/wpsNHfbc7.png) 
 
-悲观锁(Pessimistic Lock), 顾名思义，就是很悲观，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会block直到它拿到锁。传统的关系型数据库里边就用到了很多这种锁机制，比如行锁，表锁等，读锁，写锁等，都是在做操作之前先上锁。
+**悲观锁(Pessimistic Lock)：**顾名思义，就是很悲观，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会block直到它拿到锁。传统的关系型数据库里边就用到了很多这种锁机制，比如行锁，表锁等，读锁，写锁等，都是在做操作之前先上锁。
 
-乐观锁
+###### 10.5.3 乐观锁
 
 ![img](images/wpszm1Tei.png) 
 
-乐观锁(Optimistic Lock), 顾名思义，就是很乐观，每次去拿数据的时候都认为别人不会修改，所以不会上锁，但是在更新的时候会判断一下在此期间别人有没有去更新这个数据，可以使用版本号等机制。乐观锁适用于多读的应用类型，这样可以提高吞吐量。Redis就是利用这种check-and-set机制实现事务的。
+**乐观锁(Optimistic Lock)：**顾名思义，就是很乐观，每次去拿数据的时候都认为别人不会修改，所以不会上锁，但是在更新的时候会判断一下在此期间别人有没有去更新这个数据，可以使用版本号等机制。乐观锁适用于多读的应用类型，这样可以提高吞吐量。Redis就是利用这种check-and-set机制实现事务的。
 
-WATCH key [key ...]
+###### 10.5.4 WATCH key [key ...]
 
 在执行multi之前，先执行watch key1 [key2],可以监视一个(或多个) key ，如果在事务执行之前这个(或这些) key 被其他命令所改动，那么事务将被打断。
 
 ![img](images/wpsfxr1Ku.png) 
 
-unwatch
+###### 10.5.6 unwatch
 
 取消 WATCH 命令对所有 key 的监视。
 
@@ -1577,7 +1694,7 @@ unwatch
 
 http://doc.redisfans.com/transaction/exec.html
 
-Redis事务三特性
+##### 10.6 Redis事务三特性
 
 Ø 单独的隔离操作 
 
@@ -1593,13 +1710,13 @@ n 事务中如果有一条命令执行失败，其后的命令仍然会被执行
 
  
 
-Redis_事务_秒杀案例
+#### 十一、Redis_事务_秒杀案例
 
-解决计数器和人员记录的事务操作
+##### 11.1 解决计数器和人员记录的事务操作
 
 ![img](images/wpsF6l7b4.png) 
 
-Redis事务--秒杀并发模拟
+##### 11.2 Redis事务--秒杀并发模拟
 
 使用工具ab模拟测试
 
@@ -1607,9 +1724,9 @@ CentOS6 默认安装
 
 CentOS7需要手动安装
 
-联网：yum install httpd-tools
+###### 11.2.1 联网：yum install httpd-tools
 
-无网络
+###### 11.2.2 无网络
 
 （1） 进入cd  /run/media/root/CentOS 7 x86_64/Packages（路径跟centos6不同）
 
@@ -1621,9 +1738,9 @@ apr-util-1.5.2-6.el7.x86_64.rpm
 
 httpd-tools-2.4.6-67.el7.centos.x86_64.rpm  
 
-测试及结果
+###### 11.2.3 测试及结果
 
-通过ab测试
+- 通过ab测试
 
 vim postfile 模拟表单提交参数,以&符号结尾;存放当前目录。
 
@@ -1631,9 +1748,7 @@ vim postfile 模拟表单提交参数,以&符号结尾;存放当前目录。
 
 ab -n 2000 -c 200 -k -p ~/postfile -T application/x-www-form-urlencoded http://192.168.2.115:8081/Seckill/doseckill
 
- 
-
-超卖
+- 超卖
 
 | ![img](images/wpsYqJIJA.png) | ![img](images/wpsdgdniw.png) |
 | ---------------------------- | ---------------------------- |
@@ -1641,21 +1756,68 @@ ab -n 2000 -c 200 -k -p ~/postfile -T application/x-www-form-urlencoded http://1
 
  
 
-超卖问题
+##### 11.3 超卖问题
 
 ![img](images/wpsQ8oe0s.png) 
 
-利用乐观锁淘汰用户，解决超卖问题。
+##### 11.4 利用乐观锁淘汰用户，解决超卖问题。
 
 ![img](images/wpskot0t5.png) 
 
-| //增加乐观锁jedis.watch(qtkey); //3.判断库存String qtkeystr = jedis.get(qtkey);if(qtkeystr==null \|\| "".equals(qtkeystr.trim())) {System.out.println("未初始化库存");jedis.close();return false ;} int qt = Integer.parseInt(qtkeystr);if(qt<=0) {System.err.println("已经秒光");jedis.close();return false;} //增加事务Transaction multi = jedis.multi(); //4.减少库存//jedis.decr(qtkey);multi.decr(qtkey); //5.加人//jedis.sadd(usrkey, uid);multi.sadd(usrkey, uid); //执行事务List<Object> list = multi.exec(); //判断事务提交是否失败if(list==null \|\| list.size()==0) {System.out.println("秒杀失败");jedis.close();return false;}System.err.println("秒杀成功");jedis.close(); | ![img](images/wpsbEktQr.png) ![img](images/wpsK5Hc7b.png) |
-| ------------------------------------------------------------ | --------------------------------------------------------- |
-|                                                              |                                                           |
+```java
+//增加乐观锁
+jedis.watch(qtkey);
+ 
+//3.判断库存
+String qtkeystr = jedis.get(qtkey);
+if(qtkeystr==null || "".equals(qtkeystr.trim())) {
+System.out.println("未初始化库存");
+jedis.close();
+return false ;
+}
+ 
+int qt = Integer.parseInt(qtkeystr);
+if(qt<=0) {
+System.err.println("已经秒光");
+jedis.close();
+return false;
+}
+ 
+//增加事务
+Transaction multi = jedis.multi();
+ 
+//4.减少库存
+//jedis.decr(qtkey);
+multi.decr(qtkey);
+ 
+//5.加人
+//jedis.sadd(usrkey, uid);
+multi.sadd(usrkey, uid);
+ 
+//执行事务
+List<Object> list = multi.exec();
+ 
+//判断事务提交是否失败
+if(list==null || list.size()==0) {
+System.out.println("秒杀失败");
+jedis.close();
+return false;
+}
+System.err.println("秒杀成功");
+jedis.close();
+```
 
-继续增加并发测试
+![image-20211106212045210](images/image-20211106212045210.png )
 
-连接有限制
+
+
+<img src="images/image-20211106212111139.png" alt="image-20211106212111139" style="zoom:15%;" />
+
+
+
+##### 11.5 继续增加并发测试
+
+###### 11.5.1 连接有限制
 
 ab -n 2000 -c 200 -k -p postfile -T 'application/x-www-form-urlencoded' http://192.168.140.1:8080/seckill/doseckill
 
@@ -1665,7 +1827,7 @@ ab -n 2000 -c 200 -k -p postfile -T 'application/x-www-form-urlencoded' http://1
 
 ab -n 2000 -c 100 -r -p postfile -T 'application/x-www-form-urlencoded' [http://192.168.140.1:8080/seckill/doseckill](http://192.168.140.1:8080/seckill/doseckill)
 
-已经秒光，可是还有库存
+###### 11.5.2 已经秒光，可是还有库存
 
 ab -n 2000 -c 100 -p postfile -T 'application/x-www-form-urlencoded' http://192.168.137.1:8080/seckill/doseckill
 
@@ -1673,11 +1835,11 @@ ab -n 2000 -c 100 -p postfile -T 'application/x-www-form-urlencoded' http://192.
 
 ![img](images/wpsE9sw56.png) 
 
-连接超时，通过连接池解决
+###### 11.5.3 连接超时，通过连接池解决
 
 ![img](images/wpsvwqg8S.png) 
 
-连接池
+###### 11.5.4 连接池
 
 节省每次连接redis服务带来的消耗，把连接好的实例反复利用。
 
@@ -1685,19 +1847,19 @@ ab -n 2000 -c 100 -p postfile -T 'application/x-www-form-urlencoded' http://192.
 
 代码见项目中
 
-l 链接池参数
+- 链接池参数
 
-n MaxTotal：控制一个pool可分配多少个jedis实例，通过pool.getResource()来获取；如果赋值为-1，则表示不限制；如果pool已经分配了MaxTotal个jedis实例，则此时pool的状态为exhausted。
+  1. MaxTotal：控制一个pool可分配多少个jedis实例，通过pool.getResource()来获取；如果赋值为-1，则表示不限制；如果pool已经分配了MaxTotal个jedis实例，则此时pool的状态为exhausted。
 
-n maxIdle：控制一个pool最多有多少个状态为idle(空闲)的jedis实例；
+  2. maxIdle：控制一个pool最多有多少个状态为idle(空闲)的jedis实例；
 
-n MaxWaitMillis：表示当borrow一个jedis实例时，最大的等待毫秒数，如果超过等待时间，则直接抛JedisConnectionException；
+  3. MaxWaitMillis：表示当borrow一个jedis实例时，最大的等待毫秒数，如果超过等待时间，则直接抛JedisConnectionException；
 
-n testOnBorrow：获得一个jedis实例的时候是否检查连接可用性（ping()）；如果为true，则得到的jedis实例均是可用的；
+  4. testOnBorrow：获得一个jedis实例的时候是否检查连接可用性（ping()）；如果为true，则得到的jedis实例均是可用的；
 
-解决库存遗留问题
+##### 11.6 解决库存遗留问题
 
-LUA脚本
+###### 11.6.1 LUA脚本
 
 ![img](images/wpsI1k8hg.png) 
 
@@ -1709,7 +1871,7 @@ Lua 是一个小巧的[脚本语言](http://baike.baidu.com/item/脚本语言)�
 
 https://www.w3cschool.cn/lua/
 
-LUA脚本在Redis中的优势
+###### 11.6.2 LUA脚本在Redis中的优势
 
 将复杂的或者多步的redis操作，写为一个脚本，一次提交给redis执行，减少反复连接redis的次数。提升性能。
 
@@ -1725,13 +1887,13 @@ redis 2.6版本以后，通过lua脚本解决争抢问题，实际上是redis �
 
  
 
-Redis_事务_秒杀案例_代码
+##### 11.7 Redis_事务_秒杀案例_代码
 
-项目结构
+###### 11.7.1 项目结构
 
 ![img](images/wpskjxSZ8.jpg) 
 
-第一版：简单版 
+###### 11.7.2 第一版：简单版 
 
 老师点10次，正常秒杀
 
@@ -1739,17 +1901,36 @@ Redis_事务_秒杀案例_代码
 
 使用工具ab模拟并发测试，会出现超卖情况。查看库存会出现负数。
 
-第二版：加事务-乐观锁(解决超卖),但出现遗留库存和连接超时
+###### 11.7.3 第二版：加事务-乐观锁(解决超卖),但出现遗留库存和连接超时
 
-第三版：连接池解决超时问题 
+###### 11.7.4 第三版：连接池解决超时问题 
 
-第四版：解决库存依赖问题，LUA脚本
+###### 11.7.5 第四版：解决库存依赖问题，LUA脚本
 
-local userid=KEYS[1]; local prodid=KEYS[2];local qtkey="sk:"..prodid..":qt";local usersKey="sk:"..prodid.":usr'; local userExists=redis.call("sismember",usersKey,userid);if tonumber(userExists)==1 then  return 2;endlocal num= redis.call("get" ,qtkey);if tonumber(num)<=0 then  return 0; else  redis.call("decr",qtkey); redis.call("sadd",usersKey,userid);endreturn 1;
+```lua
+local userid=KEYS[1]; 
+local prodid=KEYS[2];
+local qtkey="sk:"..prodid..":qt";
+local usersKey="sk:"..prodid.":usr'; 
+local userExists=redis.call("sismember",usersKey,userid);
+if tonumber(userExists)==1 then 
+  return 2;
+end
+local num= redis.call("get" ,qtkey);
+if tonumber(num)<=0 then 
+  return 0; 
+else 
+  redis.call("decr",qtkey);
+  redis.call("sadd",usersKey,userid);
+end
+return 1;
+```
 
-Redis持久化之RDB
 
-总体介绍
+
+#### 十二、Redis持久化之RDB
+
+##### 12.1 总体介绍
 
 官网介绍：http://www.redis.io
 
@@ -1757,47 +1938,45 @@ Redis持久化之RDB
 
 Redis 提供了2个不同形式的持久化方式。
 
-l RDB（Redis DataBase）
+- RDB（Redis DataBase）
 
-l AOF（Append Of File）
+- AOF（Append Of File）
 
-RDB（Redis DataBase）
+##### 12.2 RDB（Redis DataBase）
 
-官网介绍
+###### 12.2.1 官网介绍
 
 ![img](images/wpsaIXXxk.png) 
 
-是什么
+###### 12.2.2 是什么
 
 在指定的时间间隔内将内存中的数据集快照写入磁盘， 也就是行话讲的Snapshot快照，它恢复时是将快照文件直接读到内存里
 
-备份是如何执行的
+###### 12.2.3 备份是如何执行的
 
 Redis会单独创建（fork）一个子进程来进行持久化，会先将数据写入到 一个临时文件中，待持久化过程都结束了，再用这个临时文件替换上次持久化好的文件。 整个过程中，主进程是不进行任何IO操作的，这就确保了极高的性能 如果需要进行大规模数据的恢复，且对于数据恢复的完整性不是非常敏感，那RDB方式要比AOF方式更加的高效。RDB的缺点是最后一次持久化后的数据可能丢失。
 
-Fork
+###### 12.2.4 Fork
 
-l Fork的作用是复制一个与当前进程一样的进程。新进程的所有数据（变量、环境变量、程序计数器等） 数值都和原进程一致，但是是一个全新的进程，并作为原进程的子进程
+- Fork的作用是复制一个与当前进程一样的进程。新进程的所有数据（变量、环境变量、程序计数器等） 数值都和原进程一致，但是是一个全新的进程，并作为原进程的子进程
 
-l 在Linux程序中，fork()会产生一个和父进程完全相同的子进程，但子进程在此后多会exec系统调用，出于效率考虑，Linux中引入了“写时复制技术”
+- 在Linux程序中，fork()会产生一个和父进程完全相同的子进程，但子进程在此后多会exec系统调用，出于效率考虑，Linux中引入了“写时复制技术”
 
-**l** 一般情况父进程和子进程会共用同一段物理内存，只有进程空间的各段的内容要发生变化时，才会将父进程的内容复制一份给子进程。
+- 一般情况父进程和子进程会共用同一段物理内存，只有进程空间的各段的内容要发生变化时，才会将父进程的内容复制一份给子进程。
 
- 
-
-RDB持久化流程
+###### 12.2.5 RDB持久化流程
 
  
 
 ![img](images/wpsJjacp1.jpg) 
 
-dump.rdb文件
+###### 12.2.6 dump.rdb文件
 
 在redis.conf中配置文件名称，默认为dump.rdb
 
 ![img](images/wpsRVvGMU.jpg) 
 
-配置位置
+###### 12.2.7 配置位置
 
 rdb文件的保存路径，也可以修改。默认为Redis启动时命令行所在的目录下
 
@@ -1805,53 +1984,53 @@ dir "/myredis/"
 
 ![img](images/wpstHPBD6.jpg) 
 
-如何触发RDB快照；保持策略
+###### 12.2.8 如何触发RDB快照；保持策略
 
-配置文件中默认的快照配置
+- 配置文件中默认的快照配置
 
 ![img](images/wpsstk9l0.jpg) 
 
-命令save VS bgsave
+- 命令save VS bgsave
 
-save ：save时只管保存，其它不管，全部阻塞。手动保存。不建议。
+  save ：save时只管保存，其它不管，全部阻塞。手动保存。不建议。
 
-bgsave：Redis会在后台异步进行快照操作， 快照同时还可以响应客户端请求。
+  bgsave：Redis会在后台异步进行快照操作， 快照同时还可以响应客户端请求。
 
-可以通过lastsave 命令获取最后一次成功执行快照的时间
+  可以通过lastsave 命令获取最后一次成功执行快照的时间
 
-flushall命令
+- flushall命令
 
-执行flushall命令，也会产生dump.rdb文件，但里面是空的，无意义
+  执行flushall命令，也会产生dump.rdb文件，但里面是空的，无意义
 
-###SNAPSHOTTING快照###
+- SNAPSHOTTING快照
 
-Save
+- Save
 
-格式：save 秒钟 写操作次数
+  格式：save 秒钟 写操作次数
 
-RDB是整个内存的压缩过的Snapshot，RDB的数据结构，可以配置复合的快照触发条件，
+  RDB是整个内存的压缩过的Snapshot，RDB的数据结构，可以配置复合的快照触发条件，
 
-默认是1分钟内改了1万次，或5分钟内改了10次，或15分钟内改了1次。
+  默认是1分钟内改了1万次，或5分钟内改了10次，或15分钟内改了1次。
 
-禁用
+  禁用
 
-不设置save指令，或者给save传入空字符串
+  不设置save指令，或者给save传入空字符串
 
-stop-writes-on-bgsave-error
+- stop-writes-on-bgsave-error
 
 ![img](images/wpsEWXNVg.jpg) 
 
-当Redis无法写入磁盘的话，直接关掉Redis的写操作。推荐yes.
+​	当Redis无法写入磁盘的话，直接关掉Redis的写操作。推荐yes.
 
-rdbcompression 压缩文件
+- rdbcompression 压缩文件
 
 ![img](images/wpsoZEIFD.jpg) 
 
-对于存储到磁盘中的快照，可以设置是否进行压缩存储。如果是的话，redis会采用LZF算法进行压缩。
+​	对于存储到磁盘中的快照，可以设置是否进行压缩存储。如果是的话，redis会采用LZF算法进行压缩。
 
 如果你不想消耗CPU来进行压缩的话，可以设置为关闭此功能。推荐yes.
 
-rdbchecksum 检查完整性
+- rdbchecksum 检查完整性
 
 ![img](images/wpsmHDA4E.jpg) 
 
@@ -1861,33 +2040,33 @@ rdbchecksum 检查完整性
 
 推荐yes.
 
-rdb的备份
+- rdb的备份
 
-先通过config get dir  查询rdb文件的目录 
+  先通过config get dir  查询rdb文件的目录 
 
-将*.rdb的文件拷贝到别的地方
+  将*.rdb的文件拷贝到别的地方
 
-rdb的恢复
+  rdb的恢复
 
-u 关闭Redis
+  关闭Redis
 
-u 先把备份的文件拷贝到工作目录下 cp dump2.rdb dump.rdb
+  先把备份的文件拷贝到工作目录下 cp dump2.rdb dump.rdb
 
-u 启动Redis, 备份数据会直接加载
+  启动Redis, 备份数据会直接加载
 
-优势
+###### 12.2.9 优势
 
-l 适合大规模的数据恢复
+- 适合大规模的数据恢复
 
-l 对数据完整性和一致性要求不高更适合使用
+- 对数据完整性和一致性要求不高更适合使用
 
-l 节省磁盘空间
+- 节省磁盘空间
 
-l 恢复速度快
+- 恢复速度快
 
 ![img](images/wpsX3DV2t.png) 
 
-劣势
+###### 12.2.10 劣势
 
 l Fork的时候，内存中的数据被克隆了一份，大致2倍的膨胀性需要考虑
 
@@ -1895,21 +2074,21 @@ l 虽然Redis在fork时使用了写时拷贝技术,但是如果数据庞大时�
 
 l 在备份周期在一定间隔时间做一次备份，所以如果Redis意外down掉的话，就会丢失最后一次快照后的所有修改。
 
-如何停止
+###### 12.2.11 如何停止
 
 动态停止RDB：redis-cli config set save ""#save后给空值，表示禁用保存策略
 
-小总结
+###### 12.2.12 小总结
 
 ![img](images/wps1ZcZDR.png) 
 
  
 
-Redis持久化之AOF
+#### 十三、Redis持久化之AOF
 
-AOF（Append Only File）
+##### 13.1 AOF（Append Only File）
 
-是什么
+###### 13.1.1 是什么
 
 以日志的形式来记录每个写操作（增量保存），将Redis执行过的所有写指令记录下来(读操作不记录)， 只许追加文件但不可以改写文件，redis启动之初会读取该文件重新构建数据，换言之，redis 重启的话就根据日志文件的内容将写指令从前到后执行一次以完成数据的恢复工作
 
