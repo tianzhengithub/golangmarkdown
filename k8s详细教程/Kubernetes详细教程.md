@@ -298,7 +298,7 @@ EOF
 
 # 3、安装特定版本的docker-ce
 # 必须制定--setopt=obsoletes=0，否则yum会自动安装更高版本
-[root@master ~]# yum install --setopt=obsoletes=0 docker-ce-18.06.3.ce-3.e17 -y
+[root@master ~]# yum install --setopt=obsoletes=0 docker-ce-18.06.3.ce-3.el7 -y
 
 # 4、添加一个配置文件
 #Docker 在默认情况下使用Vgroup Driver为cgroupfs，而Kubernetes推荐使用systemd来替代cgroupfs
