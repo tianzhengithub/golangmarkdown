@@ -226,7 +226,7 @@ kubernetes和docker 在运行的中会产生大量的iptables规则，为了不�
 
 ##### 2.6.5 禁用selinux
 
-selinux是linux系统一下的一个安全服务，如果不关闭它，在安装集群中会产生各种各样的奇葩问题
+selinux是linux系统下的一个安全服务，如果不关闭它，在安装集群中会产生各种各样的奇葩问题
 
 ```powershell
 # 编辑 /etc/selinux/config 文件，修改SELINUX的值为disable
@@ -236,7 +236,7 @@ SELINUX=disabled
 
 ##### 2.6.6 禁用swap分区
 
-swap分区值的是虚拟内存分区，它的作用是物理内存使用完，之后将磁盘空间虚拟成内存来使用，启用sqap设备会对系统的性能产生非常负面的影响，因此kubernetes要求每个节点都要禁用swap设备，但是如果因为某些原因确实不能关闭swap分区，就需要在集群安装过程中通过明确的参数进行配置说明
+swap分区指的是虚拟内存分区，它的作用是物理内存使用完，之后将磁盘空间虚拟成内存来使用，启用swap设备会对系统的性能产生非常负面的影响，因此kubernetes要求每个节点都要禁用swap设备，但是如果因为某些原因确实不能关闭swap分区，就需要在集群安装过程中通过明确的参数进行配置说明
 
 ```powershell
 # 编辑分区配置文件/etc/fstab，注释掉swap分区一行
