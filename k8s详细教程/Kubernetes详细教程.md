@@ -282,9 +282,9 @@ EOF
 # 3.为脚本添加执行权限
 [root@master ~]# chmod +x /etc/sysconfig/modules/ipvs.modules
 # 4.执行脚本文件
-[root@master ~]# /bin/bash /etc/sysconfig/modeules/ipvs.modules
+[root@master ~]# /bin/bash /etc/sysconfig/modules/ipvs.modules
 # 5.查看对应的模块是否加载成功
-[root@master ~]# lsmod | grep -e -ip_vs -e nf_conntrack_ipv4
+[root@master ~]# lsmod | grep -e ip_vs -e nf_conntrack_ipv4
 ```
 
 ##### 2.6.9 安装docker
