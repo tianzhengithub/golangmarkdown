@@ -291,7 +291,7 @@ EOF
 
 ```powershell
 # 1、切换镜像源
-[root@master ~]# wget https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -O /etc/yum.repos.d.docker-ce.repo
+[root@master ~]# wget https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -O /etc/yum.repos.d/docker-ce.repo
 
 # 2、查看当前镜像源中支持的docker版本
 [root@master ~]# yum list docker-ce --showduplicates
