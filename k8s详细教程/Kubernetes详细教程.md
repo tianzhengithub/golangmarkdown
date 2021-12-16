@@ -322,7 +322,7 @@ EOF
 # 2、编辑/etc/yum.repos.d/kubernetes.repo,添加下面的配置
 [kubernetes]
 name=Kubernetes
-baseurl=http://mirror.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+baseurl=http://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
 enabled=1
 gpgchech=0
 repo_gpgcheck=0
