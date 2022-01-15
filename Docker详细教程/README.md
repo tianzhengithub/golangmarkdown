@@ -679,7 +679,7 @@ docker exec -it 容器ID bashShell
 >
 > cat 文件名.tar  | docker  import  -镜像用户/镜像名:镜像版本号
 >
-> ![39](/Users/yooome/Desktop/39.png)
+> ![39](images/39.png)
 
 #### 3.4 小总结
 
