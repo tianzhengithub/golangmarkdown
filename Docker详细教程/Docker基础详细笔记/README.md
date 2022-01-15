@@ -830,7 +830,7 @@ UnionFS（联合文件系统）：Union文件系统（UnionFS）是一种分层�
 
 #### 5.1 本地镜像发布到阿里云流程
 
-![48](/Users/yooome/Documents/golang/Docker详细教程/images/48.png)
+![48](images/48.png)
 
 #### 5.2 镜像生成的方法
 
