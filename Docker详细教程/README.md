@@ -1024,6 +1024,387 @@ docker pull registry.cn-hangzhou.aliyuncs.com/atguiguwh/myubuntu:1.1
 
 
 
+### 七、Docker容器数据卷
+
+#### 7.1 坑：容器卷记得加入
+
+```shell
+--privileged=true
+# 原因
+  Docker挂载主机目录访问 如果出现cannot open directory .: Permission denied 
+解决办法：在挂载目录后多加一个--privileged=true参数即可 
+  
+如果是CentOS7安全模块会比之前系统版本加强，不安全的会先禁止，所以目录挂载的情况被默认为不安全的行为， 
+在SELinux里面挂载目录被禁止掉了额，如果要开启，我们一般使用--privileged=true命令，扩大容器的权限解决挂载目录没有权限的问题，也即 
+使用该参数，container内的root拥有真正的root权限，否则，container内的root只是外部的一个普通用户权限。 
+
+```
+
+#### 7.2 回顾下上一将的知识点，参数V
+
+还记得蓝色框框中的内容嘛
+
+![69](images/69.png)
+
+#### 7.3 是什么
+
+```shell
+一句话：有点类似我们Redis里面的rdb和aof文件
+将docker容器内的数据保存进宿主机的磁盘中
+运行一个带有容器卷存储功能的容器实例
+docker run -it --privileged=true -v /宿主机绝对路径目录:/容器内目录      镜像名
+```
+
+#### 7.4 能干什么
+
+```shell
+将运用与运行的环境打包镜像，run后形成容器实例运行 ，但是我们对数据的要求希望是 持久化的 
+ 
+Docker容器产生的数据，如果不备份，那么当容器实例删除后，容器内的数据自然也就没有了。 
+为了能保存数据在docker中我们使用卷。 
+  
+特点： 
+1：数据卷可在容器之间共享或重用数据 
+2：卷中的更改可以直接实时生效，爽 
+3：数据卷中的更改不会包含在镜像的更新中 
+4：数据卷的生命周期一直持续到没有容器使用它为止 
+```
+
+#### 7.5 数据卷案例
+
+>##### 7.5.1 宿主vs容器之间映射添加容器卷
+>
+>**直接命令添加**
+>
+>```shell
+>公式：docker run -it -v /宿主机目录:/容器内目录
+>ubuntu /bin/bash
+>docker run -it --name myu3 --privileged=true -v /tmp/myHostData:/tmp/myDockerData ubuntu /bin/bash 
+>```
+>
+>![70](images/70.png)
+>
+>**查看数据卷是否挂成功**
+>
+>```
+>docker inspect 容器ID 
+>```
+>
+>![71](images/71.png)
+>
+>**容器和宿主机之间数据共享**
+>
+>```
+>1. docker修改，主机同步获得  
+>2. 主机修改，docker同步获得 
+>3. docker容器stop，主机修改，docker容器重启看数据是否同步。
+>```
+>
+>![72](images/72.png)
+
+> ##### 7.5.2 读写规则映射添加说明
+>
+> **读写(默认)**
+>
+> ```shell
+> docker run -it --privileged=true -v /宿主机绝对路径目录:/容器内目录:rw  镜像名
+> 默认同上案例，默认就是rw
+> ```
+>
+> ![73](images/73.png)
+>
+> 默认同上案例，默认就是rw
+
+> **只读**
+>
+> 容器实例内部被限制，只能读取不能写
+>
+> ![74](images/74.png)
+>
+> ```shell
+> /容器目录:ro 镜像名               就能完成功能，此时容器自己只能读取不能写   
+> ro = read only 
+> 此时如果宿主机写入内容，可以同步给容器内，容器可以读取到。
+> ```
+>
+> ```shell
+>  docker run -it --privileged=true -v /宿主机绝对路径目录:/容器内目录:ro      镜像名
+> ```
+>
+> 
+
+>##### 7.5.3 卷的集成和共享
+>
+>容器1完成和宿主机的映射
+>
+>```shell
+>docker run -it --privileged=true -v /mydocker/u:/tmp --name u1 ubuntu 
+>```
+>
+>
+>
+>![75](images/75.png)
+>
+>容器2集成容器1的卷规则
+>
+>```shell
+>docker run -it --privileged=true --volumes-from 父类 --name u2 ubuntu
+>```
+>
+>
+
+### 八、Docker常规安装简介
+
+#### 8.1 总体步骤
+
+```
+1. 搜索镜像
+2. 拉去镜像
+3. 查看镜像
+4. 查看镜像
+5. 启动镜像
+	 服务端口映射
+6. 停止容器
+```
+
+#### 8.2 安装tomcat
+
+> 1、docker hub 上面查找tomcat镜像
+>
+> ```shell
+> # 命令
+> docker search tomcat
+> ```
+>
+> 2、从docker hub 上拉去tomcat镜像到本地
+>
+> ```shell
+> # 命令
+> docker pull tomcat
+> ```
+>
+> 3、docker images 查看是否有拉去到tomcat
+>
+> ```shell
+> # 命令
+> docker images tomcat
+> ```
+>
+> 4、使用tomcat镜像创建容器实例（也叫运行镜像）
+>
+> ```shell
+> # 命令
+> docker run -it -p 8080:8080 tomcat
+> 
+> -p 小写，主机端口:docker容器端口
+> 
+> -P 大写，随机分配端口
+> 
+> i:交互
+> 
+> t:终端
+> 
+> d:后台
+> 
+> ```
+>
+> 5、访问tomcat首页
+>
+> ```
+> 可能出现404 的情况
+> 
+> 解决
+> 
+> 1、可能没有映射端口或者没有关闭防火墙
+> 2、把webapps.dist 目录换成webapps 
+> 	先成功启动tomcat
+> ```
+>
+> ![76](images/76.png)
+>
+> 查看webapps文件夹查看为空
+>
+> ![77](images/77.png)
+>
+> 6、免修改版说明
+>
+> docker pull billygoo/tomcat8-jdk8
+>
+> Docker run -d -p 8080:8080 --name mytomcat8 billygoo/tomcat8-djk8
+
+#### 8.3 安装mysql
+
+> 1、docker hub上面查找mysql镜像
+>
+> ```shell
+> # 命令
+> docker search mysql
+> ```
+>
+> 2、从docker hub上（阿里云加速器）拉去mysql镜像到本地标签为5.7 
+>
+> ```
+> # 命令
+> docker pull mysql:5.7
+> ```
+>
+> 3、使用mysql5.7 镜像创建容器（也叫运行镜像）
+>
+> ```shell
+> # 1、命令出处，哪里来的
+> 地址：https://hub.docker.com/_/mysql
+> # 2、简单版
+> docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=123456 -d mysql:5.7 
+> 
+> docker ps
+> 
+> docker exec -it 容器ID /bin/bash
+> 
+> mysql -uroot -p
+> ```
+>
+> ![78](images/78.png)
+>
+> ```shell
+> # 4、 建库建表插入数据
+> ```
+>
+> ![79](images/79.png)
+>
+> ```shell
+> 外部Win10也来连接运行在dokcer上的mysql容器实例服务
+> 【问题】
+> 插入中文数据试试，为什么报错？ docker 上默认字符集编码隐患
+> 
+>  docker里面的mysql容器实例查看，内容如下： 
+>  SHOW VARIABLES LIKE 'character%' 
+>  
+>  删除容器后，里面的mysql数据如何办
+>  
+>  容器实例一删除，你还有什么？
+> 删容器到跑路。。。。。？
+> ```
+>
+> 【实战版】
+>
+> ```shell
+> #1、新建mysql容器实例
+> docker run -d -p 3306:3306 --privileged=true -v /zzyyuse/mysql/log:/var/log/mysql -v /zzyyuse/mysql/data:/var/lib/mysql -v /zzyyuse/mysql/conf:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=123456  --name mysql mysql:5.7 
+> 
+> #2、新建my.cnf  通过容器卷同步给MySQL容器实例
+> [client]
+> default_character_set=utf8 
+> [mysqld] 
+> collation_server = utf8_general_ci 
+> character_set_server = utf8 
+> 
+> #3、重新启动mysql容器实例在重新进入并查看字符编码
+> docker restart mysql
+> 
+> docker exec -it mysql_bash
+> 
+> show variables like 'character%';
+> #4、再新建库新建表再插入中文测试
+> 完全正常
+> #5、结论
+> 之前的DB  无效 
+> 修改字符集操作+重启mysql容器实例 
+> 之后的DB  有效，需要新建 
+> 结论： docker安装完MySQL并run出容器后，建议请先修改完字符集编码后再新建mysql库-表-插数据 
+> #6、假如将当前容器实例删除，再重新来一次，之前建的db01实例还有吗？trytry
+> ```
+>
+> 
+
+#### 8.4 安装redis
+
+>1、从docker hub上（阿里云加速器）拉去redis镜像到本地标签6.0.8
+>
+>```shell
+># 拉去镜像
+>docker pull redis:6.0.8
+># 查看镜像
+>docker images
+>```
+>
+>2、入门命令
+>
+>```shell
+># 启动命令
+>docker run -d -p 6379:6379 redis:6.0.8
+># docker ps
+># 后台启动
+>docker exec -it CONTAINER ID /bin/bash
+>```
+>
+>3、命令提醒：容器卷记得加入 --privileged=true
+>
+>```
+>Docker挂载主机目录Docker访问出现cannot open directory .: Permission denied 
+>解决办法：在挂载目录后多加一个--privileged=true参数即可 
+>```
+>
+>4、在CentOS宿主机下新建目录/app/redis 
+>
+>```shell
+># 新建目录
+>mkdir -p /app/redis
+>```
+>
+>5、将一个redis.conf文件模板拷贝进 /app/redis目录下
+>
+>```shell
+>mkdir -p /app/redis
+>
+>cp /myredis/redis.conf  /app/redis/
+>
+>cp /app/redis
+>```
+>
+>6、/app/redis 目录下修改redis.conf
+>
+>```shell
+># 修改redis.conf文件 
+>/app/redis目录下修改redis.conf文件 
+>开启redis验证     可选 
+>requirepass 123 
+>允许redis外地连接  必须 
+>注释掉 # bind 127.0.0.1 
+>
+># 注释daemonize no
+>daemonize no 
+>将daemonize yes注释起来或者 daemonize no设置，因为该配置和docker run中-d参数冲突，会导致容器一直启动失败
+>
+># 开启redis数据持久化
+>appendonly yes  可选 
+>```
+>
+>7、使用redis6.0.8 镜像创建容器(也叫运行镜像)
+>
+>```shell
+>docker run  -p 6379:6379 --name myr3 --privileged=true -v /app/redis/redis.conf:/etc/redis/redis.conf -v /app/redis/data:/data -d redis:6.0.8 redis-server /etc/redis/redis.conf 
+>```
+>
+>8、测试redis-cli连接上
+>
+>docker exec -it 运行着Rediis服务的容器ID redis-cli 
+>
+>![81](images/81.png)
+>
+>9、请证明docker启动使用了我们自己指定的配置文件
+>
+>【修改前】
+>
+>![82](images/82.png)
+>
+>【修改后】
+>
+>![83](images/83.png)
+>
+>10、测试redis-cli连接上来第2次
+>
+>![84](images/84.png)
+
 
 
 
