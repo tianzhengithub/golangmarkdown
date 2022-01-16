@@ -65,7 +65,7 @@
 >CREATE USER 'slave'@'%' IDENTIFIED BY '123456';
 >
 ># 同步用户授权
->GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'slave'@'%';
+>GRANT REPLICATION SLAVE, REPLICATION CLIENT ON . TO 'slave'@'%';
 >```
 >
 >6、新建从服务容器实例3308
@@ -219,7 +219,7 @@
 >
 >4、优点
 >
->一致性哈希算法的**容错性**
+>一致性哈希算法的容错性
 >
 >```properties
 >假设Node C宕机，可以看到此时对象A、B、D不会受到影响，只有C对象被重定位到Node D。一般的，在一致性Hash算法中，如果一台服务器不可用，则 受影响的数据仅仅是此服务器到其环空间中前一台服务器（即沿着逆时针方向行走遇到的第一台服务器）之间数据 ，其它不会受到影响。简单说，就是C挂了，受到影响的只是B、C之间的数据，并且这些数据会转移到D进行存储。 
@@ -227,7 +227,7 @@
 >
 >![6](images/6.png)
 >
->一致性哈希算法的**扩展性**
+>一致性哈希算法的扩展性
 >
 >```properties
 >数据量增加了，需要增加一台节点NodeX，X的位置在A和B之间，那收到影响的也就是A到X之间的数据，重新把A到X的数据录入到X上即可， 
@@ -567,7 +567,7 @@ DockerFile是用来构建Docker镜像的文本文件，是有一条条构建镜�
 
 #### 2.2 DockerFile构建过程解析
 
-DockerFile内容基础知识
+**DockerFile内容基础知识**
 
 ```shell
 1. 每条保留字指令都必须为大写字母且后面跟随至少一个参数
@@ -576,7 +576,7 @@ DockerFile内容基础知识
 4. 每条指令都会创建一个新的镜像层并对镜像进行提交。
 ```
 
-Docker执行DockerFile的大致流程
+**Docker执行DockerFile的大致流程**
 
 ```
 1. docker从技术镜像运行一个容器
@@ -898,6 +898,418 @@ docker build -t 新镜像名字:TAG
 docker run -it 新镜像名字:TAG
 
 ````
+
+### 三、Docker微服务实战
+
+#### 3.1 通过IDEA新建一个普通微服务模块
+
+**建Module**
+
+```
+docker_boot
+```
+
+**修改POM**
+
+````xml
+<?xml version ="1.0" encoding ="UTF-8"?>
+ <project xmlns ="http://maven.apache.org/POM/4.0.0" xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+      xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"> 
+   <modelVersion> 4.0.0 </ modelVersion> 
+   <parent> 
+     <groupId> org.springframework.boot </ groupId> 
+     <artifactId> spring-boot-starter-parent </ artifactId> 
+     <version> 2.5.6 </ version> 
+     <relativePath /> 
+   </ parent> 
+ 
+   <groupId> com.atguigu.docker </ groupId> 
+   <artifactId> docker_boot </ artifactId> 
+   <version> 0.0.1-SNAPSHOT </ version> 
+ 
+   <properties> 
+     <project.build.sourceEncoding> UTF-8 </ project.build.sourceEncoding> 
+     <maven.compiler.source> 1.8 </ maven.compiler.source> 
+     <maven.compiler.target> 1.8 </ maven.compiler.target> 
+     <junit.version> 4.12 </ junit.version> 
+     <log4j.version> 1.2.17 </ log4j.version> 
+     <lombok.version> 1.16.18 </ lombok.version> 
+     <mysql.version> 5.1.47 </ mysql.version> 
+     <druid.version> 1.1.16 </ druid.version> 
+     <mapper.version> 4.1.5 </ mapper.version> 
+     <mybatis.spring.boot.version> 1.3.0 </ mybatis.spring.boot.version> 
+   </ properties> 
+ 
+   <dependencies> 
+     <!--SpringBoot 通用依赖模块 -->
+     <dependency> 
+       <groupId> org.springframework.boot </ groupId> 
+       <artifactId> spring-boot-starter-web </ artifactId> 
+     </ dependency> 
+     <dependency> 
+       <groupId> org.springframework.boot </ groupId> 
+       <artifactId> spring-boot-starter-actuator </ artifactId> 
+     </ dependency> 
+     <!--test-->
+     <dependency> 
+       <groupId> org.springframework.boot </ groupId> 
+       <artifactId> spring-boot-starter-test </ artifactId> 
+       <scope> test </ scope> 
+     </ dependency> 
+   </ dependencies> 
+   <build> 
+     <plugins> 
+       <plugin> 
+         <groupId> org.springframework.boot </ groupId> 
+         <artifactId> spring-boot-maven-plugin </ artifactId> 
+       </ plugin> 
+       <plugin> 
+         <groupId> org.apache.maven.plugins </ groupId> 
+         <artifactId> maven-resources-plugin </ artifactId> 
+         <version> 3.1.0 </ version> 
+       </ plugin> 
+     </ plugins> 
+   </ build> 
+ </ project> 
+````
+
+**写YML**
+
+```yaml
+server.port=6001
+```
+
+**主启动**
+
+```java
+package  com.atguigu.docker;
+import  org.springframework.boot.SpringApplication;
+import  org.springframework.boot.autoconfigure. SpringBootApplication ;
+@SpringBootApplication
+public class  DockerBootApplication {
+	public static void  main(String[] args)    {
+  	SpringApplication. run (DockerBootApplication. class , args);
+ 		 }
+  }
+```
+
+**业务类**
+
+```java
+ package com.atguigu.docker.controller;
+
+ import org.springframework.beans.factory.annotation. Value ;
+ import org.springframework.web.bind.annotation. RequestMapping ;
+ import org.springframework.web.bind.annotation.RequestMethod;
+ import org.springframework.web.bind.annotation. RestController ;
+
+ import java.util.UUID;
+
+ /
+  *@auther  zzyy
+  *@create  2021-10-25 17:43
+ */
+ @RestController
+ public class OrderController
+ {
+   @Value ( "${server.port}" )
+   private String port ;
+
+   @RequestMapping ( "/order/docker" )
+   public String helloDocker()
+   {
+     return "hello docker" + " \t " + port + " \t " + UUID. *randomUUID* ().toString();
+   }
+
+   @RequestMapping (value = "/order/index" ,method = RequestMethod. *GET\* )
+   public String index()
+   {
+     return " 服务端口号 : " + " \t " + port + " \t " +UUID. *randomUUID* ().toString();
+   }
+ } 
+```
+
+#### 3.2 通过dockerfile 发布微服务部署到docker容器
+
+##### 3.2.1 **IDEA工具里面搞定微服务jar包**
+
+![33](images/33.png)
+
+##### 3.2.2 **编写Dockerfile**
+
+ **Dockerfile内容**
+
+```shell
+# 基础镜像使用java 
+FROM java:8 
+# 作者 
+MAINTAINER zzyy 
+# VOLUME 指定临时文件目录为/tmp，在主机/var/lib/docker目录下创建了一个临时文件并链接到容器的/tmp 
+VOLUME /tmp 
+# 将jar包添加到容器中并更名为zzyy_docker.jar 
+ADD docker_boot-0.0.1-SNAPSHOT.jar zzyy_docker.jar 
+# 运行jar包 
+RUN bash -c 'touch /zzyy_docker.jar' 
+ENTRYPOINT ["java","-jar","/zzyy_docker.jar"] 
+#暴露6001端口作为微服务 
+EXPOSE 6001 
+```
+
+**将微服务jar包和Dockerfile文件上传到同一个目录下/mydocker**
+
+ ![34](images/34.png)
+
+```shell
+docker build -t zzyy_docker:1.6 . 
+
+```
+
+**构建镜像**
+
+```shell
+docker build -t zzyy_docker:1.6 .
+
+打包成镜像文件
+# 命令
+docker build -t zzyy_docker:1.6 .
+```
+
+**运行容器**
+
+```shell
+# 运行命令
+docker run -d -p 6001:6001 zzyy_docker:1.6
+# 查看镜像运行命令
+docker images
+```
+
+**访问测试**
+
+![35](images/35.png)
+
+### 四、Docker网络
+
+#### 4.1 Docker 网络是什么
+
+##### 4.1.1 docker不启动，默认网络情况
+
+```shell
+ens 33
+lo
+virbr0
+```
+
+![36](images/36.png)
+
+```shell
+在CentOS7的安装过程中如果有 选择相关虚拟化的的服务安装系统后 ，启动网卡时会发现有一个以网桥连接的私网地址的virbr0网卡(virbr0网卡：它还有一个固定的默认IP地址192.168.122.1)，是做虚拟机网桥的使用的，其作用是为连接其上的虚机网卡提供 NAT访问外网的功能。 
+  
+我们之前学习Linux安装，勾选安装系统的时候附带了libvirt服务才会生成的一个东西，如果不需要可以直接将libvirtd服务卸载， 
+yum remove libvirt-libs.x86_64 
+```
+
+##### 4.1.2 docker启动后，网络情况
+
+查看docker网络模式命令
+
+![37](images/37.png)
+
+#### 4.2 常用基本命令
+
+##### 4.2.1 **All 命令**
+
+![38](images/38.png)
+
+##### 4.2.2 **查看网络**
+
+```shell
+docker network ls
+```
+
+##### 4.2.3 查看网络源数据
+
+```shell
+docker network inspect  XXX网络名字
+```
+
+##### 4.2.4 删除网络
+
+```shell
+docker network rm XXX网络名字
+```
+
+##### 4.2.5 案例
+
+![39](images/39.png)
+
+#### 4.3 能干嘛
+
+```shell
+容器间的互联和通信以及端口映射
+容器IP变动时候可以通过服务名直接网络通信而不受到影响
+```
+
+#### 4.4 网络模式
+
+##### 4.4.1 总体介绍
+
+```shell
+bridge模式：使用--network bridge指定，默认使用docker()
+
+host模式：使用 --network host指定
+
+none模式：使用 --network none指定
+
+container模式：使用 --network container:Name或者容器ID指定
+```
+
+##### 4.4.2 容器实例内默认网络IP生产规则
+
+>1 先启动两个ubuntu容器实例 
+>
+>![40](images/40.png)
+>
+>2 docker inspect 容器ID or 容器名字 
+>
+>![41](images/41.png)
+>
+>3 关闭u2实例，新建u3，查看ip变化 
+>
+>![42](images/42.png)
+
+##### 4.4.3 案例说明
+
+**bridge**
+
+```shell
+Docker 服务默认会创建一个 docker0 网桥（其上有一个 docker0 内部接口），该桥接网络的名称为docker0，它在 内核层 连通了其他的物理或虚拟网卡，这就将所有容器和本地主机都放到 同一个物理网络 。Docker 默认指定了 docker0 接口 的 IP 地址和子网掩码， 让主机和容器之间可以通过网桥相互通信。 
+  
+# 查看 bridge 网络的详细信息，并通过 grep 获取名称项 
+docker network inspect bridge | grep name 
+
+ifconfig 
+```
+
+**案例**
+
+```shell
+1 Docker使用Linux桥接，在宿主机虚拟一个Docker容器网桥(docker0)，Docker启动一个容器时会根据Docker网桥的网段分配给容器一个IP地址，称为Container-IP，同时Docker网桥是每个容器的默认网关。因为在同一宿主机内的容器都接入同一个网桥，这样容器之间就能够通过容器的Container-IP直接通信。 
+ 
+2 docker run 的时候，没有指定network的话默认使用的网桥模式就是bridge，使用的就是docker0 。在宿主机ifconfig,就可以看到docker0和自己create的network(后面讲)eth0，eth1，eth2……代表网卡一，网卡二，网卡三…… ，lo代表127.0.0.1，即localhost ，inet addr用来表示网卡的IP地址 
+ 
+3 网桥docker0创建一对对等虚拟设备接口一个叫veth，另一个叫eth0，成对匹配。 
+   3.1 整个宿主机的网桥模式都是docker0，类似一个交换机有一堆接口，每个接口叫veth，在本地主机和容器内分别创建一个虚拟接口，并让他们彼此联通（这样一对接口叫veth pair）； 
+   3.2 每个容器实例内部也有一块网卡，每个接口叫eth0； 
+   3.3 docker0上面的每个veth匹配某个容器实例内部的eth0，两两配对，一一匹配。 
+ 通过上述，将宿主机上的所有容器都连接到这个内部网络上，两个容器在同一个网络下,会从这个网关下各自拿到分配的ip，此时两个容器的网络是互通的。 
+```
+
+![43](images/43.png)
+
+【代码】
+
+```shell
+docker run -d -p 8081:8080   --name tomcat81 billygoo/tomcat8-jdk8
+
+docker run -d -p 8082:8080   --name tomcat82 billygoo/tomcat8-jdk8
+```
+
+**两两匹配验证**
+
+![44](images/44.png)
+
+**Host**
+
+>一、是什么
+>
+>直接使用宿主机的IP地址与外界进行通信，不再需要额外进行NAT转换。
+>
+>二、案例
+>
+>1. 说明
+>
+>   容器将 不会获得 一个独立的Network Namespace， 而是和宿主机共用一个Network Namespace。 容器将不会虚拟出自己的网卡而是使用宿主机的IP和端口。
+>
+>2. 代码
+>
+>   ```shell
+>   警告：
+>    docker run -d -p 8083:8080 --network host --name tomcat83 billygoo/tomcat8-jdk8
+>    
+>   正确：
+>    docker run -d    --network host --name tomcat83 billygoo/tomcat8-jdk8
+>   ```
+>
+>   
+>
+>3. 无之前的配对显示了，看容器实例内部
+>
+>   ![45](images/45.png)
+>
+>4. 没有设置-p的端口映射了，如何访问启动的tomcat83？
+>
+>   ```shell
+>   http://宿主机IP:8080/ 
+>     
+>   在CentOS里面用默认的火狐浏览器访问容器内的tomcat83看到访问成功，因为此时容器的IP借用主机的， 
+>   所以容器共享宿主机网络IP，这样的好处是外部主机与容器可以直接通信。
+>   ```
+>
+>   
+
+**none**
+
+>一、是什么
+>
+>禁用网络功能，只有lo标识（就是127.0.0.1表示本地回环）
+>
+>二、案例
+>
+>docker run -d -p8084:8080 --network none --name tomcat84 billygoo/tomcat8-jdk8
+
+**container**
+
+>一、是什么
+>
+>container⽹络模式 
+>
+>新建的容器和已经存在的一个容器共享一个网络ip配置而不是和宿主机共享。新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP、端口范围等。同样，两个容器除了网络方面，其他的如文件系统、进程列表等还是隔离的。 
+>
+>二、❎案例
+>
+>```shell
+>docker run -d -p 8085:8080                                     --name tomcat85 billygoo/tomcat8-jdk8
+>
+>docker run -d -p 8086:8080 --network container:tomcat85 --name tomcat86 billygoo/tomcat8-jdk8
+>
+>运行结果
+>
+> docker：Error response from daemon: conflicting optisons: port ...........
+> 
+># 相当于tomcat86和tomcat85公用同一个ip同一个端口，导致端口冲突 
+>```
+>
+>三、✅案例2
+>
+>```shell
+>Alpine操作系统是一个面向安全的轻型 Linux发行版
+>
+>docker run -it                  --name alpine1  alpine /bin/sh
+>
+>docker run -it --network container:alpine1 --name alpine2  alpine /bin/sh
+>
+>
+>```
+>
+>运行结果，验证共用搭桥
+>
+>![46](images/46.png)
+>
+>假如此时关闭alpine1，再看看alpine2
+>
+>![47](images/47.png)
+
+
 
 
 
