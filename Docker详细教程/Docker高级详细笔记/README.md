@@ -1309,21 +1309,1226 @@ docker run -d -p 8082:8080   --name tomcat82 billygoo/tomcat8-jdk8
 >
 >![47](images/47.png)
 
+**自定义网络**
+
+>一、过时的link
+>
+>![48](images/48.png)
+>
+>二、是什么
+>
+>三、案例
+>
+>【before】
+>
+>```shell
+>案例：
+>docker run -d -p 8081:8080   --name tomcat81 billygoo/tomcat8-jdk8
+>
+>docker run -d -p 8082:8080   --name tomcat82 billygoo/tomcat8-jdk8
+>
+>上述成功启动并用docker exec进入各自容器实例内部
+>```
+>
+>```shell
+>问题：
+>1. 按照IP地址ping是OK的
+>2. 按照服务名ping结果???
+>	ping： tocmat82：Name or service not known
+>```
+>
+>【after】
+>
+>```
+>案例
+>自定义桥接网络,自定义网络默认使用的是桥接网络bridge
+>
+>新建自定义网络
+>```
+>
+>![49](images/49.png)
+>
+>新建容器加入上一步新建的自定义网络
+>
+>```shell
+>docker run -d -p 8081:8080 --network zzyy_network  --name tomcat81 billygoo/tomcat8-jdk8
+>
+>docker run -d -p 8082:8080 --network zzyy_network  --name tomcat82 billygoo/tomcat8-jdk8
+>
+>```
+>
+>互相ping测试
+>
+>![50](images/50.png)
+>
+>问题结论
+>
+>```
+>1、自定义网络本身就维护好了主机名和ip的对应关系（ip和域名都能通）
+>2、自定义网络本身就维护好了主机名和ip的对应关系（ip和域名都能通）
+>3、自定义网络本身就维护好了主机名和ip的对应关系（ip和域名都能通）
+>```
+>
+>
+
+#### 4.5 Docker平台架构图解
+
+```shell
+从其架构和运行流程来看，Docker 是一个 C/S 模式的架构，后端是一个松耦合架构，众多模块各司其职。  
+  
+Docker 运行的基本流程为： 
+  
+1 用户是使用 Docker Client 与 Docker Daemon 建立通信，并发送请求给后者。 
+2 Docker Daemon 作为 Docker 架构中的主体部分，首先提供 Docker Server 的功能使其可以接受 Docker Client 的请求。 
+3 Docker Engine 执行 Docker 内部的一系列工作，每一项工作都是以一个 Job 的形式的存在。 
+4 Job 的运行过程中，当需要容器镜像时，则从 Docker Registry 中下载镜像，并通过镜像管理驱动 Graph driver将下载镜像以Graph的形式存储。 
+5 当需要为 Docker 创建网络环境时，通过网络管理驱动 Network driver 创建并配置 Docker 容器网络环境。 
+6 当需要限制 Docker 容器运行资源或执行用户指令等操作时，则通过 Execdriver 来完成。 
+7 Libcontainer是一项独立的容器管理包，Network driver以及Exec driver都是通过Libcontainer来实现具体对容器进行的操作。
+```
+
+![51](images/51.png)
+
+### 五、Docker-compose容器编排
+
+#### 5.1 Docker-compose是什么
+
+```shell
+Docker-Compose是Docker官方的开源项目，负责实现对Docker容器集群的快速编排。
+```
+
+#### 5.2 能干什么
+
+```properties
+ docker建议我们每一个容器中只运行一个服务,因为docker容器本身占用资源极少,所以最好是将每个服务单独的分割开来但是这样我们又面临了一个问题？ 
+ 
+如果我需要同时部署好多个服务,难道要每个服务单独写Dockerfile然后在构建镜像,构建容器,这样累都累死了,所以docker官方给我们提供了docker-compose多服务部署的工具 
+  
+例如要实现一个Web微服务项目，除了Web服务容器本身，往往还需要再加上后端的数据库mysql服务容器，redis服务器，注册中心eureka，甚至还包括负载均衡容器等等。。。。。。 
+ 
+Compose允许用户通过一个单独的 docker-compose.yml模板文件 （YAML 格式）来定义 一组相关联的应用容器为一个项目（project）。 
+  
+可以很容易地用一个配置文件定义一个多容器的应用，然后使用一条指令安装这个应用的所有依赖，完成构建。Docker-Compose 解决了容器与容器之间如何管理编排的问题。
+```
+
+#### 5.3 去哪里
+
+##### 5.3.1 官网：
+
+https://docs.docker.com/compose/compose-file/compose-file-v3/
+
+##### 5.3.2 官网下载
+
+https://docs.docker.com/compose/install/
+
+##### 5.3.3 安装步骤
+
+```shell
+curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose 
+chmod +x /usr/local/bin/docker-compose 
+docker-compose --version 
+```
+
+![52](images/52.png)
+
+##### 5.3.4 卸载步骤
+
+```shell
+sudo rm /usr/local/bin/docker-compose
+```
+
+#### 5.4 Compose 核心概念
+
+##### 5.4.1 一文件
+
+```shell
+docker-compose.yml
+```
+
+##### 5.4.2 两要素
+
+```shell
+服务(service):
+一个个应用容器实例，比如订单微服务、库存微服务、mysql容器、nginx容器或者redis容器。
+
+工程(project):
+由一组关联的应用容器组成的一个完整业务单元，在 docker-compose.yml 文件中定义。
+```
+
+#### 5.5 Compose 使用的三个步骤
+
+```
+1. 编写Dockerfile定义各个微服务应用并构建出对应的镜像文件
+2. 使用 docker-compose.yml 定义一个完整业务单元，安排好整体应用中的各个容器服务。
+3. 最后，执行docker-compose up命令 来启动并运行整个应用程序，完成一键部署上线
+
+```
+
+#### 5.6 Compose常用命令
+
+```shell
+Compose 常用命令 
+docker-compose -h                           #  查看帮助 
+docker-compose up                           #  启动所有 docker-compose服务 
+docker-compose up -d                        #  启动所有 docker-compose服务 并后台运行 
+docker-compose down                         #  停止并删除容器、网络、卷、镜像。 
+docker-compose exec  yml里面的服务id                 # 进入容器实例内部  docker-compose exec  docker-compose.yml文件中写的服务id  /bin/bash 
+docker-compose ps                      # 展示当前docker-compose编排过的运行的所有容器 
+docker-compose top                     # 展示当前docker-compose编排过的容器进程 
+ 
+docker-compose logs  yml里面的服务id     #  查看容器输出日志 
+docker-compose config     #  检查配置 
+docker-compose config -q  #  检查配置，有问题才有输出 
+docker-compose restart   #  重启服务 
+docker-compose start     #  启动服务 
+docker-compose stop      #  停止服务 
+```
+
+#### 5.5 Componse 编排微服务
+
+##### 5.5.1 改造升级微服务工程docker_boot
+
+**以前的基础版**
+
+![53](images/53.png)
+
+**SQL建表建库**
+
+```mysql
+CREATE TABLE `t_user` ( 
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT, 
+  `username` varchar(50) NOT NULL DEFAULT '' COMMENT '用户名', 
+  `password` varchar(50) NOT NULL DEFAULT '' COMMENT '密码', 
+  `sex` tinyint(4) NOT NULL DEFAULT '0' COMMENT '性别 0=女 1=男 ', 
+  `deleted` tinyint(4) unsigned NOT NULL DEFAULT '0' COMMENT '删除标志，默认0不删除，1删除', 
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间', 
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间', 
+  PRIMARY KEY (`id`) 
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COMMENT='用户表' 
+```
+
+**改POM**
+
+```xml
+<? xml version ="1.0" encoding ="UTF-8" ?>
+< project xmlns ="http://maven.apache.org/POM/4.0.0" xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+      xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" > 
+   < modelVersion > 4.0.0 </ modelVersion > 
+   < parent > 
+     < groupId > org.springframework.boot </ groupId > 
+     < artifactId > spring-boot-starter-parent </ artifactId > 
+     < version > 2.5.6 </ version > 
+     <!--<version>2.3.10.RELEASE</version>-->
+     < relativePath />  <!-- lookup parent from repository -->
+   </ parent > 
+
+   < groupId > com.atguigu.docker </ groupId > 
+   < artifactId > docker_boot </ artifactId > 
+   < version > 0.0.1-SNAPSHOT </ version > 
+
+   < properties > 
+     < project.build.sourceEncoding > UTF-8 </ project.build.sourceEncoding > 
+     < maven.compiler.source > 1.8 </ maven.compiler.source > 
+     < maven.compiler.target > 1.8 </ maven.compiler.target > 
+     < junit.version > 4.12 </ junit.version > 
+     < log4j.version > 1.2.17 </ log4j.version > 
+     < lombok.version > 1.16.18 </ lombok.version > 
+     < mysql.version > 5.1.47 </ mysql.version > 
+     < druid.version > 1.1.16 </ druid.version > 
+     < mapper.version > 4.1.5 </ mapper.version > 
+     < mybatis.spring.boot.version > 1.3.0 </ mybatis.spring.boot.version > 
+   </ properties > 
+
+   < dependencies > 
+     <!--guava Google 开源的  Guava 中自带的布隆过滤器 -->
+     < dependency > 
+       < groupId > com.google.guava </ groupId > 
+       < artifactId > guava </ artifactId > 
+       < version > 23.0 </ version > 
+     </ dependency > 
+     <!-- redisson -->
+    < dependency > 
+       < groupId > org.redisson </ groupId > 
+       < artifactId > redisson </ artifactId > 
+       < version > 3.13.4 </ version > 
+     </ dependency > 
+     <!--SpringBoot 通用依赖模块 -->
+     < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-starter-web </ artifactId > 
+     </ dependency > 
+     < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-starter-actuator </ artifactId > 
+     </ dependency > 
+     <!--swagger2-->
+     < dependency > 
+       < groupId > io.springfox </ groupId > 
+       < artifactId > springfox-swagger2 </ artifactId > 
+       < version > 2.9.2 </ version > 
+     </ dependency > 
+     < dependency > 
+       < groupId > io.springfox </ groupId > 
+       < artifactId > springfox-swagger-ui </ artifactId > 
+       < version > 2.9.2 </ version > 
+     </ dependency > 
+     <!--SpringBoot 与 Redis 整合依赖 -->
+     < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-starter-data-redis </ artifactId > 
+     </ dependency > 
+     <!--springCache-->
+    < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-starter-cache </ artifactId > 
+     </ dependency > 
+     <!--springCache 连接池依赖包 -->
+    < dependency > 
+       < groupId > org.apache.commons </ groupId > 
+       < artifactId > commons-pool2 </ artifactId > 
+     </ dependency > 
+     <!-- jedis -->
+     < dependency > 
+       < groupId > redis.clients </ groupId > 
+       < artifactId > jedis </ artifactId > 
+       < version > 3.1.0 </ version > 
+     </ dependency > 
+     <!--Mysql 数据库驱动 -->
+     < dependency > 
+       < groupId > mysql </ groupId > 
+       < artifactId > mysql-connector-java </ artifactId > 
+       < version > 5.1.47 </ version > 
+     </ dependency > 
+     <!--SpringBoot 集成 druid 连接池 -->
+     < dependency > 
+       < groupId > com.alibaba </ groupId > 
+       < artifactId > druid-spring-boot-starter </ artifactId > 
+       < version > 1.1.10 </ version > 
+     </ dependency > 
+     < dependency > 
+       < groupId > com.alibaba </ groupId > 
+       < artifactId > druid </ artifactId > 
+       < version > ${druid.version} </ version > 
+     </ dependency > 
+     <!--mybatis 和 springboot 整合 -->
+     < dependency > 
+       < groupId > org.mybatis.spring.boot </ groupId > 
+       < artifactId > mybatis-spring-boot-starter </ artifactId > 
+       < version > ${mybatis.spring.boot.version} </ version > 
+     </ dependency > 
+     <!-- 添加 springboot 对 amqp 的支持 -->
+    < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-starter-amqp </ artifactId > 
+     </ dependency > 
+     < dependency > 
+       < groupId > commons-codec </ groupId > 
+       < artifactId > commons-codec </ artifactId > 
+       < version > 1.10 </ version > 
+     </ dependency > 
+     <!-- 通用基础配置 junit/devtools/test/log4j/lombok/hutool-->
+     <!--hutool-->
+     < dependency > 
+       < groupId > cn.hutool </ groupId > 
+       < artifactId > hutool-all </ artifactId > 
+       < version > 5.2.3 </ version > 
+     </ dependency > 
+     < dependency > 
+       < groupId > junit </ groupId > 
+       < artifactId > junit </ artifactId > 
+       < version > ${junit.version} </ version > 
+     </ dependency > 
+     < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-devtools </ artifactId > 
+       < scope > runtime </ scope > 
+       < optional > true </ optional > 
+     </ dependency > 
+     < dependency > 
+       < groupId > org.springframework.boot </ groupId > 
+       < artifactId > spring-boot-starter-test </ artifactId > 
+       < scope > test </ scope > 
+     </ dependency > 
+     < dependency > 
+       < groupId > log4j </ groupId > 
+       < artifactId > log4j </ artifactId > 
+       < version > ${log4j.version} </ version > 
+     </ dependency > 
+     < dependency > 
+       < groupId > org.projectlombok </ groupId > 
+       < artifactId > lombok </ artifactId > 
+       < version > ${lombok.version} </ version > 
+       < optional > true </ optional > 
+     </ dependency > 
+     <!--persistence-->
+     < dependency > 
+       < groupId > javax.persistence </ groupId > 
+       < artifactId > persistence-api </ artifactId > 
+       < version > 1.0.2 </ version > 
+     </ dependency > 
+     <!-- 通用 Mapper-->
+     < dependency > 
+       < groupId > tk.mybatis </ groupId > 
+       < artifactId > mapper </ artifactId > 
+       < version > ${mapper.version} </ version > 
+     </ dependency > 
+   </ dependencies > 
+
+   < build > 
+     < plugins > 
+       < plugin > 
+         < groupId > org.springframework.boot </ groupId > 
+         < artifactId > spring-boot-maven-plugin </ artifactId > 
+       </ plugin > 
+       < plugin > 
+         < groupId > org.apache.maven.plugins </ groupId > 
+         < artifactId > maven-resources-plugin </ artifactId > 
+         < version > 3.1.0 </ version > 
+       </ plugin > 
+     </ plugins > 
+   </ build > 
+
+ </ project > 
+```
+
+**写YML**
+
+```yaml
+server.port = 6001
+========================alibaba.druid* 相关配置 *=====================
+spring.datasource.type = com.alibaba.druid.pool.DruidDataSource
+spring.datasource.driver-class-name = com.mysql.jdbc.Driver
+spring.datasource.url= jdbc:mysql://192.168.111.169 :3306/db2021?useUnicode=true&characterEncoding=utf-8&useSSL=false
+spring.datasource.username = root
+
+spring.datasource.password = 123456
+spring.datasource.druid.test-while-idle = false
+
+========================redis* 相关配置 *=====================
+
+spring.redis.database = 0
+spring.redis.host = 192.168.111.169
+spring.redis.port = 6379
+spring.redis.password =
+spring.redis.lettuce.pool.max-active = 8
+spring.redis.lettuce.pool.max-wait = -1ms
+spring.redis.lettuce.pool.max-idle = 8
+spring.redis.lettuce.pool.min-idle = 0
+
+========================mybatis 相关配置 *===================*=
+
+mybatis.mapper-locations = classpath:mapper/\*.xml
+mybatis.type-aliases-package = com.atguigu.docker.entities
+
+========================swagger=====================
+
+spring.swagger2.enabled = true
+```
+
+**主启动**
+
+![54](images/54.png)
 
 
 
+**业务类**
+
+>一、config配置类
+>
+>RedisConfig
+>
+>```java
+>package  com.atguigu.docker.config;
+>import  lombok.extern.slf4j. Slf4j ;
+>import  org.springframework.context.annotation.Bean ;
+>import  org.springframework.context.annotation.Configuration ;
+>import  org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+>import  org.springframework.data.redis.core.RedisTemplate;
+>import  org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+>import  org.springframework.data.redis.serializer.StringRedisSerializer;
+>import  java.io.Serializable;
+>	/**
+>	*  @auther  zzyy
+>	*  @create  2021-10-27 17:19
+>	*/ 
+>	@Configuration
+>	@Slf4j
+>	public class  RedisConfig{    
+>	/**
+>	* @param  lettuceConnectionFactory     
+>	* @return    
+>	* redis 序列化的工具配置类，下面这个请一定开启配置     
+>	* 127.0.0.1:6379> keys *    
+>	* 1) "ord:102"   序列化过     
+>	* 2) "\xac\xed\x00\x05t\x00\aord:102"    野生，没有序列化过     
+>	*/    
+>@Bean    
+>public  RedisTemplate<String,Serializable> redisTemplate(LettuceConnectionFactory lettuceConnectionFactory)   {       
+>	RedisTemplate<String,Serializable> redisTemplate =  new  RedisTemplate<>();
+>	redisTemplate.setConnectionFactory(lettuceConnectionFactory);        
+>	// 设置 key 序列化方式 string        
+>	redisTemplate.setKeySerializer( new  StringRedisSerializer());        
+>	// 设置 value 的序列化方式 json        
+>	redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+>	redisTemplate.setHashKeySerializer(new StringRedisSerializer());
+>  redisTemplate.setHashValueSerializer( new GenericJackson2JsonRedisSerializer());
+>  redisTemplate.afterPropertiesSet();
+>  return  redisTemplate;   
+>    }
+>  }
+>
+>```
+
+**SwaggerConfig**
+
+```java
+package com.atguigu.docker.config;
+ 
+ import org.springframework.beans.factory.annotation. Value ;
+ import org.springframework.context.annotation. Bean ;
+ import org.springframework.context.annotation. Configuration ;
+ import springfox.documentation.builders.ApiInfoBuilder;
+ import springfox.documentation.builders.PathSelectors;
+ import springfox.documentation.builders.RequestHandlerSelectors;
+ import springfox.documentation.service.ApiInfo;
+ import springfox.documentation.spi.DocumentationType;
+ import springfox.documentation.spring.web.plugins.Docket;
+ import springfox.documentation.swagger2.annotations. EnableSwagger2 ;
+ 
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
+ 
+ /**
+  *@auther zzyy
+  *@create 2021-05-01 16:18
+  */
+ @Configuration
+ @EnableSwagger2
+ public class SwaggerConfig
+ {
+   @Value ( "${spring.swagger2.enabled}" )
+   private Boolean enabled ;
+ 
+   @Bean
+   public Docket createRestApi() {
+     return new Docket(DocumentationType. *SWAGGER_2\* )
+         .apiInfo(apiInfo())
+         .enable( enabled )
+         .select()
+         .apis(RequestHandlerSelectors. *basePackage* ( "com.atguigu.docker" )) *//* 你自己的 *package
+         .paths(PathSelectors. *any* ())
+         .build();
+   }
+ 
+   public ApiInfo apiInfo() {
+     return new ApiInfoBuilder()
+         .title( " 尚硅谷 Java 大厂技术 " + " \t " + new SimpleDateFormat( "yyyy-MM-dd" ).format( new Date()))
+         .description( "docker-compose" )
+         .version( "1.0" )
+         .termsOfServiceUrl( "https://www.atguigu.com/" )
+         .build();
+   }
+ }
+```
+
+**新建entity** **User**
+
+```java
+package com.atguigu.docker.entities;
+ 
+ import javax.persistence. Column ;
+ import javax.persistence. GeneratedValue ;
+ import javax.persistence. Id ;
+ import javax.persistence. Table ;
+ import java.util.Date;
+ 
+ @Table (name = "t_user" )
+ public class User
+ {
+   @Id
+   @GeneratedValue (generator = "JDBC" )
+   private Integer id ;
+
+	 private String username ;
+   private String password ;
+ 	 private Byte sex ;
+   private Byte deleted ;
+   @Column (name = "update_time" )
+   private Date updateTime ;
+   @Column (name = "create_time" )
+   private Date createTime ;
+   public Integer getId() {
+     return id ;
+   }
+   public void setId(Integer id) {
+     this . id = id;
+   }
+
+   public String getUsername() {
+     return username ;
+   }
+
+	 public void setUsername(String username) {
+     this . username = username;
+   }
+	 public String getPassword() {
+     return password ;
+   }
+   public void setPassword(String password) {
+     this . password = password;
+   }
+   public Byte getSex() {
+     return sex ;
+   }
+	 public void setSex(Byte sex) {
+     this . sex = sex;
+   }
+   public Byte getDeleted() {
+     return deleted ;
+   }
+   public void setDeleted(Byte deleted) {
+     this . deleted = deleted;
+   }
+   public Date getUpdateTime() {
+     return updateTime ;
+   }
+   public void setUpdateTime(Date updateTime) {
+     this . updateTime = updateTime;
+   }
+   public Date getCreateTime() {
+     return createTime ;
+   }
+   public void setCreateTime(Date createTime) {
+     this . createTime = createTime;
+   }
+ } 
+```
+
+**UserDTO**
+
+```java
+package  com.atguigu.docker.entities;
+import  io.swagger.annotations. ApiModel ;
+import  io.swagger.annotations. ApiModelProperty ;
+import  lombok. AllArgsConstructor ;
+import  lombok. Data ;
+import  lombok. NoArgsConstructor ;
+import  java.io.Serializable;
+import  java.util.Date;
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+@ApiModel (value =  " 用户信息 " )
+public class  UserDTO  implements  Serializable{     
+
+	@ApiModelProperty (value =  " 用户 ID" )     
+	private  Integer  id ;     
+	@ApiModelProperty (value =  " 用户名 " )     
+	private  String  username ;     
+	@ApiModelProperty (value =  " 密码 " )     
+	private  String  password ;     
+	@ApiModelProperty (value =  " 性别  0= 女  1= 男  " )     
+	private  Byte  sex ;     
+	@ApiModelProperty (value =  " 删除标志，默认 0 不删除， 1 删除 " )     
+	private  Byte  deleted ;     
+	@ApiModelProperty (value =  " 更新时间 " )     
+	private  Date  updateTime ;     
+	@ApiModelProperty (value =  " 创建时间 " )     
+	private  Date  createTime ;     
+	/**
+	*  @return  id
+	*/     
+	public  Integer getId() {         
+
+		return  id ;    
+	}     
+	/**
+	*  @param  id 
+	*/     
+	public void  setId(Integer id) { 
+		this . id  = id;   
+		 }     
+
+	/**
+	*  获取用户名
+	* 
+	*  @return  username -  用户名
+	*/     
+	public  String getUsername() {
+		return  username ;    
+		}    
+
+	 /**
+	 *  设置用户名
+	 *
+	 *  @param  username  用户名
+	 */     
+	 public void  setUsername(String username) {
+	 	this.username = username;
+	 }     
+
+	 /**
+	 *  获取密码
+	 *
+	 *  @return  password -  密码
+	 */     
+	 public  String getPassword() {
+	 	return  password ;
+	 }     
+
+	 /**
+	 *  设置密码
+	 *
+	 *  @param  password  密码
+	 */     
+	 public void  setPassword(String password) {
+	 	this.password=password;
+	 }     
+
+	 /**
+	 *获取性别  0= 女  1= 男
+	 *
+	 *  @return  sex -  性别  0= 女  1= 男
+	 */     
+	 public  Byte getSex() {
+	 	return  sex ;    
+	 	}     
+
+	 /**
+	 *  设置性别  0= 女  1= 男       
+	 *
+	 *  @param  sex  性别  0= 女  1= 男       
+	 */    
+	  public void  setSex(Byte sex) {
+	  this.sex = sex;
+	  }     
+
+	  /**
+	  *  获取删除标志，默认 0 不删除， 1 删除      
+	  *     
+	  *  @return  deleted -  删除标志，默认 0 不删除， 1 删除      
+	  */    
+	   public  Byte getDeleted() {
+	   	return  deleted ;
+	   }     
+
+	   /**
+	   *  设置删除标志，默认 0 不删除， 1 删除      
+	   *
+	   *  @param  deleted  删除标志，默认 0 不删除， 1 删除      
+	   */    
+	    public void  setDeleted(Byte deleted) {
+	    	this.deleted = deleted;    
+	    	}     
+
+	    /**
+	    *  获取更新时间
+	    *
+	    *  @return  update_time -  更新时间
+	    */     
+	    public  Date getUpdateTime() {
+	    	return  updateTime ; 
+	    	}     
+
+	    /**
+	    *  设置更新时间 
+      *
+      *  @param  updateTime  更新时间     
+      */     
+	    public void  setUpdateTime(Date updateTime) {
+	    	this . updateTime  = updateTime;
+	    	}     
+
+	    /** 
+      *  获取创建时间     
+      *   
+      *  @return  create_time -  创建时间   
+      */     
+	    public  Date getCreateTime() {         
+	    	return  createTime ;  
+        }     
+
+	    /**
+	    *  设置创建时间 
+	    *
+	    *  @param  createTime  创建时间 
+	    */     
+	    public void  setCreateTime(Date createTime) {         
+	    	this . createTime  = createTime;    
+	    	}     
+
+	    @Override 
+	    public  String toString() {         \
+	    	return  "User{"  +                 "id="  +  id  +                 ", 
+	    	username='"  +  username  +  ' \' '  +                 ", 
+	    	password='"  +  password  +  ' \' '  +                 ", 
+	    	sex="  +  sex  + '}' ;    
+	    }} 
+```
+
+**新建mapper**
+
+```java
+新建接口UserMapper
+src\main\resource路径下新建mapper文件夹并新增UserMapper.xml
+
+package  com.atguigu.docker.mapper;
+import  com.atguigu.docker.entities.User;
+import  tk.mybatis.mapper.common.Mapper;
+public interface  UserMapper  extends  Mapper<User> {
+} 
+```
+
+**UserMapper.xml**
+
+```xml
+ <? xml version ="1.0"  encoding ="UTF-8" ?>  
+
+<!DOCTYPE   mapper   PUBLIC   "-//mybatis.org//DTD Mapper 3.0//EN"   "http://mybatis.org/dtd/mybatis-3-mapper.dtd" > 
+< mapper  namespace ="com.atguigu.docker.mapper.UserMapper" >     
+  < resultMap  id ="BaseResultMap"  type ="com.atguigu.docker.entities.User" >        
+    <!--        WARNING - @mbg.generated      -->       
+    < id  column ="id"  jdbcType ="INTEGER"  property ="id"  />        
+    < result  column ="username"  jdbcType ="VARCHAR"  property ="username"  />       
+    < result  column ="password"  jdbcType ="VARCHAR"  property ="password"  />       
+    < result  column ="sex"  jdbcType ="TINYINT"  property ="sex"  />       
+    < result  column ="deleted"  jdbcType ="TINYINT"  property ="deleted"  />       
+    < result  column ="update_time"  jdbcType ="TIMESTAMP"  property ="updateTime"  />       
+    < result  column ="create_time"  jdbcType ="TIMESTAMP"  property ="createTime"  />     
+  </ resultMap >  
+</ mapper > 
+```
+
+**新建Service**
+
+```
+```
+
+**新建Controller**
+
+```
+```
 
 
 
+mvn package命令将微服务形成新的jar包
+
+并上传到Linux服务器/mydocker目录下
+
+**编写Dockerfile**
+
+```shell
+# 基础镜像使用java 
+FROM java:8 
+# 作者 
+MAINTAINER zzyy 
+# VOLUME 指定临时文件目录为/tmp，在主机/var/lib/docker目录下创建了一个临时文件并链接到容器的/tmp 
+VOLUME /tmp 
+# 将jar包添加到容器中并更名为zzyy_docker.jar 
+ADD docker_boot-0.0.1-SNAPSHOT.jar zzyy_docker.jar 
+# 运行jar包 
+RUN bash -c 'touch /zzyy_docker.jar' 
+ENTRYPOINT ["java","-jar","/zzyy_docker.jar"] 
+#暴露6001端口作为微服务 
+EXPOSE 6001 
+```
+
+**构建镜像**
+
+```shell
+docker build -t zzyy_docker:1.6 .
+```
+
+**5.5.2 不用Compose**
+
+```shell
+一、单独的mysql容器实例
+1. 新建mysql容器实例
+docker run -p 3306:3306 --name mysql57 --privileged=true -v /zzyyuse/mysql/conf:/etc/mysql/conf.d -v /zzyyuse/mysql/logs:/logs -v /zzyyuse/mysql/data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=123456 -d mysql:5.7
+
+2. 进入mysql容器实例并新建库db2021+新建表t_user
+docker exec -it mysql57 /bin/bash 
+mysql -uroot -p 
+create database db2021; 
+use db2021; 
+CREATE TABLE `t_user` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, 
+  `username` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '用户名', 
+  `password` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '密码', 
+  `sex` TINYINT(4) NOT NULL DEFAULT '0' COMMENT '性别 0=女 1=男 ', 
+  `deleted` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0' COMMENT '删除标志，默认0不删除，1删除', 
+  `update_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间', 
+  `create_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间', 
+  PRIMARY KEY (`id`) 
+) ENGINE=INNODB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='用户表'; 
+
+```
+
+**单独的redis容器实例**
+
+```shell
+docker run  -p 6379:6379 --name redis608 --privileged=true -v /app/redis/redis.conf:/etc/redis/redis.conf -v /app/redis/data:/data -d redis:6.0.8 redis-server /etc/redis/redis.conf 
+```
+
+**微服务工程**
+
+```shell
+docker run -d -p 6001:6001 zzyy_docker:1.6 
+```
+
+**上面三个容器实例依次顺序启动成功**
+
+```shell
+docker ps
+```
+
+**5.5.3 swagger 测试**
+
+```shell
+http://localhost:你的微服务端口号/swagger-ui.html#/
+```
+
+##### 5.5.4 上面存在什么问题？
+
+```shell
+先后顺序要求固定，先mysql+redis才能微服务访问成功
+
+多个run命令......
+
+容器间的启停或宕机，有可能导致IP地址对应的容器实例变化，映射出错，
+
+要么生产IP写死(可以但是不推荐)，要么通过服务调用
+```
+
+##### 5.5.5 使用Compose
+
+```
+1. 服务编排，一套带走，安排
+
+2. 编写docker-componse.yml文件
+```
+
+```yaml
+version: "3" 
+  
+services: 
+  microService: 
+    image: zzyy_docker:1.6 
+    container_name: ms01 
+    ports: 
+      - "6001:6001" 
+    volumes: 
+      - /app/microService:/data 
+    networks:  
+      - atguigu_net  
+    depends_on:  
+      - redis 
+      - mysql 
+  
+  redis: 
+    image: redis:6.0.8 
+    ports: 
+      - "6379:6379" 
+    volumes: 
+      - /app/redis/redis.conf:/etc/redis/redis.conf 
+      - /app/redis/data:/data 
+    networks:  
+      - atguigu_net 
+    command: redis-server /etc/redis/redis.conf 
+  
+  mysql: 
+    image: mysql:5.7 
+    environment: 
+      MYSQL_ROOT_PASSWORD: '123456' 
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'no' 
+      MYSQL_DATABASE: 'db2021' 
+      MYSQL_USER: 'zzyy' 
+      MYSQL_PASSWORD: 'zzyy123' 
+    ports: 
+       - "3306:3306" 
+    volumes: 
+       - /app/mysql/db:/var/lib/mysql 
+       - /app/mysql/conf/my.cnf:/etc/my.cnf 
+       - /app/mysql/init:/docker-entrypoint-initdb.d 
+    networks: 
+      - atguigu_net 
+    command: --default-authentication-plugin=mysql_native_password #解决外部无法访问 
+  
+networks:  
+   atguigu_net:  
+ 
+
+```
+
+```shell
+3. 第二次修改微服务工程docker_boot
+写YML 通过服务名访问，IP无关
+```
+
+```properties
+server.port = 6001
+# ========================alibaba.druid 相关配置 =====================
+spring.datasource.type = com.alibaba.druid.pool.DruidDataSource
+spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+#spring.datasource.url=jdbc:mysql://192.168.111.169:3306/db2021?useUnicode=true&characterEncoding=utf-8&useSSL=false
+spring.datasource.url = jdbc:mysql://mysql:3306/db2021?useUnicode=true&characterEncoding=utf-8&useSSL=false spring.datasource.username = rootspring.datasource.password = 123456spring.datasource.druid.test-while-idle = false
+# ========================redis 相关配置 =====================
+spring.redis.database = 0
+#spring.redis.host=192.168.111.169
+spring.redis.host = redis 
+spring.redis.port = 6379
+spring.redis.password =
+spring.redis.lettuce.pool.max-active = 8
+spring.redis.lettuce.pool.max-wait = -1ms
+spring.redis.lettuce.pool.max-idle = 8
+spring.redis.lettuce.pool.min-idle = 0
+# ========================mybatis 相关配置 ===================
+mybatis.mapper-locations = classpath:mapper/*.xml
+mybatis.type-aliases-package = com.atguigu.docker.entities
+# ========================swagger=====================
+spring.swagger2.enabled = true 
+
+```
+
+```shell
+
+mvn package命令将微服务形成新的jar包
+并上传到Linux服务器/mydocker目录下
+
+编写Dockerfile
+# 基础镜像使用java 
+FROM java:8 
+# 作者 
+MAINTAINER zzyy 
+# VOLUME 指定临时文件目录为/tmp，在主机/var/lib/docker目录下创建了一个临时文件并链接到容器的/tmp 
+VOLUME /tmp 
+# 将jar包添加到容器中并更名为zzyy_docker.jar 
+ADD docker_boot-0.0.1-SNAPSHOT.jar zzyy_docker.jar 
+# 运行jar包 
+RUN bash -c 'touch /zzyy_docker.jar' 
+ENTRYPOINT ["java","-jar","/zzyy_docker.jar"] 
+#暴露6001端口作为微服务 
+EXPOSE 6001 
 
 
+构建镜像
+docker build -t zzyy_docker:1.6 .
+```
 
+```shell
+4. 执行 docker-compose up 或者 执行 docker-compose up -d
+```
 
+```shell
+5. 进入mysql容器实例并新建库db2021+新建表t_user
+docker exec -it 容器实例id /bin/bash 
+mysql -uroot -p 
+create database db2021; 
+use db2021; 
+CREATE TABLE `t_user` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, 
+  `username` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '用户名', 
+  `password` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '密码', 
+  `sex` TINYINT(4) NOT NULL DEFAULT '0' COMMENT '性别 0=女 1=男 ', 
+  `deleted` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0' COMMENT '删除标志，默认0不删除，1删除', 
+  `update_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间', 
+  `create_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间', 
+  PRIMARY KEY (`id`) 
+) ENGINE=INNODB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='用户表'; 
 
+```
 
+```shell
+6. 测试通过
+7. Compose常用命令
+Compose 常用命令 
+docker-compose -h                           #  查看帮助 
+docker-compose up                           #  启动所有 docker-compose服务 
+docker-compose up -d                        #  启动所有 docker-compose服务 并后台运行 
+docker-compose down                         #  停止并删除容器、网络、卷、镜像。 
+docker-compose exec  yml里面的服务id                 # 进入容器实例内部  docker-compose exec  docker-compose.yml文件中写的服务id  /bin/bash 
+docker-compose ps                      # 展示当前docker-compose编排过的运行的所有容器 
+docker-compose top                     # 展示当前docker-compose编排过的容器进程 
+ 
+docker-compose logs  yml里面的服务id     #  查看容器输出日志 
+dokcer-compose config     #  检查配置 
+dokcer-compose config -q  #  检查配置，有问题才有输出 
+docker-compose restart   #  重启服务 
+docker-compose start     #  启动服务 
+docker-compose stop      #  停止服务 
+```
 
+```shell
+8. 关停
+docker -compose stop
+```
 
+### 六、Docker轻量级可视化工具Portainer
 
+#### 6.1 是什么
 
+```shell
+Portainer 是一款轻量级的应用，它提供了图形化界面，用于方便地管理Docker环境，包括单机环境和集群环境。 
+```
 
+#### 6.2 安装
+
+>一、官网
+>
+>https://www.portainer.io/
+>
+>https://docs.portainer.io/v/ce-2.9/start/install/server/docker/linux
+>
+>二、步骤
+>
+>1. docker命令安装
+>
+>```shell
+>docker run -d -p 8000:8000 -p 9000:9000 --name portainer     --restart=always     -v /var/run/docker.sock:/var/run/docker.sock     -v portainer_data:/data     portainer/portainer 
+>```
+>
+>2. 第一次登录需创建admin，访问地址：xxx.xxx.xxx.xxx:9000
+>
+>```shell
+>用户名，直接用默认admin 
+>密码记得8位，随便你写 
+>```
+>
+>3. 设置admin用户和密码后首次登陆
+>4. 选择local选项卡后本地docker详细信息展示
+>5. 上一步的图形展示，能想得起对应命令吗？
+>6. 登陆并演示介绍常用操作case
+
+### 七、Docker容器监控之CAdvisor+InfluxDB+Granfana
+
+#### 7.1 原生命令
+
+```shell
+docker stats命令的结果 
+
+问题
+通过docker stats命令可以很方便的看到当前宿主机上所有容器的CPU,内存以及网络流量等数据， 一般小公司够用了。。。。 
+但是
+docker stats统计结果只能是当前宿主机的全部容器，数据资料是实时的，没有地方存储、没有健康指标过线预警等功能 
+```
+
+#### 7.2 是什么
+
+>容器监控3剑客
+>
+>一句话
+>
+>```shell
+>CAdvisor监控收集+InfluxDB存储数据+Granfana展示图表
+>```
+>
+>**CAdvisor**
+>
+>![71](images/71.png)
+>
+>**InfluxDB**
+>
+>![72](images/72.png)
+>
+>Granfana
+>
+>![73](images/73.png)
+
+#### 7.3 compose容器编排，一套带走
+
+>一、新建目录
+>
+>二、新建3件套组合的 docker-compose.yml
+>
+>```yaml
+>version: '3.1' 
+>  
+>volumes: 
+>  grafana_data: {} 
+>  
+>services: 
+> influxdb: 
+>  image: tutum/influxdb:0.9 
+>  restart: always 
+>  environment: 
+>    - PRE_CREATE_DB=cadvisor 
+>  ports: 
+>    - "8083:8083" 
+>    - "8086:8086" 
+>  volumes: 
+>    - ./data/influxdb:/data 
+>  
+> cadvisor: 
+>  image: google/cadvisor 
+>  links: 
+>    - influxdb:influxsrv 
+>  command: -storage_driver=influxdb -storage_driver_db=cadvisor -storage_driver_host=influxsrv:8086 
+>  restart: always 
+>  ports: 
+>    - "8080:8080" 
+>  volumes: 
+>    - /:/rootfs:ro 
+>    - /var/run:/var/run:rw 
+>    - /sys:/sys:ro 
+>    - /var/lib/docker/:/var/lib/docker:ro 
+>  
+> grafana: 
+>  user: "104" 
+>  image: grafana/grafana 
+>  user: "104" 
+>  restart: always 
+>  links: 
+>    - influxdb:influxsrv 
+>  ports: 
+>    - "3000:3000" 
+>  volumes: 
+>    - grafana_data:/var/lib/grafana 
+>  environment: 
+>    - HTTP_USER=admin 
+>    - HTTP_PASS=admin 
+>    - INFLUXDB_HOST=influxsrv 
+>    - INFLUXDB_PORT=8086 
+>    - INFLUXDB_NAME=cadvisor 
+>    - INFLUXDB_USER=root 
+>    - INFLUXDB_PASS=root 
+>
+>```
+>
+>三、启动docker-compose文件
+>
+>```shell
+>docker-compose up
+>```
+>
+>四、查看三个服务容器是否启动
+>
+>```shell
+>docker ps
+>```
+>
+>五、测试
+>
+>```properties
+>1. 浏览cAdvisor收集服务，http://ip:8080/
+>
+>第一次访问慢，请稍等
+>
+>cadvisor也有基础的图形展现功能，这里主要用它来作数据采集
+>2. 浏览influxdb存储服务，http://ip:8083/
+>
+>```
+>
+>```
+>3. 浏览grafana展现服务，http://ip:3000
+>	ip+3000端口的方式访问,默认帐户密码（admin/admin）
+>	
+>	配置步骤
+>	[1] 配置数据源
+>	[2] 选择influxdb数据源
+>	[3] 配置细节
+>	[4] 配置面板panel
+>	[5] 到这里cAdvisor+InfluxDB+Grafana容器监控系统就部署完成了
+>```
+>
+>
 
