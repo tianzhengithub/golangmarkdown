@@ -117,7 +117,7 @@
 >9、在主数据库中查看主从同步状态
 >
 >```shell
->show master staus;
+>show master status;
 >```
 >
 >10、进入mysql-slave容器
