@@ -42,6 +42,12 @@
 >## 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断。 
 >## 如：1062错误是指一些主键重复，1032错误是因为主从数据库数据不一致 
 >slave_skip_errors=1062 
+>## 设置utf8
+>collation_server = utf8_general_ci 
+>## 设置server字符集
+>character_set_server = utf8 
+>[client]
+>default_character_set=utf8 
 >```
 >
 >3、修改完配置后重启master实例
@@ -105,7 +111,12 @@
 >log_slave_updates=1   
 >## slave设置为只读（具有super权限的用户除外） 
 >read_only=1 
->
+>## 设置utf8
+>collation_server = utf8_general_ci 
+>## 设置server字符集
+>character_set_server = utf8 
+>[client]
+>default_character_set=utf8 
 >```
 >
 >8、修改完配置后重启slave实例
