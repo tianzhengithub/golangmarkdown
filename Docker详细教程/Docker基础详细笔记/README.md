@@ -241,9 +241,12 @@ yum -y install gcc-c++
 
 4. 安装需要的软件包
 
-   ![20](images/20.png)
+   <img src="images/20.png" alt="20" style="zoom:50%;" />**使用存储库安装**
 
 ```shell
+在新主机上首次安装Docker Engine之前，您需要设置Docker存储库。之后，您可以从存储库安装和更新Docker
+设置存储库
+安装 yum-utils 包（提供yum-config-manager 实用程序）并设置稳定的存储库
 # 官网要求
 yum install -y yum-utils
 ```
@@ -253,7 +256,7 @@ yum install -y yum-utils
    ![21](images/21.png)
 
 ```shell
-# 推荐使用
+# 推荐使用 使用阿里的 docker 镜像仓库，国外的镜像仓库是比较慢的
 yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 ```
 
@@ -264,7 +267,7 @@ yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/d
 yum makecache fast
 ```
 
-7. 安装DOCKER CE
+7. 安装DOCKER CE 引擎
 
 ```shell
 # 命令
