@@ -82,8 +82,6 @@
 >7、进入/mydata/mysql-slave/conf目录下新建my.cnf
 >
 >```shell
-># 编辑my.cnf
->vim my.cnf
 ># 添加配置文件
 >[mysqld] 
 >## 设置server_id，同一局域网中需要唯一 
