@@ -1420,7 +1420,7 @@ eureka:
 
 ### 二十、支付微服务集群配置
 
-支付服务提供者8001集群环境构建
+#### 20.1 支付服务提供者8001集群环境构建
 
 参考cloud-provicer-payment8001
 
@@ -1429,23 +1429,403 @@ eureka:
 3. 写YML -端口8002
 4. 主启动
 5. 业务类
-6. 修改8001/8002的Controller，天极爱serverPort
+6. 修改8001/8002的Controller，添加serverPort
+
+```java
+package com.yooome.springcloud.controller;
+
+import com.yooome.springcloud.entities.CommonResult;
+import com.yooome.springcloud.entities.Payment;
+import com.yooome.springcloud.server.PaymentService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+
+@RestController
+@Slf4j
+public class PaymentController {
+    @Resource
+    private PaymentService paymentService;
+    @Value("${server.port}")
+    private String serverPort;
+    @PostMapping(value = "/payment/create")
+    public CommonResult create(@RequestBody Payment payment) {
+        int result = paymentService.create(payment);
+        log.info("payment insert result: " + result);
+        if (result > 0) {
+            return new CommonResult(200,"payment insert success, server port " + serverPort, result);
+        }else {
+            return new CommonResult(444,"payment insert fail", null);
+        }
+    }
+}
+```
+
+#### 20.2 负载均衡
+
+cloud-consumer-order80订单服务访问地址不能写死
+
+```java
+@Slf4j
+@RestController
+public class OrderController {
+
+    //public static final String PAYMENT_URL = "http://localhost:8001";
+    public static final String PAYMENT_URL = "http://CLOUD-PAYMENT-SERVICE";
+    
+    ...
+}
+```
+
+使用`@LoadBalanced`注解赋予RestTemplate负载均衡的能力
+
+```java
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
+
+@Configuration
+public class ApplicationContextConfig {
+
+    @Bean
+    @LoadBalanced//使用@LoadBalanced注解赋予RestTemplate负载均衡的能力
+    public RestTemplate getRestTemplate(){
+        return new RestTemplate();
+    }
+}
+```
+
+ApplicationContextBean - 提前说一下Ribbon的负载均衡功能
+
+#### 20.3 测试
+
+先要启动EurekaServer， 7001/7002服务
+
+再要启动服务提供者provider,8002、8001服务
+
+浏览器输入 -http://localhost/consumer/payment/get/31
+
+结果：负载均衡效果达到，8001/8002端口交替出现
+
+Ribbon和Eureka整合后Consumer可以直接调用服务而不用关心地址和端口号，且该服务还有负载功能
+
+互相注册，互相守望
+
+![img](images/94c4c3eca8c2f9eb7497fe643b9b0622.png)
 
 
 
+### 二十一、actuator微服务信息完善
 
+主机名称：服务名称修改（也就是将IP地址，换成可读性高的名字）
 
+修改cloud-provider-payment8001，cloud-provider-payment8002
 
+修改部分 -YML -eureka.instance.instance-id
 
+```yml
+eureka:
+  ...
+  instance:
+    instance-id: payment8001 #添加此处
 
+```
 
+```yml
+eureka:
+  ...
+  instance:
+    instance-id: payment8002 #添加此处
 
+```
 
+修改之后：
 
+eureka主页将显示payment8001， payment8002代替原来显示的IP地址。
 
+访问信息有IP信息提示，（也就是鼠标指针移动到payment8001，payment8002名下，会有IP地址提示）
 
+修改部分 -YML - eureka.install.prefer-ip-address
 
+```yml
+eureka:
+  ...
+  instance:
+    instance-id: payment8001 
+    prefer-ip-address: true #添加此处
 
+```
+
+```yml
+eureka:
+  ...
+  instance:
+    instance-id: payment8002
+    prefer-ip-address: true #添加此处
+
+```
+
+### 二十二、服务发现Discovery
+
+对于注册进eureka里面的微服务，可以通过服务发现来获得该服务的信息
+
+- 修改cloud-provider-payment8001的Controller
+
+```java
+@RestController
+@Slf4j
+public class PaymentController{
+	...
+    
+    @Resource
+    private DiscoveryClient discoveryClient;
+
+    ...
+
+    @GetMapping(value = "/payment/discovery")
+    public Object discovery()
+    {
+        List<String> services = discoveryClient.getServices();
+        for (String element : services) {
+            log.info("*****element: "+element);
+        }
+
+        List<ServiceInstance> instances = discoveryClient.getInstances("CLOUD-PAYMENT-SERVICE");
+        for (ServiceInstance instance : instances) {
+            log.info(instance.getServiceId()+"\t"+instance.getHost()+"\t"+instance.getPort()+"\t"+instance.getUri());
+        }
+
+        return this.discoveryClient;
+    }
+}
+
+```
+
+- 8001主启动类
+
+```java
+@SpringBootApplication
+@EnableEurekaClient
+@EnableDiscoveryClient//添加该注解
+public class PaymentMain001 {
+
+    public static void main(String[] args) {
+        SpringApplication.run(PaymentMain001.class, args);
+    }
+}
+```
+
+- 自测
+
+先要启动EurekaServer
+
+在启动8001主启动类，需要稍等一会儿
+
+浏览器输入http://localhost:8001/payment/discovery
+
+浏览器输出：
+
+```json
+{"services":["cloud-payment-service"],"order":0}
+```
+
+后台输出：
+
+```java
+*****element: cloud-payment-service
+CLOUD-PAYMENT-SERVICE	192.168.199.218	8001	http://192.168.199.218:8001
+```
+
+### 二十三、Eureka自我保护理论知识
+
+#### 23.1 **概述：**
+
+保护模式主要用于一组客户端和Eureka Server之间存在网络分区场景下的保护。一旦进入保护模式，Eureka Server将会尝试保护其服务注册表中的信息，不再删除服务注册表中的数据，也就是不会注销任何微服务。
+
+如果在Eureka Server的首页看到一下这段提示，则说明Eureka进入了保护模式：
+
+EMERGENCY! EUREKA MAY BE INCORRECTLY CLAIMING INSTANCES ARE UP WHEN THEY’RE NOT. RENEWALS ARE LESSER THANTHRESHOLD AND HENCE THE INSTANCES ARE NOT BEING EXPIRED JUSTTO BE SAFE
+
+#### 23.2 导致原因
+
+一句话：某事某刻一个微服务不可用了，Eureka不会立刻清理，依旧会对该微服务的信心进行保存。
+
+属于CAP里面的AP分支。
+
+#### 23.3 为什么会产生Eureka自我保护机制
+
+为了EurekaClient可以正常运行，防止与EurekaServer网络不通情况下，EurekaServer不会立刻将EurekaClient服务剔除
+
+#### 23.4 什么是自我保护模式
+
+默认情况下，如果EurekaServer在一定时间内没有接收到某个微服务实例的心跳，EurekaServer将会注销该实例（默认90秒）。但是当网络分区故障发生（延时，卡顿，拥挤）时。微服务与EurekaServer之间无法正常通信贸易商行为可能变的非常危险了---因为微服务本省其实是健康的，此时本不应该注销这个微服务。Eureka通过"自我保护模式"来解决这个问题 ---当EurekaServer节点在短时间内丢失过多客户端时（可能发生了网络分区故障），那么这个节点就会进入自我保护模式。
+
+![img](images/264b66e8099a3761beaea2ba44b8fc5e.png)
+
+自我保护模式机制：默认情况下EurekaClient定时向EurekaServer端发送心跳包
+
+如果Eureka在server端在一定时间内（默认90秒）没有收到EurekaClient发送心跳包，变回直接从服务注册列表中剔除该服务，但是在短时间（90秒中）内丢失了大量的服务实例心跳，这时候EurekaServer会开启自我保护机制，不会剔除该微服务（该现象可能出现在如果网络不同但是EurekaClient为出现宕机，此时如果换做别的注册中心如果一定时间内没有收到心跳将会剔除该服务，这样就出现了严重事务，因为客户端还能正常发送心跳，只是网络延迟问题，二保护保护机制是为了解决此问题而产生的）。
+
+#### 23.5 在自我保护模式中，EurekaServer 会保护服务注册表中的信息，不再注销任何服务实例。
+
+它的设计哲学就是宁可保留错误的服务注册信息，也不盲目注销任何可能将康的服务实例。一句话：好死不如赖活着。
+
+综上，自我保护模式是一种应对网络异常的安全保护措施。它的架构这些是宁可保留所有的微服务（健康的微服务和不健康的微服务都会保留）也不盲目注销任何健康的微服务。使用自我保护模式，可以让Eureka集群更加的健壮，稳定。
+
+### 二十四、怎么禁止自我保护
+
+- 在EurekaServer端7001出设置关闭自我保护机制
+
+出厂默认，自我保护机制是开启的
+
+使用`eureka.server.enable-self-preservation = false` 可以禁用自我保护模式
+
+```yml
+eureka:
+  ...
+  server:
+    #关闭自我保护机制，保证不可用服务被及时踢除
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 2000
+
+```
+
+关闭效果：
+
+spring-eureka主页会显示出一句：
+
+**THE SELF PRESERVATION MODE IS TURNED OFF. THIS MAY NOT PROTECT INSTANCE EXPIRY IN CASE OF NETWORK/OTHER PROBLEMS.**
+
+- 生产者客户端eureakeClient端8001
+
+默认：
+
+```properties
+eureka.instance.lease-renewal-interval-in-seconds=30
+eureka.instance.lease-expiration-duration-in-seconds=90
+```
+
+```yml
+eureka:
+  ...
+  instance:
+    instance-id: payment8001
+    prefer-ip-address: true
+    #心跳检测与续约时间
+    #开发时没置小些，保证服务关闭后注册中心能即使剔除服务
+    #Eureka客户端向服务端发送心跳的时间间隔，单位为秒(默认是30秒)
+    lease-renewal-interval-in-seconds: 1
+    #Eureka服务端在收到最后一次心跳后等待时间上限，单位为秒(默认是90秒)，超时将剔除服务
+    lease-expiration-duration-in-seconds: 2
+
+```
+
+- 测试
+  - 7001和8001都配置完成
+  - 先启动7001再启动8001
+
+结果：先关闭8001，马上被删除了
+
+### 二十五、Eureka停更说明
+
+https://github.com/Netflix/eureka/wiki
+
+> Eureka 2.0 (Discontinued)
+>
+> The existing open source work on eureka 2.0 is discontinued. The code base and artifacts that were released as part of the existing repository of work on the 2.x branch is considered use at your own risk.
+>
+> Eureka 1.x is a core part of Netflix’s service discovery system and is still an active project.
+
+我们用ZooKeeper代替Eureka功能。
+
+### 二十六、支付服务注册进zookeeper
+
+#### 26.1 注册中心Zookeeper
+
+zookeeper是一个分布式协调工具，可以实现注册中心功能
+
+关闭Linux服务器防火墙后，启动zookeeper服务器
+
+用到的Linux命令行：
+
+- systemctl stop firewalld 关闭防火墙
+- systemctl status firewalld 查看防火墙的状态
+- ipconfig 查看IP地址
+- ping 查验结果
+
+zookeeper 服务器取代Eureka服务器，zk作为服务注册中心
+
+视频中的虚拟机CentOS开启Zookeeper，打算在本机启动Zookeeper具体操作参考Zookeeper学习笔记
+
+#### 26.2 服务提供者
+
+1. 新建名为cloud-provider-payment8004的Maven工程
+2. POM
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>LearnCloud</artifactId>
+        <groupId>com.lun.springcloud</groupId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-provider-payment8004</artifactId>
+    <dependencies>
+        <!-- SpringBoot整合Web组件 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency><!-- 引入自己定义的api通用包，可以使用Payment支付Entity -->
+            <groupId>com.lun.springcloud</groupId>
+            <artifactId>cloud-api-commons</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- SpringBoot整合zookeeper客户端 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-zookeeper-discovery</artifactId>
+            <!--先排除自带的zookeeper3.5.3 防止与3.4.9起冲突-->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!--添加zookeeper3.4.9版本-->
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.4.9</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+```
 
 
 
