@@ -1827,9 +1827,372 @@ zookeeper 服务器取代Eureka服务器，zk作为服务注册中心
 </project>
 ```
 
+3. YML
 
+```yml
+#8004表示注册到zookeeper服务器的支付服务提供者端口号
+server:
+  port: 8004
 
+#服务别名----注册zookeeper到注册中心名称
+spring:
+  application:
+    name: cloud-provider-payment
+  cloud:
+    zookeeper:
+      connect-string: 127.0.0.1:2181 # 192.168.111.144:2181 #
 
+```
+
+4. 主启动类
+
+```java
+package com.yooome.springcloud.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
+
+@RestController
+@Slf4j
+public class PaymentController {
+    @Value("${server.port}")
+    private String serverPort;
+    @RequestMapping("/payment/zk")
+    public String paymentZookeeper() {
+        return "spring cloud with zookeeper: " + serverPort + "\t" + UUID.randomUUID().toString();
+    }
+}
+```
+
+5. Controller
+
+```java
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
+
+@RestController
+@Slf4j
+public class PaymentController
+{
+    @Value("${server.port}")
+    private String serverPort;
+
+    @RequestMapping(value = "/payment/zk")
+    public String paymentzk()
+    {
+        return "springcloud with zookeeper: "+serverPort+"\t"+ UUID.randomUUID().toString();
+    }
+}
+```
+
+6. 启动8004注册进zookeeper（要先启动zookeeper的server）
+
+- 验证测试： 浏览器 - http://locahost:8004/payment/zk
+
+- 验证测试2：接着用zookeeper客户端操作
+
+```java
+[zk: localhost:2181(CONNECTED) 3] ls /services
+[cloud-provider-payment]
+[zk: localhost:2181(CONNECTED) 4] ls /services/cloud-provider-payment 
+[ef010ed8-4b29-4a6f-aaad-f65d463c733b]
+[zk: localhost:2181(CONNECTED) 5] get /services/cloud-provider-payment/ef010ed8-4b29-4a6f-aaad-f65d463c733b
+{"name":"cloud-provider-payment","id":"ef010ed8-4b29-4a6f-aaad-f65d463c733b","address":"192.168.3.14","port":8004,"sslPort":null,"payload":{"@class":"org.springframework.cloud.zookeeper.discovery.ZookeeperInstance","id":"application-1","name":"cloud-provider-payment","metadata":{}},"registrationTimeUTC":1645081869763,"serviceType":"DYNAMIC","uriSpec":{"parts":[{"value":"scheme","variable":true},{"value":"://","variable":false},{"value":"address","variable":true},{"value":":","variable":false},{"value":"port","variable":true}]}}
+[zk: localhost:2181(CONNECTED) 6] get /zookeeper 
+```
+
+json格式化 `get /services/cloud-provider-payment/ef010ed8-4b29-4a6f-aaad-f65d463c733b`
+
+```json
+{
+	"name": "cloud-provider-payment",
+	"id": "ef010ed8-4b29-4a6f-aaad-f65d463c733b",
+	"address": "192.168.3.14",
+	"port": 8004,
+	"sslPort": null,
+	"payload": {
+		"@class": "org.springframework.cloud.zookeeper.discovery.ZookeeperInstance",
+		"id": "application-1",
+		"name": "cloud-provider-payment",
+		"metadata": {}
+	},
+	"registrationTimeUTC": 1645081869763,
+	"serviceType": "DYNAMIC",
+	"uriSpec": {
+		"parts": [{
+			"value": "scheme",
+			"variable": true
+		}, {
+			"value": "://",
+			"variable": false
+		}, {
+			"value": "address",
+			"variable": true
+		}, {
+			"value": ":",
+			"variable": false
+		}, {
+			"value": "port",
+			"variable": true
+		}]
+	}
+}
+```
+
+### 二十七、临时节点还是持久节点
+
+zookeeper的服务节点是临时节点，没有Eureka那么含情脉脉。
+
+### 二十八、订单服务注册进zookeeper
+
+1. 新建cloud-consumerzk-order80
+2. POM
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-consumerzk-order80</artifactId>
+    <dependencies>
+        <!-- SpringBoot整合Web组件 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- SpringBoot整合zookeeper客户端 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-zookeeper-discovery</artifactId>
+            <!--先排除自带的zookeeper-->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>zookeeper</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!--添加zookeeper3.4.9版本-->
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.4.9</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
+```
+
+3. YML
+
+```yml
+server:
+  port: 80
+# 服务别名 ----- 注册zookeeper到注册中心名称
+spring:
+  cloud:
+    zookeeper:
+      connect-string: 127.0.0.1:2181 # 192.168.111.144:2181 #
+  application:
+    name: cloud-consumer-order
+```
+
+4. 主启动
+
+```java
+package com.yooome.springcloud;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+
+@SpringBootApplication
+@EnableDiscoveryClient
+public class ConsumerZookeeperApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ConsumerZookeeperApplication.class, args);
+    }
+}
+
+```
+
+5. 业务类
+
+```java
+package com.yooome.springcloud.config;
+
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
+
+@Configuration
+public class ApplicationContextConfig {
+    @Bean
+    @LoadBalanced
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+}
+```
+
+```java
+package com.yooome.springcloud.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import javax.annotation.Resource;
+
+@RestController
+public class OrderZKController {
+    private static final  String INVOKE_URL="http://cloud-provider-payment";
+    @Resource
+    private RestTemplate restTemplate;
+    @GetMapping("/consumer/payment/zk")
+    public String paymentInfo() {
+        String forObject = restTemplate.getForObject(INVOKE_URL + "/payment/zk", String.class);
+        return forObject;
+    }
+
+}
+
+```
+
+6. 测试验证
+
+运行zookeeper服务端，cloud-consumerzk-order80，cloud-provider-payment8004。
+
+打开zookeeper客户端
+
+```json
+[zk: localhost:2181(CONNECTED) 8] ls
+ls [-s] [-w] [-R] path
+[zk: localhost:2181(CONNECTED) 9] ls /services 
+[cloud-consumer-order, cloud-provider-payment]
+[zk: localhost:2181(CONNECTED) 10] 
+```
+
+7. 访问测试地址 -http://localhost/consumer/payment/zk
+
+### 二十九、Consul简介
+
+[Consul官网](https://www.consul.io/)
+
+[Consule下载地址](https://www.consul.io/downloads)
+
+#### 29.1 What is Consul
+
+```
+Consul is a service mesh solution providing a full featured control plane with service discovery, configuration, and segmentation functionality. Each of these features can be used individually as needed, or they can be used together to build a full service mesh. Consul requires a data plane and supports both a proxy and native integration model. Consul ships with a simple built-in proxy so that everything works out of the box, but also supports 3rd party proxy integrations such as Envoy. link
+
+Consul是一个服务网格解决方案，它提供了一个功能齐全的控制平面，具有服务发现、配置和分段功能。这些特性中的每一个都可以根据需要单独使用，也可以一起用于构建全服务网格。Consul需要一个数据平面，并支持代理和本机集成模型。Consul船与一个简单的内置代理，使一切工作的开箱即用，但也支持第三方代理集成，如Envoy。
+```
+
+Consul是一套开源的分布式服务发现和配置管理系统，由HashiCorp公司用Go语言开发。
+
+提供了微服务系统中的服务治理，配置中心，控制总线等功能。这些功能中的每一个都可以根据需要单据 使用，也可以一起使用构建全方位的服务网络，总之Consul提供了一种完成的服务网络解决方案。
+
+它具有很多优点。包括：基于raft协议，比较简介；支持健康检查。同时支持HTTP和DNS协议支持跨数据中心的WAN集群提供图形界面跨平台，支持Liunx、Mac、Windows。
+
+> The key features of Consul are:
+>
+> Service Discovery: Clients of Consul can register a service, such as api or mysql, and other clients can use Consul to discover providers of a given service. Using either DNS or HTTP, applications can easily find the services they depend upon.
+> Health Checking: Consul clients can provide any number of health checks, either associated with a given service (“is the webserver returning 200 OK”), or with the local node (“is memory utilization below 90%”). This information can be used by an operator to monitor cluster health, and it is used by the service discovery components to route traffic away from unhealthy hosts.
+> KV Store: Applications can make use of Consul’s hierarchical key/value store for any number of purposes, including dynamic configuration, feature flagging, coordination, leader election, and more. The simple HTTP API makes it easy to use.
+> Secure Service Communication: Consul can generate and distribute TLS certificates for services to establish mutual TLS connections. Intentions can be used to define which services are allowed to communicate. Service segmentation can be easily managed with intentions that can be changed in real time instead of using complex network topologies and static firewall rules.
+> Multi Datacenter: Consul supports multiple datacenters out of the box. This means users of Consul do not have to worry about building additional layers of abstraction to grow to multiple regions.
+> 地址：https://www.consul.io/docs/intro#what-is-consul
+
+能干什么？
+
+- 服务发现-提供HTTP和DNS两种发现方式。
+- 健康检测-试吃多种方式，HTTP、TCP、Docker、Shell脚本定制化
+- KV存储-Key、Value的存储方式
+- 多数据中心-Consul支持多数据中心
+- 可视化Web界面
+
+### 三十、安装并运行Consul
+
+[官网安装说明](https://learn.hashicorp.com/tutorials/consul/get-started-install)
+
+windows版本解压缩后，的consul.exe,打开cmd
+
+- 查看本本consul -v：
+
+```bash
+yooome@192 bin % consul --version
+Consul v1.11.3
+Revision e319d7ed
+Protocol 2 spoken by default, understands 2 to 3 (agent will automatically use protocol >2 when speaking to compatible agents)
+```
+
+- 开发模式启动 consul agent -dev :
+
+#### 30.1 Mac consul 安装与启动
+
+1. 下载地址：https://www.consul.io/downloads.html
+2. 将解压后的文件consul  拷贝到/usr/local/bin（不要放在中文目录下）
+
+```bash
+cp consul /usr/local/bin
+```
+
+3. 测试
+
+打开bin文件，执行consul，查看consul命令，如下即表示成功
+
+![img](images/1110742-20210408234658471-1963197479.png)
+
+4. 启动consul
+
+Consul 在启动后分为两种模式：Server 模式； Client 模式；
+
+![img](images/1110742-20210408234758983-216171787.png)
+
+此时在浏览器访问http://localhost:8500，侧可以看到如下页面，说明启动成功；
+
+![img](images/1110742-20210408235008533-51226666.png)
+
+5. 停止consul
+
+可以使用 Ctrl -c (终端信号)正常停止代理。终端代理之后，您应该看到它离开集群并关闭。
 
 
 
