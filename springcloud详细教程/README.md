@@ -2194,6 +2194,535 @@ Consul 在启动后分为两种模式：Server 模式； Client 模式；
 
 可以使用 Ctrl -c (终端信号)正常停止代理。终端代理之后，您应该看到它离开集群并关闭。
 
+### 三十一、服务提供者注册进Consul
+
+1、新建Module支付服务provider8006
+
+2、改POM
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>yooomepayment8006</artifactId>
+    <dependencies>
+        <!-- 引入自己定义的api通用包，可以使用Payment支付Entity -->
+        <dependency>
+            <groupId>com.yooome.springcloud</groupId>
+            <artifactId>cloud-api-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!--SpringCloud consul-server -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+        </dependency>
+        <!-- SpringBoot整合Web组件 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--日常通用jar包配置-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>RELEASE</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>RELEASE</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
+```
+
+3、YML
+
+```yml
+server:
+  port: 8006
+spring:
+  application:
+    name: consul-provider-payment
+  cloud:
+    # consul 注册中心地址
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        #hostname 127.0.0.1
+        service-name: ${spring.application.name}
+
+```
+
+4、主启动类
+
+```java
+package com.yooome.springcloud;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+
+@SpringBootApplication
+@EnableDiscoveryClient
+public class PaymentApplication8006 {
+    public static void main(String[] args) {
+        SpringApplication.run(PaymentApplication8006.class, args);
+    }
+}
+
+```
+
+5、业务类
+
+```java
+package com.yooome.springcloud.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
+
+@RestController
+public class PaymentController {
+    @Value("${server.port}")
+    private String serverPort;
+
+    @RequestMapping("/payment/consul")
+    public String paymentConsul() {
+        return "spring cloud consul: " + serverPort + "\t" + UUID.randomUUID().toString();
+    }
+
+}
+
+```
+
+6、验证测试
+
+- http://localhost:8006/payment/consul
+- http://localhost:8500 - 会显示provider8006
+
+### 三十二、服务消费者注册进Consul
+
+1、新建Module消费服务order80  cloud-consumerconsul-order80
+
+2、POM
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-consumerconsul-order80</artifactId>
+    <dependencies>
+        <!--SpringCloud consul-server -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+        </dependency>
+        <!-- SpringBoot整合Web组件 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--日常通用jar包配置-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
+```
+
+3、YML
+
+```yml
+# consul服务端口号
+server:
+  port: 80
+
+spring:
+  application:
+    name: clould-consumer-order
+  cloud:
+    consul:
+      port: 8500
+      host: localhost
+      discovery:
+        service-name: ${spring.application.name}
+
+```
+
+4、主启动类
+
+```java
+package com.yooome.springcloud;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+
+@SpringBootApplication
+@EnableDiscoveryClient //该注解用于向使用consul或者zookeeper作为注册中心时注册服务
+public class OrderConsulApplication80 {
+    public static void main(String[] args) {
+        SpringApplication.run(OrderConsulApplication80.class,args);
+    }
+}
+
+```
+
+5.配置Bean
+
+```java
+package com.yooome.springcloud.config;
+
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
+
+
+@Configuration
+public class ApplicationContextConfig {
+
+    @Bean
+    @LoadBalanced
+    public RestTemplate getRestTemplate() {
+        return new RestTemplate();
+    }
+}
+
+```
+
+6、controller
+
+```java
+package com.yooome.springcloud.controller;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import javax.annotation.Resource;
+
+@RestController
+public class OrderConsulController {
+    private static final String INVOKE_URL = "http://consul-provider-payment";
+    @Resource
+    private RestTemplate restTemplate;
+
+    @RequestMapping("/consumer/payment/consul")
+    public String paymentInfo() {
+        return restTemplate.getForObject(INVOKE_URL + "/payment/consul", String.class);
+    }
+}
+
+```
+
+7、验证测试
+
+运行consul，cloud-providerconsul-payment8006，cloud-consumerconsul-order80
+
+http://localhost:8500/ 主页会显示出consul，cloud-providerconsul-payment8006，cloud-consumerconsul-order80三服务。
+
+8、访问测试地址 - http://localhost/consumer/payment/consul
+
+### 三十三、三个注册中心异同点
+
+|  组件名   | 语言CAP | 服务健康检查 | 对外暴露接口 | SpringCloud集成 |
+| :-------: | :-----: | :----------: | :----------: | :-------------: |
+|  Eureka   |  Java   |      AP      |    可支配    |      HTTP       |
+|  Consul   |   Go    |      CP      |     支持     |    HTTP/DNS     |
+| Zookeeper |  Java   |      CP      |  支持客户端  |     已集成      |
+
+CAP：
+
+- C：Consistency（强一致性）
+- A：Availability（可用性）
+- P：Partition tolerance（分区容错性）
+
+![img](images/b41e0791c9652955dd3a2bc9d2d60983.png)
+
+最多只能同时较好的满足两个
+
+CAP理论的核心是：一个分布式系统不可能同时很好的满足一致性，可用性和分区容错性这三个需求。
+
+因此，根据CAP原理将NoSql数据库分成了满足CA原则，满足CP原则和满足AP原则的三大类：
+
+- CA - 单点集群，满足一致性，可用性的系统，通常在可扩展性上不太强大。
+- CP - 满足一致性，分区容忍性的系统，通常性能不是特别高。
+- AP - 满足可用性，分区容忍性的系统，通常可能堆一致性要求低一些。
+
+AP架构（Eureka）
+
+当网络出现后，为了保证可用性，系统B可以返回旧值，保证系统的可用性。
+
+结论：违背了一致性C的要求，只满足可用性和分区容错，即AP
+
+![img](images/2d07748539300b9c466eb1d9bac5cd1b.png)
+
+
+
+CP架构（Zookeeper/Consul）
+
+当网络分区出现后，为了保证一致性，就必须拒接请求，否则无法保证一致性。
+
+结论：违背了可用性A的要求，只要满足一致性和分区容错，即CP。
+
+![img](images/c6f2926a97420015fcebc89b094c5598.png)
+
+CP和AP对立统一的矛盾关系。
+
+### 三十四、Ribbon入门介绍
+
+SpringCloud Ribbon 是基于Netflix Ribbon 实现的一套客户端负载均衡的工具。
+
+简单的说，Ribbon是Netfix发布的开源项目，主要功能是提供客户端的软件负载均衡算法和服务调用。Ribbon客户端组件提供一系类晚上的配置项如连接超时，重试等。
+
+简单的说，就是在配置文件中出现Load Balance（简称LB）后面所有的机器，Ribbon会自动的帮助你基于某种规则（如简单轮训，随机连接等）去连接这些机器。我们很容易使用Ribbon实现自定义的负载均衡算法。
+
+[Github - Ribbon](https://github.com/Netflix/ribbon/wiki/Getting-Started)
+
+Ribbon目前也进入维护模式。
+
+Ribbon未来可能被Spring Cloud LoadBalacer替代。
+
+LB负载均衡(Load Balance)是什么
+
+简单的说就是将用户的请求平摊的分配到多个服务上，从而达到系统的HA (高可用)。
+
+常见的负载均衡有软件Nginx，LVS，硬件F5等。
+
+Ribbon本地负载均衡客户端VS Nginx服务端负载均衡区别
+
+Nginx是服务器负载均衡，客户端所有请求都会交给nginx，然后由nginx实现转发请求。即负载均衡是由服务端实现的。
+Ribbon本地负载均衡，在调用微服务接口时候，会在注册中心上获取注册信息服务列表之后缓存到JVM本地，从而在本地实现RPC远程服务调用技术。
+
+集中式LB
+
+即在服务的消费方和提供方之间使用独立的LB设施(可以是硬件，如F5, 也可以是软件，如nginx)，由该设施负责把访问请求通过某种策略转发至服务的提供方;
+
+进程内LB
+
+将LB逻辑集成到消费方，消费方从服务注册中心获知有哪些地址可用，然后自己再从这些地址中选择出一个合适的服务器。
+
+Ribbon就属于进程内LB，它只是一个类库，集成于消费方进程，消费方通过它来获取到服务提供方的地址。
+
+一句话
+
+负载均衡 + RestTemplate调用
+
+### 三十五、Ribbon的负载均衡和Rest调用
+
+#### 35.1 架构说明
+
+总结：Ribbon其实就是一个软负载均衡的客户端组件，它乐意和其他所需请求的客户端结合使用，和Eureka结合只是其中的一个实例。
+
+![img](images/145b915e56a85383b3ad40f0bb2256e0.png)
+
+Ribbon在工作时分成两步：
+
+- 第一步先选择EurekaServer，它优先选择在同一个区域负载较少的server。
+- 第二步在根据用户指定的策略，在从server渠道的服务注册列表中选择一个地址、
+- 其中Ribbon提供了多种策略：比如轮询，随机和根据响应时间加权。
+
+#### 35.2 POM
+
+先前工程项目没有引入spring-cloud-starter-ribbon也可以使用ribbon。
+
+```xml
+<dependency>
+    <groupld>org.springframework.cloud</groupld>
+    <artifactld>spring-cloud-starter-netflix-ribbon</artifactid>
+</dependency>
+```
+
+这是因为spring-cloud-starter-netflix-eureka-client自带了spring-cloud-starter-ribbon引用
+
+#### 35.3 RestTemplate的使用
+
+RestTemplate Java Doc
+
+getForObject() / getForEntity() - GET请求方法
+
+getForObject()：返回对象为响应体中数据转化成的对象，基本上可以理解为Json。
+
+getForEntity()：返回对象为ResponseEntity对象，包含了响应中的一些重要信息，比如响应头、响应状态码、响应体等。
+
+```java
+@GetMapping("/consumer/payment/getForEntity/{id}")
+public CommonResult<Payment> getPayment2(@PathVariable("id") Long id)
+{
+    ResponseEntity<CommonResult> entity = restTemplate.getForEntity(PAYMENT_URL+"/payment/get/"+id,CommonResult.class);
+
+    if(entity.getStatusCode().is2xxSuccessful()){
+        return entity.getBody();//getForObject()
+    }else{
+        return new CommonResult<>(444,"操作失败");
+    }
+}
+```
+
+**postForObject() / postForEntity()** - POST请求方法
+
+### 三十六、Ribbon默认自带的负载规则
+
+IRule：根据特定算法中从服务列表中选取一个要访问的服务
+
+![img](images/87243c00c0aaea211819c0d8fc97e445.png)
+
+- RoundRobinRule轮询
+- RandomRule随机
+- RetryRule 先按照RoundRobinRule的策略获取服务，如果获取服务失败则在指定时间内会进行重启。
+- WeightedResponseTimeRule 对RoundRobinRule的扩展，响应速度越快的实例选择权重越大，越容易被选择
+- BestAvailableRule 会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务，然后选择一个并发量最小的服务
+- AvailabilityFilteringRule 先过滤掉故障实例，再选择并发较小的实例
+- ZoneAvoidanceRule 默认规则,复合判断server所在区域的性能和server的可用性选择服务器
+
+### 三十七、Ribbon负载规则替换
+
+1.修改cloud-consumer-order80
+
+2.注意配置细节
+
+官方文档明确给出了警告:
+
+这个自定义配置类不能放在@ComponentScan所扫描的当前包下以及子包下，
+
+否则我们自定义的这个配置类就会被所有的Ribbon客户端所共享，达不到特殊化定制的目的了。
+
+（也就是说不要将Ribbon配置类与主启动类同包）
+
+3.新建package - com.yooome.springcloud.config
+
+4.在com.yooome.springcloud.config下新建MySelfRule规则类
+
+```java
+import com.netflix.loadbalancer.IRule;
+import com.netflix.loadbalancer.RandomRule;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class MySelfRule {
+
+    @Bean
+    public IRule myRule(){
+        return new RandomRule();
+    }
+}
+
+```
+
+```java
+import com.lun.myrule.MySelfRule;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
+import org.springframework.cloud.netflix.ribbon.RibbonClient;
+
+@SpringBootApplication
+@EnableEurekaClient
+//添加到此处
+@RibbonClient(name = "CLOUD-PAYMENT-SERVICE", configuration = MySelfRule.class)
+public class OrderApplication
+{
+    public static void main( String[] args ){
+        SpringApplication.run(OrderApplication.class, args);
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
