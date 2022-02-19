@@ -3418,25 +3418,559 @@ logging:
 
 秒杀高并发等操作，严禁一窝蜂的过来拥挤，大家排队，一秒钟N个，有序进行。
 
+#### 45.4 Hystrix支付微服务构建
+
+将cloud-eureka-server7001该配置单机版
+
+1、新建cloud-provider-hystrix-payment8001
+
+2、POM
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-provider-hystrix-payment8001</artifactId>
+    <dependencies>
+        <!--hystrix-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+        </dependency>
+        <!--eureka client-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <!--web-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency><!-- 引入自己定义的api通用包，可以使用Payment支付Entity -->
+            <groupId>com.yooome.springcloud</groupId>
+            <artifactId>cloud-api-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
+```
+
+3、YML
+
+```yml
+server:
+  port: 8001
+
+spring:
+  application:
+    name: cloud-provider-hystric-payment
+
+eureka:
+  client:
+    service-url:
+      defalutZone: http://eureka7001.com:7001/eureka
+    register-with-eureka: true
+    fetch-registry: true
+```
+
+4、主启动类
+
+```java
+package com.yooome.springcloud;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
+
+@SpringBootApplication
+@EnableEurekaClient
+public class HystricApplication8001 {
+    public static void main(String[] args) {
+        SpringApplication.run(HystricApplication8001.class, args);
+    }
+}
+
+```
+
+5、业务类
+
+service
+
+```java
+import org.springframework.stereotype.Service;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ */
+@Service
+public class PaymentService {
+    /**
+     */
+    public String paymentInfo_OK(Integer id)
+    {
+        return "线程池:  "+Thread.currentThread().getName()+"  paymentInfo_OK,id:  "+id+"\t"+"O(∩_∩)O哈哈~";
+    }
+
+    public String paymentInfo_TimeOut(Integer id)
+    {
+        try { TimeUnit.MILLISECONDS.sleep(3000); } catch (InterruptedException e) { e.printStackTrace(); }
+        return "线程池:  "+Thread.currentThread().getName()+" id:  "+id+"\t"+"O(∩_∩)O哈哈~"+"  耗时(秒): 3";
+    }
+}
+
+```
+
+controller
+
+```java
+package com.yooome.springcloud.controller;
+
+import com.yooome.springcloud.service.PaymentService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+
+@RestController
+public class PaymentController {
+    @Resource
+    private PaymentService paymentService;
+    @Value("${server.port}")
+    private String serverPort;
+
+    @GetMapping("/payment/hystrix/ok/{id}")
+    public String paymentInfo_OK(@PathVariable("id") Integer id) {
+       return paymentService.paymentInfo_OK(id);
+    }
+    @GetMapping("/payment/hystrix/timeout/{id}")
+    public String paymentInfo_TimeOut(@PathVariable("id") Integer id) {
+        return  paymentService.paymentInfo_TimeOut(id);
+    }
+
+}
+
+```
+
+6、正常测试
+
+启动eureka7001
+
+启动cloud-provider-hystrix-payment8001
+
+访问
+
+success的访问 - http://localhost:8001/payment/hystrix/ok/1
+
+每次调用耗费5秒钟 - http://localhost:8001/payment/hystrix/timeout/30
+
+上述module均ok
+
+以上为根基平台，从正确 -> 错误 -> 降级熔断 -> 恢复
+
+### 46、JMeter高并发压测后卡顿
+
+上述在非高并发情形下，还能勉强满足
+
+Jmeter压测测试
+
+[JMeter官网](https://jmeter.apache.org/index.html)
+
+> The Apache JMeter™ application is open source software, a 100% pure Java application designed to load test functional behavior and measure performance. It was originally designed for testing Web Applications but has since expanded to other test functions.
+
+开启Jmeter，来20000个并发压死8001，20000个请求都去访问paymentInfo_TimeOut服务
+
+1.测试计划中右键添加-》线程-》线程组（线程组202102，线程数：200，线程数：100，其他参数默认）
+
+2.刚刚新建线程组202102，右键它-》添加-》取样器-》Http请求-》基本 输入http://localhost:8001/payment/hystrix/ok/1
+
+3.点击绿色三角形图标启动。
+
+看演示结果：拖慢，原因：tomcat的默认的工作线程数被打满了，没有多余的线程来分解压力和处理。
+
+**Jmeter压测结论**
+
+上面还是服务提供者8001自己测试，假如此时外部的消费者80也来访问，那消费者只能干等，最终导致消费端80不满意，服务端8001直接被拖慢。
+
+### 47、订单微服务调用支付服务出现卡顿
+
+**看热闹不限事大，80新建加入**
+
+1、新建 - cloud-consumer-feign-hystrix-order80
+
+2、POM
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-consumer-feign-hystrix-order80</artifactId>
+    <dependencies>
+        <!--openfeign-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!--hystrix-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+        </dependency>
+        <!--eureka client-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <!-- 引入自己定义的api通用包，可以使用Payment支付Entity -->
+        <dependency>
+            <groupId>com.yooome.springcloud</groupId>
+            <artifactId>cloud-api-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!--web-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--一般基础通用配置-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
+```
+
+3、YML
+
+```yml
+server:
+  port: 80
+eureka:
+  client:
+    register-with-eureka: false
+    service-url:
+      defaultZone: http://eureka7001.com:7001/eureka/
+```
+
+4、主启动类
+
+```java
+package com.yooome.springcloud;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication
+@EnableFeignClients
+public class FeignHystrixOrderApplication80 {
+    public static void main(String[] args) {
+        SpringApplication.run(FeignHystrixOrderApplication80.class, args);
+    }
+}
+```
+
+5、业务类
+
+```java
+package com.yooome.springcloud.controller;
+
+import com.yooome.springcloud.service.PaymentHystrixService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+
+@RestController
+public class OrderHystirxController {
+    @Value("${server.port}")
+    private String serverPort;
+    @Resource
+    private PaymentHystrixService paymentHystrixService;
+    @GetMapping("/consumer/payment/hystrix/ok/{id}")
+    public String paymentInfo_OK(@PathVariable("id") Integer id)
+    {
+        String result = paymentHystrixService.paymentInfo_OK(id);
+        return result;
+    }
+
+    @GetMapping("/consumer/payment/hystrix/timeout/{id}")
+    public String paymentInfo_TimeOut(@PathVariable("id") Integer id) {
+        String result = paymentHystrixService.paymentInfo_TimeOut(id);
+        return result;
+    }
+}
+```
+
+```java
+package com.yooome.springcloud.service;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@Service
+@FeignClient(value = "CLOUD-PROVIDER-HYSTRIX-PAYMENT" /*,fallback = PaymentFallbackService.class*/)
+public interface PaymentHystrixService {
+    @GetMapping("/payment/hystrix/ok/{id}")
+    public String paymentInfo_OK(@PathVariable("id") Integer id);
+
+    @GetMapping("/payment/hystrix/timeout/{id}")
+    public String paymentInfo_TimeOut(@PathVariable("id") Integer id);
+}
+```
+
+6、正常测试
+
+http://localhost/consumer/payment/hystrix/ok/1
+
+7、高并发测试
+
+2W个线程压8001
+
+消费端80微服务再去访问正常的Ok微服务8001地址
+
+http://localhost/consumer/payment/hystrix/ok/32
+
+消费者80被拖慢
+
+原因：8001同一层次的其它接口服务被困死，因为tomcat线程池里面的工作线程已经被挤占完毕。
+
+正因为有上述故障或不佳表现才有我们的降级/容错/限流等技术诞生。
+
+### 48、降级容错解决的维度要求
+
+超时导致服务器变慢（转圈） - 超时不再等待
+
+出错（宕机或程序运行出错）- 出错要有兜底
+
+解决：
+
+- 对方服务（8001）超时了，调用者（80）不能一直卡死等待，必须有服务降级。
+- 对方服务（8001）down机了，调用（80）不能一直卡死等待，必须有服务降级。
+- 对方服务（8001）OK，调用者（80）自己出故障或有自我要求（自己的等待时间小于服务提供者），自己处理降级。
+
+### 49、Hystrix之服务降级支付侧fallback
+
+降级配置 - @HystrixCommand
+
+8001先从自身找问题
+
+设置自身调用超时时间的峰值，峰值内可以正常运行，超过了需要有兜底的方法处理，做服务降级fallback。
+
+8001fallback
+
+业务类启动 - @HystrixCommand报异常后如何处理
+
+一旦调用服务方法失败并抛出了错误信息后，会自动调用@HystrixCommand标注好的fallbackMethod调用类中的指定方法
+
+```java
+@Service
+public class PaymentService{
+
+    @HystrixCommand(fallbackMethod = "paymentInfo_TimeOutHandler"/*指定善后方法名*/,commandProperties = {
+            @HystrixProperty(name="execution.isolation.thread.timeoutInMilliseconds",value="3000")
+    })
+    public String paymentInfo_TimeOut(Integer id)
+    {
+        //int age = 10/0;
+        try { TimeUnit.MILLISECONDS.sleep(5000); } catch (InterruptedException e) { e.printStackTrace(); }
+        return "线程池:  "+Thread.currentThread().getName()+" id:  "+id+"\t"+"O(∩_∩)O哈哈~"+"  耗时(秒): ";
+    }
+
+    //用来善后的方法
+    public String paymentInfo_TimeOutHandler(Integer id)
+    {
+        return "线程池:  "+Thread.currentThread().getName()+"  8001系统繁忙或者运行报错，请稍后再试,id:  "+id+"\t"+"o(╥﹏╥)o";
+    }
+    
+}
+
+```
+
+上面故意制造两种异常：
+
+1. int age = 10 /0  ，计算异常
+2. 我们能接受3秒钟，它运行5秒钟，超时异常。
+
+当前服务不可用了，做服务降级，兜底的方案都是paymentInfo_TimeOutHandler
+
+**主启动类激活**
+
+添加新注解@EnableCircuitBreaker
+
+```java
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.circuitbreaker.EnableCircuitBreaker;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
+
+@SpringBootApplication
+@EnableEurekaClient
+@EnableCircuitBreaker//添加到此处
+public class HystricApplication8001{
+    public static void main(String[] args) {
+            SpringApplication.run(HystricApplication8001.class, args);
+    }
+}
+```
+
+### 50、Hystrix值服务降级订单侧fallback
+
+80订单微服务，也可以更好的保护自己，自己也依样画葫芦进行客户端降级保护
+
+题外话，切记 - 我们自己配置过的热部署方式对java代码的改动明显
+
+但对@HystrixCommand内属性的修改建议重启微服务
+
+YML
+
+```yml
+server:
+  port: 80
+
+eureka:
+  client:
+    register-with-eureka: false
+    service-url:
+      defaultZone: http://eureka7001.com:7001/eureka/
+
+#开启
+feign:
+  hystrix:
+    enabled: true
+
+```
+
+主启动类
+
+```java
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.hystrix.EnableHystrix;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication
+@EnableFeignClients
+@EnableHystrix//添加到此处
+public class OrderHystrixMain80{
+    
+    public static void main(String[] args){
+        SpringApplication.run(OrderHystrixMain80.class,args);
+    }
+}
 
 
+```
+
+业务类
+
+```java
+import com.lun.springcloud.service.PaymentHystrixService;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+
+@RestController
+@Slf4j
+public class OrderHystirxController {
+    @Resource
+    private PaymentHystrixService paymentHystrixService;
 
 
+    @GetMapping("/consumer/payment/hystrix/timeout/{id}")
+    @HystrixCommand(fallbackMethod = "paymentTimeOutFallbackMethod",commandProperties = {
+            @HystrixProperty(name="execution.isolation.thread.timeoutInMilliseconds",value="1500")
+    })
+    public String paymentInfo_TimeOut(@PathVariable("id") Integer id) {
+        //int age = 10/0;
+        String result = paymentHystrixService.paymentInfo_TimeOut(id);
+        return result;
+    }
+    
+    //善后方法
+    public String paymentTimeOutFallbackMethod(@PathVariable("id") Integer id){
+        return "我是消费者80,对方支付系统繁忙请10秒钟后再试或者自己运行出错请检查自己,o(╥﹏╥)o";
+    }
 
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
