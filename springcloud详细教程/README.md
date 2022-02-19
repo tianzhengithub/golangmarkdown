@@ -1,4 +1,4 @@
-springcloud 详细教程
+### springcloud 详细教程
 
 ### 一、前言闲聊和课程说明
 
@@ -2662,7 +2662,7 @@ IRule：根据特定算法中从服务列表中选取一个要访问的服务
 
 3.新建package - com.yooome.springcloud.config
 
-4.在com.yooome.springcloud.config下新建MySelfRule规则类
+4.在com.yooome.config下新建MySelfRule规则类
 
 ```java
 import com.netflix.loadbalancer.IRule;
@@ -2681,8 +2681,10 @@ public class MySelfRule {
 
 ```
 
+5. 主启动类添加@RibbonClient
+
 ```java
-import com.lun.myrule.MySelfRule;
+import com.yooome.config.MySelfRule;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
@@ -2698,24 +2700,365 @@ public class OrderApplication
         SpringApplication.run(OrderApplication.class, args);
     }
 }
+```
+
+6. 测试
+
+开启cloud-eureka-server7001，cloud-consumer-order80，cloud-provider-payment8001，cloud-privider-payment8002
+
+输入浏览器-输入 http://loclahost/consumer/payment/get/30
+
+返回结果中的serverPort在8001与8002两种间反复横跳。
+
+### 三十八、Ribbon默认负载轮询算法原理
+
+默认负载轮训算法: rest接口第几次请求数 % 服务器集群总数量 = 实际调用服务器位置下标，每次服务重启动后rest接口计数从1开始。
+
+List<Servicelnstance> instances = discoveryClient.getInstances("CLOUD-PAYMENT-SERVICE");
+
+如:
+
+- List [0] instances = 127.0.0.1:8002
+- List [1] instances = 127.0.0.1:8001
+- 8001+ 8002组合成为集群，它们共计2台机器，集群总数为2，按照轮询算法原理：
+- 当总请求数为1时:1%2=1对应下标位置为1，则获得服务地址为127.0.0.1:8001
+- 当总请求数位2时:2%2=О对应下标位置为0，则获得服务地址为127.0.0.1:8002
+- 当总请求数位3时:3%2=1对应下标位置为1，则获得服务地址为127.0.0.1:8001
+- 当总请求数位4时:4%2=О对应下标位置为0，则获得服务地址为127.0.0.1:8002
+  如此类推…
+
+### 三十九、RoundRobinRule源码分析
+
+```java
+public interface IRule{
+    /*
+     * choose one alive server from lb.allServers or
+     * lb.upServers according to key
+     * 
+     * @return choosen Server object. NULL is returned if none
+     *  server is available 
+     */
+
+    //重点关注这方法
+    public Server choose(Object key);
+    
+    public void setLoadBalancer(ILoadBalancer lb);
+    
+    public ILoadBalancer getLoadBalancer();    
+}
 
 ```
 
+```java
+package com.netflix.loadbalancer;
+
+import com.netflix.client.config.IClientConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * The most well known and basic load balancing strategy, i.e. Round Robin Rule.
+ *
+ * @author stonse
+ * @author Nikos Michalakis <nikos@netflix.com>
+ *
+ */
+public class RoundRobinRule extends AbstractLoadBalancerRule {
+
+    private AtomicInteger nextServerCyclicCounter;
+    private static final boolean AVAILABLE_ONLY_SERVERS = true;
+    private static final boolean ALL_SERVERS = false;
+
+    private static Logger log = LoggerFactory.getLogger(RoundRobinRule.class);
+
+    public RoundRobinRule() {
+        nextServerCyclicCounter = new AtomicInteger(0);
+    }
+
+    public RoundRobinRule(ILoadBalancer lb) {
+        this();
+        setLoadBalancer(lb);
+    }
+
+    //重点关注这方法。
+    public Server choose(ILoadBalancer lb, Object key) {
+        if (lb == null) {
+            log.warn("no load balancer");
+            return null;
+        }
+
+        Server server = null;
+        int count = 0;
+        while (server == null && count++ < 10) {
+            List<Server> reachableServers = lb.getReachableServers();
+            List<Server> allServers = lb.getAllServers();
+            int upCount = reachableServers.size();
+            int serverCount = allServers.size();
+
+            if ((upCount == 0) || (serverCount == 0)) {
+                log.warn("No up servers available from load balancer: " + lb);
+                return null;
+            }
+
+            int nextServerIndex = incrementAndGetModulo(serverCount);
+            server = allServers.get(nextServerIndex);
+
+            if (server == null) {
+                /* Transient. */
+                Thread.yield();
+                continue;
+            }
+
+            if (server.isAlive() && (server.isReadyToServe())) {
+                return (server);
+            }
+
+            // Next.
+            server = null;
+        }
+
+        if (count >= 10) {
+            log.warn("No available alive servers after 10 tries from load balancer: "
+                    + lb);
+        }
+        return server;
+    }
+
+    /**
+     * Inspired by the implementation of {@link AtomicInteger#incrementAndGet()}.
+     *
+     * @param modulo The modulo to bound the value of the counter.
+     * @return The next value.
+     */
+    private int incrementAndGetModulo(int modulo) {
+        for (;;) {
+            int current = nextServerCyclicCounter.get();
+            int next = (current + 1) % modulo;//求余法
+            if (nextServerCyclicCounter.compareAndSet(current, next))
+                return next;
+        }
+    }
+
+    @Override
+    public Server choose(Object key) {
+        return choose(getLoadBalancer(), key);
+    }
+
+    @Override
+    public void initWithNiwsConfig(IClientConfig clientConfig) {
+    }
+}
+
+```
+
+### 四十、Ribbon之厚些轮询算法
+
+自己试着写一个类似RoundRobinRule的本地负载均衡器
+
+- 7001/7002集群启动
+- 8001/8002微服务改造 -controller
+
+```java
+@RestController
+@Slf4j
+public class PaymentController{
+
+    ...
+    
+	@GetMapping(value = "/payment/lb")
+    public String getPaymentLB() {
+        return serverPort;//返回服务接口
+    }
+    
+    ...
+}
+
+```
+
+- 80订单微服务改造
+
+1、ApplicationContextConfig去掉注解@LoadBalanced，OrderMain80去掉注解@RibbonClient
+
+```java
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
+
+@Configuration
+public class ApplicationContextConfig {
+
+    @Bean
+    //@LoadBalanced
+    public RestTemplate getRestTemplate(){
+        return new RestTemplate();
+    }
+
+}
+
+```
+
+2、创建LoadBalance接口
+
+```java
+import org.springframework.cloud.client.ServiceInstance;
+
+import java.util.List;
+
+/**
+ */
+public interface LoadBalancer
+{
+    ServiceInstance instances(List<ServiceInstance> serviceInstances);
+}
+
+```
+
+3、MyLB
+
+实现LoadBalancer接口
+
+```java
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ */
+@Component//需要跟主启动类同包，或者在其子孙包下。
+public class MyLB implements LoadBalancer
+{
+
+    private AtomicInteger atomicInteger = new AtomicInteger(0);
+
+    public final int getAndIncrement()
+    {
+        int current;
+        int next;
+
+        do {
+            current = this.atomicInteger.get();
+            next = current >= 2147483647 ? 0 : current + 1;
+        }while(!this.atomicInteger.compareAndSet(current,next));
+        System.out.println("*****第几次访问，次数next: "+next);
+        return next;
+    }
+
+    //负载均衡算法：rest接口第几次请求数 % 服务器集群总数量 = 实际调用服务器位置下标  ，每次服务重启动后rest接口计数从1开始。
+    @Override
+    public ServiceInstance instances(List<ServiceInstance> serviceInstances)
+    {
+        int index = getAndIncrement() % serviceInstances.size();
+
+        return serviceInstances.get(index);
+    }
+}
 
 
+```
 
+4、OrderController
 
+```java
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import com.lun.springcloud.lb.LoadBalancer;
 
+@Slf4j
+@RestController
+public class OrderController {
 
+    //public static final String PAYMENT_URL = "http://localhost:8001";
+    public static final String PAYMENT_URL = "http://CLOUD-PAYMENT-SERVICE";
 
+	...
 
+    @Resource
+    private LoadBalancer loadBalancer;
 
+    @Resource
+    private DiscoveryClient discoveryClient;
 
+	...
 
+    @GetMapping(value = "/consumer/payment/lb")
+    public String getPaymentLB()
+    {
+        List<ServiceInstance> instances = discoveryClient.getInstances("CLOUD-PAYMENT-SERVICE");
 
+        if(instances == null || instances.size() <= 0){
+            return null;
+        }
 
+        ServiceInstance serviceInstance = loadBalancer.instances(instances);
+        URI uri = serviceInstance.getUri();
 
+        return restTemplate.getForObject(uri+"/payment/lb",String.class);
 
+    }
+}
+```
+
+5、测试
+
+不停的刷新http://localhost/consumer/payment/lb，可以看到8001/8002交替出现。
+
+### 四十一、OpenFeign是什么
+
+[官方文档](https://cloud.spring.io/spring-cloud-static/Hoxton.SR1/reference/htmlsingle/#spring-cloud-openfeign)
+
+[Github地址](https://github.com/spring-cloud/spring-cloud-openfeign)
+
+> Feign is a declarative web service client. It makes writing web service clients easier. To use Feign create an interface and annotate it. It has pluggable annotation support including Feign annotations and JAX-RS annotations. Feign also supports pluggable encoders and decoders. Spring Cloud adds support for Spring MVC annotations and for using the same HttpMessageConverters used by default in Spring Web. Spring Cloud integrates Ribbon and Eureka, as well as Spring Cloud LoadBalancer to provide a load-balanced http client when using Feign. link
+>
+> Feign是一个声明式WebService客户端。使用Feign能让编写Web Service客户端更加简单。它的使用方法是定义一个服务接口然后在上面添加注解。Feign也支持可拔插式的编码器和解码器。Spring Cloud对Feign进行了封装，使其支持了Spring MVC标准注解和HttpMessageConverters。Feign可以与Eureka和Ribbon组合使用以支持负载均衡。
+
+#### 41.1 Fegin能干什么
+
+Fegin旨在使编写Java Http客户端变的更容易。
+
+前面在使用Ribbon + RestTemplate时，利用RestTemplate 对http请求的封装处理，形成了一套模板化的调用方法。但是在实际卡法中，由于对服务依赖的调用可能不止一处，往往一个接口会别多出调用，所以通常都会针对每个微服务自行封装一些客户端类来包装这些依赖服务的调用。所以，Fegin在此基础上做了进一步封装，有他来帮助我们定义和时间依赖服务接口的定义。在Fegin的实现下，我们只需创建一个接口并使用注解的方式来配置它（以前是Dao接口上面标注Mapper注解，现在是一个微服务接口上面标注一个Fegin注解即可），即可完成服务提供方的接口绑定，简化了使用Spring Cloud Ribbon时，自动封装服务调用客户端的开发量。
+
+#### 41.2 Fegin集成了Ribbon
+
+利用Ribbon维护了Payment的服务列表信息，并且通过轮询实现了客户端的负载均衡。而与Ribbon不同的是，通过fegin只需要定义服务绑定接口且以声明式的方法，优雅而简单的实现了服务调用。
+
+#### 41.3 Fegin和OpenFegin两者区别
+
+Feign是Spring Cloud组件中的一个轻量级RESTful的HTTP服务客户端Feign内置了Ribbon，用来做客户点负载均衡，去调用服务注册中心的服务。Feign的使用方式是：使用Feign的注解定义接口，调用这个接口，就可以调用服务注册中心的服务。
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-feign</artifactId>
+</dependency>
+```
+
+OpenFeign 是Spring Cloud在Feign的基础上支持了SpringMVC的注解，如@RequestMapping等等。OpenFeign的@Feignclient可以解析SpringMVC的@RequestMapping注解下的接口，并通过动态代理的方式产生实现类，实现类中做负载均衡并调用其它服务。
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+
+```
+
+### 四十二、OpenFeign服务调用
+
+接口+注解：微服务调用接口 + @FeignClient
+
+1、新建cloud-consumer-feign-order80
+
+2、POM
+
+```xml
+```
 
 
 
