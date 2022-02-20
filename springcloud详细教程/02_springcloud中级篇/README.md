@@ -172,35 +172,384 @@ PaymentHystrixApplicaiton8001启动
 
 [Hutool国产工具类](https://hutool.cn/)
 
+修改cloud-provider-hystrix-payment8001
+
+```java
+import cn.hutool.core.util.IdUtil;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import java.util.concurrent.TimeUnit;
+
+@Service
+public class PaymentService{    
+
+    ...
+    
+    //=====服务熔断
+    @HystrixCommand(fallbackMethod = "paymentCircuitBreaker_fallback",commandProperties = {
+            @HystrixProperty(name = "circuitBreaker.enabled",value = "true"),// 是否开启断路器
+            @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold",value = "10"),// 请求次数
+            @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds",value = "10000"), // 时间窗口期
+            @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage",value = "60"),// 失败率达到多少后跳闸
+    })
+    public String paymentCircuitBreaker(@PathVariable("id") Integer id) {
+        if(id < 0) {
+            throw new RuntimeException("******id 不能负数");
+        }
+        String serialNumber = IdUtil.simpleUUID();
+
+        return Thread.currentThread().getName()+"\t"+"调用成功，流水号: " + serialNumber;
+    }
+    public String paymentCircuitBreaker_fallback(@PathVariable("id") Integer id) {
+        return "id 不能负数，请稍后再试，/(ㄒoㄒ)/~~   id: " +id;
+    }
+
+}
+```
+
+> The precise way that the circuit opening and closing occurs is as follows:
+>
+> Assuming the volume across a circuit meets a certain threshold : HystrixCommandProperties.circuitBreakerRequestVolumeThreshold()
+> And assuming that the error percentage, as defined above exceeds the error percentage defined in : HystrixCommandProperties.circuitBreakerErrorThresholdPercentage()
+> Then the circuit-breaker transitions from CLOSED to OPEN.
+> While it is open, it short-circuits all requests made against that circuit-breaker.
+> After some amount of time (HystrixCommandProperties.circuitBreakerSleepWindowInMilliseconds()), the next request is let through. If it fails, the command stays OPEN for the sleep window. If it succeeds, it transitions to CLOSED and the logic in 1) takes over again.
+> [link](https://github.com/Netflix/Hystrix/issues/674)
+
+HystrixCommandProperties配置类
+
+```java
+package com.netflix.hystrix;
+
+...
+
+public abstract class HystrixCommandProperties {
+    private static final Logger logger = LoggerFactory.getLogger(HystrixCommandProperties.class);
+
+    /* defaults */
+    /* package */ static final Integer default_metricsRollingStatisticalWindow = 10000;// default => statisticalWindow: 10000 = 10 seconds (and default of 10 buckets so each bucket is 1 second)
+    private static final Integer default_metricsRollingStatisticalWindowBuckets = 10;// default => statisticalWindowBuckets: 10 = 10 buckets in a 10 second window so each bucket is 1 second
+    private static final Integer default_circuitBreakerRequestVolumeThreshold = 20;// default => statisticalWindowVolumeThreshold: 20 requests in 10 seconds must occur before statistics matter
+    private static final Integer default_circuitBreakerSleepWindowInMilliseconds = 5000;// default => sleepWindow: 5000 = 5 seconds that we will sleep before trying again after tripping the circuit
+    private static final Integer default_circuitBreakerErrorThresholdPercentage = 50;// default => errorThresholdPercentage = 50 = if 50%+ of requests in 10 seconds are failures or latent then we will trip the circuit
+    private static final Boolean default_circuitBreakerForceOpen = false;// default => forceCircuitOpen = false (we want to allow traffic)
+    /* package */ static final Boolean default_circuitBreakerForceClosed = false;// default => ignoreErrors = false 
+    private static final Integer default_executionTimeoutInMilliseconds = 1000; // default => executionTimeoutInMilliseconds: 1000 = 1 second
+    private static final Boolean default_executionTimeoutEnabled = true;
+
+    ...
+}
+```
+
+#### 2.1 Hystrix之服务熔断案例（下）
+
+```java
+@RestController
+@Slf4j
+public class PaymentController
+{
+    @Resource
+    private PaymentService paymentService;
+
+    ...
+    
+    //====服务熔断
+    @GetMapping("/payment/circuit/{id}")
+    public String paymentCircuitBreaker(@PathVariable("id") Integer id)
+    {
+        String result = paymentService.paymentCircuitBreaker(id);
+        log.info("****result: "+result);
+        return result;
+    }
+}
+
+```
+
+**测试**
+
+自测 cloud-provider-hystrix-payment8001
+
+正确 - http://localhost:8001/payment/circuit/1
+
+错误 - http://localhost:8001/payment/circuit/-1
+
+多次错误，在来次正确，但错误得显示
+
+重点测试 - 多次错误，然后慢慢正确，发现刚开始不满足条件，就算是正确的访问地址也不能进行
+
+#### 2.2 Hystrix之服务熔断总结
+
+**大神结论**
+
+[Martin Fowler的相关论文](https://martinfowler.com/bliki/CircuitBreaker.html)
 
 
 
+![img](images/84d60234d01c4b7e9cae515066eb711b.png)
+
+##### 2.2.1 **熔断类型**
+
+- 熔断打开：请求不再进行调用当前服务，内部设置时钟一般为MTTR（平均故障处理时间），当打开时长达到所设时钟则进入半熔断状态。
+- 熔断关闭：熔断关闭不会对服务进行熔断。
+- 熔断搬开：部分请求根据规则调用当前服务，如果请求成功且符合规则则认为当前服务恢复正常，关闭熔断。
+
+**官网断路器流程图**
+
+![img](images/825d02fd7925521b1d76be0a21c15db0.png)
+
+##### 2.2.2 **官网步骤**
+
+> The precise way that the circuit opening and closing occurs is as follows:
+>
+> Assuming the volume across a circuit meets a certain threshold : HystrixCommandProperties.circuitBreakerRequestVolumeThreshold()
+> And assuming that the error percentage, as defined above exceeds the error percentage defined in : HystrixCommandProperties.circuitBreakerErrorThresholdPercentage()
+> Then the circuit-breaker transitions from CLOSED to OPEN.
+> While it is open, it short-circuits all requests made against that circuit-breaker.
+> After some amount of time (HystrixCommandProperties.circuitBreakerSleepWindowInMilliseconds()), the next request is let through. If it fails, the command stays OPEN for the sleep window. If it succeeds, it transitions to CLOSED and the logic in 1) takes over again.
+> [link](https://github.com/Netflix/Hystrix/issues/674)
+
+##### 2.2.3 **断路器在什么情况下开始起作用**
+
+```java
+//=====服务熔断
+@HystrixCommand(fallbackMethod = "paymentCircuitBreaker_fallback",commandProperties = {
+    @HystrixProperty(name = "circuitBreaker.enabled",value = "true"),// 是否开启断路器
+    @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold",value = "10"),// 请求次数
+    @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds",value = "10000"), // 时间窗口期
+    @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage",value = "60"),// 失败率达到多少后跳闸
+})
+public String paymentCircuitBreaker(@PathVariable("id") Integer id) {
+    ...
+}
+```
+
+涉及到断路器的三个重要参数：
+
+1. **快照时间窗：**断路器确定是否打开需要统计一些请求和错误数据，而统计的时间范围就是快照时间窗，默认为最近的10秒。
+2. **请求总数阈值：**在快照时间窗内，必须满足请求总数阈值才有资格熔断。默认为20，意味着在10秒内，如果该hystrix命令的调用次数不足20次，即使所有的请求都超时或者其他原因失败，断路器都不会打开。
+3. **错误百分比阈值：**请求总数在快照时间窗内超过了阈值，比如发生了30次调用，如果在这30次调用中，有15次发生了超时异常，也就是超过50%的错误百分比，在默认设定50%阈值情况下，这时候就会将断路器打开。
+
+##### 2.2.4 **断路器开启或者关闭的条件**
+
+- 到达以下阈值，断路器将会开启：
+  1. 当满足一定的阈值的时候（默认10秒内超过20个请求次数）
+  2. 当失败率达到一定的时候（默认10秒内超过50%的请求失败）
+
+- 当开启的时候，所有请求都不会进行转发
+- 一段时间之后（默认是5秒），这个时候断路器是半开状态，会让启动一个请求进行转发。如果成功，断路器会关闭，若失败，继续开启。
+
+##### 2.2.5 断路器打开之后
+
+1. 再有请求调用的时候，将不会调用主逻辑，而是直接调用降级fallback。通过断路器，实现了自动地发现错误并将降级逻辑切换为主逻辑，较少响应延迟的效果。
+2. 原来的主逻辑要如何恢复呢？
+
+对于这一问题，hystrix也为我们实现了自动恢复功能。
+
+当断路器打开，堆主逻辑进行熔断之后，hystrix会启动一个休眠时间窗，这个时间窗内，降级逻辑是临时的称为主逻辑，当休眠时间窗到期，断路器进入半开状态，释放一次请求到原来的主逻辑上，如果此次请求正常返回，那么断路器将继续比合，主逻辑恢复，如果这次请求依然有问题，断路器继续进入打开状态，休眠时间窗重新计时。
+
+##### 2.2.6 All配置
+
+```java
+@HystrixCommand(fallbackMethod = "fallbackMethod", 
+                groupKey = "strGroupCommand", 
+                commandKey = "strCommand", 
+                threadPoolKey = "strThreadPool",
+                
+                commandProperties = {
+                    // 设置隔离策略，THREAD 表示线程池 SEMAPHORE：信号池隔离
+                    @HystrixProperty(name = "execution.isolation.strategy", value = "THREAD"),
+                    // 当隔离策略选择信号池隔离的时候，用来设置信号池的大小（最大并发数）
+                    @HystrixProperty(name = "execution.isolation.semaphore.maxConcurrentRequests", value = "10"),
+                    // 配置命令执行的超时时间
+                    @HystrixProperty(name = "execution.isolation.thread.timeoutinMilliseconds", value = "10"),
+                    // 是否启用超时时间
+                    @HystrixProperty(name = "execution.timeout.enabled", value = "true"),
+                    // 执行超时的时候是否中断
+                    @HystrixProperty(name = "execution.isolation.thread.interruptOnTimeout", value = "true"),
+                    
+                    // 执行被取消的时候是否中断
+                    @HystrixProperty(name = "execution.isolation.thread.interruptOnCancel", value = "true"),
+                    // 允许回调方法执行的最大并发数
+                    @HystrixProperty(name = "fallback.isolation.semaphore.maxConcurrentRequests", value = "10"),
+                    // 服务降级是否启用，是否执行回调函数
+                    @HystrixProperty(name = "fallback.enabled", value = "true"),
+                    // 是否启用断路器
+                    @HystrixProperty(name = "circuitBreaker.enabled", value = "true"),
+                    // 该属性用来设置在滚动时间窗中，断路器熔断的最小请求数。例如，默认该值为 20 的时候，如果滚动时间窗（默认10秒）内仅收到了19个请求， 即使这19个请求都失败了，断路器也不会打开。
+                    @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold", value = "20"),
+                    
+                    // 该属性用来设置在滚动时间窗中，表示在滚动时间窗中，在请求数量超过 circuitBreaker.requestVolumeThreshold 的情况下，如果错误请求数的百分比超过50, 就把断路器设置为 "打开" 状态，否则就设置为 "关闭" 状态。
+                    @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage", value = "50"),
+                    // 该属性用来设置当断路器打开之后的休眠时间窗。 休眠时间窗结束之后，会将断路器置为 "半开" 状态，尝试熔断的请求命令，如果依然失败就将断路器继续设置为 "打开" 状态，如果成功就设置为 "关闭" 状态。
+                    @HystrixProperty(name = "circuitBreaker.sleepWindowinMilliseconds", value = "5000"),
+                    // 断路器强制打开
+                    @HystrixProperty(name = "circuitBreaker.forceOpen", value = "false"),
+                    // 断路器强制关闭
+                    @HystrixProperty(name = "circuitBreaker.forceClosed", value = "false"),
+                    // 滚动时间窗设置，该时间用于断路器判断健康度时需要收集信息的持续时间
+                    @HystrixProperty(name = "metrics.rollingStats.timeinMilliseconds", value = "10000"),
+                    
+                    // 该属性用来设置滚动时间窗统计指标信息时划分"桶"的数量，断路器在收集指标信息的时候会根据设置的时间窗长度拆分成多个 "桶" 来累计各度量值，每个"桶"记录了一段时间内的采集指标。
+                    // 比如 10 秒内拆分成 10 个"桶"收集这样，所以 timeinMilliseconds 必须能被 numBuckets 整除。否则会抛异常
+                    @HystrixProperty(name = "metrics.rollingStats.numBuckets", value = "10"),
+                    // 该属性用来设置对命令执行的延迟是否使用百分位数来跟踪和计算。如果设置为 false, 那么所有的概要统计都将返回 -1。
+                    @HystrixProperty(name = "metrics.rollingPercentile.enabled", value = "false"),
+                    // 该属性用来设置百分位统计的滚动窗口的持续时间，单位为毫秒。
+                    @HystrixProperty(name = "metrics.rollingPercentile.timeInMilliseconds", value = "60000"),
+                    // 该属性用来设置百分位统计滚动窗口中使用 “ 桶 ”的数量。
+                    @HystrixProperty(name = "metrics.rollingPercentile.numBuckets", value = "60000"),
+                    // 该属性用来设置在执行过程中每个 “桶” 中保留的最大执行次数。如果在滚动时间窗内发生超过该设定值的执行次数，
+                    // 就从最初的位置开始重写。例如，将该值设置为100, 滚动窗口为10秒，若在10秒内一个 “桶 ”中发生了500次执行，
+                    // 那么该 “桶” 中只保留 最后的100次执行的统计。另外，增加该值的大小将会增加内存量的消耗，并增加排序百分位数所需的计算时间。
+                    @HystrixProperty(name = "metrics.rollingPercentile.bucketSize", value = "100"),
+                    
+                    // 该属性用来设置采集影响断路器状态的健康快照（请求的成功、 错误百分比）的间隔等待时间。
+                    @HystrixProperty(name = "metrics.healthSnapshot.intervalinMilliseconds", value = "500"),
+                    // 是否开启请求缓存
+                    @HystrixProperty(name = "requestCache.enabled", value = "true"),
+                    // HystrixCommand的执行和事件是否打印日志到 HystrixRequestLog 中
+                    @HystrixProperty(name = "requestLog.enabled", value = "true"),
+
+                },
+                threadPoolProperties = {
+                    // 该参数用来设置执行命令线程池的核心线程数，该值也就是命令执行的最大并发量
+                    @HystrixProperty(name = "coreSize", value = "10"),
+                    // 该参数用来设置线程池的最大队列大小。当设置为 -1 时，线程池将使用 SynchronousQueue 实现的队列，否则将使用 LinkedBlockingQueue 实现的队列。
+                    @HystrixProperty(name = "maxQueueSize", value = "-1"),
+                    // 该参数用来为队列设置拒绝阈值。 通过该参数， 即使队列没有达到最大值也能拒绝请求。
+                    // 该参数主要是对 LinkedBlockingQueue 队列的补充,因为 LinkedBlockingQueue 队列不能动态修改它的对象大小，而通过该属性就可以调整拒绝请求的队列大小了。
+                    @HystrixProperty(name = "queueSizeRejectionThreshold", value = "5"),
+                }
+               )
+public String doSomething() {
+	...
+}
+
+```
+
+#### 2.3 Hystrix工作流程最后总结
+
+服务限流- 后面高级篇讲解alibaba的Sentinel说明
+
+[官方解释](https://github.com/Netflix/Hystrix/wiki/How-it-Works)
 
 
 
+##### 2.3.1 步骤说明
+
+1. 创建HystrixCommand（用在依赖的服务返回单个操作结果的时候）或HystrixObserableCommand（用在依赖的服务返回多个操作结果的时候）对象。
+
+2. 命令执行。
+
+3. 其中HystrixCommand实现了下面前两种执行方式
+
+   **execute()**： 同步执行，从依赖的服务返回一个单一的结果对象或是在发生错误的时候抛出异常。
+
+   **queue()**：异步执行，直接返回一个Future对象，启动包含了服务执行结束时要返回的单一结果对象。
+
+4. 而HystrixObservableCommand实现了后两种执行方式：
+   - obseve()：返回Observable对象，它代表了操作的多个统果，它是一个Hot Observable （不论"事件源"是否有订阅者，都会在创建后堆时间进行发布，所以对于Hot Observable的每一个"订阅者"都有可能是从 "事件源" 的总图开始的。并可能只是看到了整个操作的局部过程)。
+   - toObservable()：同样会返回Observable对象，也代表了操作的多个结果，但它返回的是一个Cold Observable(没有 "订阅者"的时候并不会发布事件，而是进行等待，知道有 "订阅者" 之后才发布事件，所以对于Cold Observable的订阅者，它可以保证从一开始看到整个操作的全部过程)。
+
+5. 若当前命令的请求缓存功能是被启用的，并且没改名了缓存命中，那么缓存的结果会立即以Observable对象的形式返回。
+6. 检查断路器是否以为打开状态。如果断路器是打开的，那么Hystrix不会执行命令，而是转接到fallback处理逻辑(第8步)；如果断路器是关闭的，检查是否有可用资源来执行命令(第5步)。
+7. 线程池/请求队列信号量是否占满。如果命令依赖服务的专有线程地和请求队列，或者信号量（不使用线程的时候）已经被占满，那么Hystrix也不会执行命令，而是转接到fallback处理理辑(第8步) 。
+8. Hystrix会根据我们编写的方法来决定采取什么样的方式去请求依赖服务。
+
+- HystrixCommand.run()：返回一个单一的结果，或者抛出异常。
+- HystrixObservableCommand.construct()：返回一个Observable对象来发射多个结果，或通过onError发送错误通知。
+
+9. Hystix会将“成功”、“失败”、“拒绝”、“超时” 等信息报告给断路器，而断路器会维护一组计数器来统计这些数据。断路器会使用这些统计数据来决定是否要将断路器打开，来对某个依赖服务的请求进行"熔断/短路"。
+
+10. 当命令执行失败的时候，Hystix会进入fallback尝试回退处理，我们通常也称波操作为“服务降级”。而能够引起服务降级处理的情况有下面几种：
+    - 第4步∶当前命令处于“熔断/短路”状态，断洛器是打开的时候。
+    - 第5步∶当前命令的钱程池、请求队列或者信号量被占满的时候。
+    - 第6步∶HystrixObsevableCommand.construct()或HytrixCommand.run()抛出异常的时候。
+
+11. 当Hystrix命令执行成功之后，它会将处理结果直接返回或是以Observable的形式返回。
+
+**tips**：如果我们没有为命令实现降级逻辑或者在降级处理逻辑中抛出了异常，Hystrix依然会运回一个Obsevable对象，但是它不会发射任结果数惯，而是通过onError方法通知命令立即中断请求，并通过onError方法将引起命令失败的异常发送给调用者。
+
+#### 2.4 Hystrix图形化DashBoard搭建
+
+##### 2.4.1 概述
+
+除了隔离依赖服务的调用外，Hystrix还提供了准实时的调用监控(Hystrix Dashboard),Hystrix会持续地记录所有通过Hystrix发起的请求的执行信息，并以统计报表和图形的形式展示给用户，包括每秒执行多少请求多少成功，多少失败等。
+
+Netflix通过Hystrix-metrics-event-stream项目实现了对以上指标的监控。Spring Cloud也提供了Hystrix Dashboard的整合，对监控内容转化成可视化界面。
+
+##### 2.4.2 仪表盘9001
+
+1、新建cloud-consumer-hystrix-dashboard9001
+
+2、POM
+
+```
+```
+
+3、YML
+
+```yml
+```
+
+4、HystrixDashboardMain9001+新注解@EnableHystrixDashboard
+
+```java
+```
+
+5、5.所有Provider微服务提供类(8001/8002/8003)都需要监控依赖配置
+
+```java
+```
+
+##### 2.4.3 监控测试
+
+启动1个eureka
+
+启动8001,9001
+
+##### 2.4.4 观察监控窗口
+
+9001监控8001 - 填写监控地址 - http://localhost:8001/hystrix.stream 到 http://localhost:9001/hystrix页面的输入框。
+
+测试地址
+
+http://localhost:8001/payment/circuit/1
+
+http://localhost:8001/payment/circuit/-1
+
+测试通过
+
+先访问正确地址，再访问错误地址，再正确地址，会发现图示断路器都是慢慢放开的。
+![img](images/34bd091b54f913b088bace6c3a89a79c.png)
+
+**如何看?**
+
+- 7色
+
+![img](images/6740b2a462751db0ce8f2813f740c5b5.png)
+
+- 1圈
+
+实心圆：共有两种含义。它通过颜色的变化代表了实例的健康程度，它的健康度从绿色<黄色<橙色<红色递减。
+
+该实心圆除了颜色的变化之外，它的大小也会根据实例的请求流量发生变化，流量越大该实心圆就越大。所以通过该实心圆的展示，就可以在大量的实例中快速的发现故障实例和高压力实例。
+
+1线
+曲线：用来记录2分钟内流量的相对变化，可以通过它来观察到流量的上升和下降趋势。
+
+- 整图说明
+
+![img](images/8a8c682ab027e313e4d9af9e4bd96206.png)
 
 
 
+- 整图说明2
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![img](images/7fe0003d738028e6e20a3bf8f802cd2d.png)
 
 
 
