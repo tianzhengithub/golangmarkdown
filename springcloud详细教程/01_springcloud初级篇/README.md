@@ -3971,7 +3971,7 @@ public class OrderHystirxController {
 
 ```
 
-## 56_Hystrix之全局服务降级DefaultProperties
+
 
 
 
