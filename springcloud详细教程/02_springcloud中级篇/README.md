@@ -1124,8 +1124,15 @@ spring:
         uri: https://example.org
         predicates:
         # 这个时间后才能起效
-        - After=2017-01-20T17:42:47.789-07:00[America/Denver]
+        - 2022-02-22T19:10:17.337+08:00[Asia/Shanghai]
 
+```
+
+**测试**
+
+```java
+# 该命令相当于发get请求，且没带cookie
+curl http://localhost:9527/payment/lb
 ```
 
 可以通过下述方法获得上述格式的时间戳字符串
@@ -1173,7 +1180,7 @@ spring:
       - id: cookie_route
         uri: https://example.org
         predicates:
-        - Cookie=chocolate, ch.p
+        - Cookie=chocolate, chip
 
 ```
 
@@ -1396,16 +1403,105 @@ config:
 POM
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-config-center-3344</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
 ```
 
 YML
 
 ```yml
+server:
+  port: 3344
+spring:
+  application:
+    name: cloud-config-centert
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://gitee.com/yooome/springcloud.git
+            ####搜索目录
+          search-paths:
+              - springcloud
+          force-pull: true
+          username: xxxxxxx
+          password: xxxxxxx
+            ####读取分支
+      label: master
+#服务注册到eureka地址
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:7001/eureka
 ```
 
 主启动类
 
 ```java
+package com.yooome.springcloud;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.config.server.EnableConfigServer;
+
+@SpringBootApplication
+@EnableConfigServer
+public class ConfigCenterApplication3344 {
+    public static void main(String[] args) {
+        SpringApplication.run(ConfigCenterApplication3344.class,args);
+    }
+}
 ```
 
 windows下修改hosts文件，增加映射
@@ -1468,6 +1564,59 @@ config:
 **POM**
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-config-client-3355</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
 ```
 
 **bootstrap.yml**
@@ -1512,21 +1661,20 @@ eureka:
 **修改config-dev.yml配置并提交到GitHub中，比如加个变量age或者版本号version**
 
 ```java
+package con.yooome.springcloud;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
 
 
-@EnableEurekaClient
 @SpringBootApplication
-public class ConfigClientMain3355
-{
+@EnableEurekaClient
+public class ConfigClientApplication3355 {
     public static void main(String[] args) {
-            SpringApplication.run(ConfigClientMain3355.class, args);
+        SpringApplication.run(ConfigClientApplication3355.class,args);
     }
 }
-
-
 ```
 
 业务类
