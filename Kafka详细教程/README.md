@@ -937,7 +937,286 @@ yooome fffffff 4
 
 #### 3.5 生产经验----生产者如何提高吞吐量
 
-3.5.1 
+![17](images/17.png)
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.common.serialization.StringSerializer;
+
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+
+public class CustomProducerParameters {
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        // 1. 创建Kafka生产者的配置对象
+        Properties properties = new Properties();
+        // 2. 给kafka配置对象添加配置信息
+        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // 3. key 序列化 key.serializer，value.serializer
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // 4. value 序列化 value.serializer
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // batch size 批次大小，默认 16k
+        properties.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
+        // linger.ms : 等待时间， 默认0
+        properties.put(ProducerConfig.LINGER_MS_CONFIG, 0);
+        // 缓冲区大小
+        properties.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
+        //  compression.type：压缩，默认 none，可配置值 gzip、snappy、lz4 和 zstd
+        // properties.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,"snappy");
+
+        // 5. 创建kafka生产者对象
+        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<String, String>(properties);
+        for (int i = 0; i < 5; i++) {
+            //异步发送
+            // kafkaProducer.send(new ProducerRecord<>("first","kafka" + i));
+            // 6. 同步发送
+            // 依次指定 key 值为 a,b,f ，数据 key 的 hash 值与 3 个分区求余，分别发往 1、2、0
+            kafkaProducer.send(new ProducerRecord<>("first", "ProducerRecord" + i));
+        }
+        // 7. 关闭资源
+        kafkaProducer.close();
+    }
+}
+```
+
+【注意】：compression.type：压缩，默认 none，可配置值 gzip、snappy、lz4 和 zstd
+
+```bash
+Mac 电脑对 compression.type 不兼容，出现报错 如下：
+
+org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 0.0 failed 1 times, most recent failure: Lost task 0.0 in stage 0.0 (TID 0, localhost, executor driver): org.xerial.snappy.SnappyError: [FAILED_TO_LOAD_NATIVE_LIBRARY] no native library is found for os.name=Mac and os.arch=aarch64
+```
+
+**测试**：
+
+**查看控制台是否接收到消息**
+
+```java
+yooome@192 kafka % ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic first
+ProducerRecord0
+ProducerRecord1
+ProducerRecord2
+ProducerRecord3
+ProducerRecord4
+```
+
+#### 3.6 生产经验----数据可靠性
+
+##### 3.6.1 回顾发送流程
+
+![10](images/10.png)
+
+##### 3.6.2 ACK应答级别
+
+![18](images/18.png)
+
+
+
+![19](images/19.png)
+
+**可靠性总结**：
+
+1. acks=0，生产者发送过来数据就不管了，可靠性差，效率高；
+2. acks=1，生产者发送过来数据 Leader 应答，可靠性中等，效率中等；
+3. acks=-1，生产者发送过来数据 Leader 和 ISR 队列里面苏欧欧Follwer应答，可靠性，效率低；
+
+在生产环境中，acks=0很少使用；acks=1，一般用于传输普通的日志，允许丢个别数据；acks=-1，一般用于传输和钱相关的数据，对可靠性要求比较高的场景。
+
+
+
+**数据重复分析**：
+
+acks：-1（all）：生产者发送过来的数据，Leader和ISR队列里面的所有节点收齐数据后应答。
+
+![20](images/20.png)
+
+**代码配置**
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringSerializer;
+
+import java.util.Properties;
+
+public class CustomProducerAck {
+    public static void main(String[] args) {
+        // 1. 创建Kafka生产者的配置对象
+        Properties properties = new Properties();
+        // 2. 给kafka配置对象添加配置信息
+        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // 3. key 序列化 key.serializer，value.serializer
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // 4. value 序列化 value.serializer
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // 设置 acks
+        properties.put(ProducerConfig.ACKS_CONFIG, "all");
+        // 重试次数
+        properties.put(ProducerConfig.RETRIES_CONFIG, 3);
+        // 5. 创建kafka生产者对象
+        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<String, String>(properties);
+        for (int i = 0; i < 5; i++) {
+            //异步发送
+            // kafkaProducer.send(new ProducerRecord<>("first","kafka" + i));
+            // 6. 同步发送
+            // 依次指定 key 值为 a,b,f ，数据 key 的 hash 值与 3 个分区求余，分别发往 1、2、0
+            kafkaProducer.send(new ProducerRecord<>("first", "acks acks " + i));
+        }
+        // 7. 关闭资源
+        kafkaProducer.close();
+    }
+}
+
+```
+
+#### 3.7 生产经验------数据去重
+
+##### 3.7.1 数据传递语义
+
+- 至少一次（At Least Once） = ACK 级别设置为-1 + 分区副本大于等于 2 + ISR 里应答的最小副本数量大于等于 2 ；
+- 最多一次（At Most Once）= ACK 级别设置为 0 ；
+- **总结**：
+  1. At Least Once 可以保证数据不丢失，但是不能保证数据不重复；
+  2. At Most Once 可以保证数据不重复，但是不能保证数据不丢失。
+
+- 精确一次（Exactly Once）：对于一些非常重要的信息，比如和钱相关的数据，要求数据既不能重复也不丢失。
+
+  Kafka 0.11版本以后，引入了一项重大特性：幂等性和事务。
+
+##### 3.7.2 幂等性
+
+1. **幂等性原理**
+
+**幂等性** 就是指 Producer 不论向 Broker 发送多少次重复数据，Broker 端都只会持久化一条，保证了不重复。
+
+**精确一次（Exactly Once）**= 幂等性 + 至少一次（ack=-1 + 分区副本数 >= 2 + ISR 最小副本数量 >= 2)。
+
+**重复数据的判断标准**：具有<PID, Partition, SeqNumber>相同主键的消息提交时，Broker只会持久化一条。其 中PID是Kafka每次重启都会分配一个新的；Partition 表示分区号；Sequence Number是单调自增的。
+
+所以幂等性只能保证的是**在单分区单会话内不重复**
+
+![21](images/21.png)
+
+2. **如何使用幂等性**
+
+   开启参数 enable.idempotence 默认为 true，false 关闭。
+
+##### 3.7.3 生产者事务
+
+1. **Kafka事务原理**：
+
+【注意】说明，开启事务，必须开启幂等性
+
+![22](images/22.png)
+
+2. **Kafka的事务一共有如下 5 个 API**
+
+```java
+// 1. 初始化事务
+void initTransactions();
+// 2. 开启事务
+void beginTransaction() throws ProducerFencedException;
+// 3. 在事务内提交已经消费的偏移量(主要用于消费者)
+void sendOffsetsToTransaction(Map<TopicPartition,OffsetAndMetadata> offsets, String consumerGroupId) throws ProducerFencedException;
+// 4. 提交事务
+void commitTransaction() throws ProducerFencedException;
+// 5. 放弃事务(类似于混滚事务的操作)
+void abortTransaction() throws ProducerFencedException;
+```
+
+3. 单个Producer，使用事务保证消息的仅一次发送
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringSerializer;
+
+import java.util.Properties;
+
+public class CustomProducerTransactions {
+    public static void main(String[] args) {
+        // 1. 创建Kafka生产者的配置对象
+        Properties properties = new Properties();
+        // 2. 给kafka配置对象添加配置信息
+        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // 3. key 序列化 key.serializer，value.serializer
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // 4. value 序列化 value.serializer
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // 设置 事务 id(必须)，事务 id 任意起名
+        properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG,"transaction_id_0");
+        // 5. 创建kafka生产者对象
+        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<String, String>(properties);
+        // 初始化事务
+        kafkaProducer.initTransactions();
+        // 开启事务
+        kafkaProducer.beginTransaction();
+        try {
+            for (int i = 0; i < 5; i++) {
+                //异步发送
+                // kafkaProducer.send(new ProducerRecord<>("first","kafka" + i));
+                // 6. 同步发送
+                // 依次指定 key 值为 a,b,f ，数据 key 的 hash 值与 3 个分区求余，分别发往 1、2、0
+                kafkaProducer.send(new ProducerRecord<>("first", "transaction"));
+            }
+            // 提交事务
+            kafkaProducer.commitTransaction();
+        }catch (Exception e){
+            // 终止事务
+            kafkaProducer.abortTransaction();
+        }finally {
+            // 7. 关闭资源
+            kafkaProducer.close();
+        }
+    }
+}
+
+```
+
+#### 3.8 生产经验-----数据有序
+
+![23](images/23.png)
+
+#### 3.9 生产经验-----数据乱序
+
+1、kafka在1.x 版本之前保证数据单分区有序，条件如下：
+
+​	**max.in.flight.requests.per.connection**=1（不需要考虑是否开启幂等性）。
+
+2、kafka在1.x及以后版本保证数据单分区有序，条件如下：
+
+- **未开启幂等性**
+
+  **max.in.flight.requests.per.connection** 需要设置为1。
+
+- **开启幂等性**
+
+  **max.in.flight.requests.per.connection** 需要设置小于等于5。
+
+原因说明：因为在kafka1.x以后，启用幂等后，kafka服务端会缓存producer发来的最近5个request的元数据，
+
+故无论如何，都可以保证最近5个request的数据都是有序的。
+
+![24](images/24.png)
+
+### 四、**Kafka Broker**
+
+#### **4.1 Kafka Broker** **工作流程**
+
+##### **4.1.1 Zookeeper** **存储的** **Kafka** **信息**
+
+1. 启动Zookeeper客户端
+
+
 
 
 
