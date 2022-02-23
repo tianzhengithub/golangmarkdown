@@ -4,11 +4,11 @@
 
 #### 1.1 定义
 
-**Kafka传统定义：** Kafka是一个分布式的基于**发布/订阅模式**的消息队列（Message Queue），主要应用于大数据实时处理领域。
+**Kafka传统定义**： Kafka是一个分布式的基于**发布/订阅模式**的消息队列（Message Queue），主要应用于大数据实时处理领域。
 
 **发布/订阅**：消息的发布者不会将消息直接发布给特定的订阅者，而是将发布的消息分为不同的类别，订阅者只接收感兴趣的消息。
 
-**Kafka最新定义：**Kafka是一个开源的分布式事件流平台（Event Streaming Platform），被数千家公司用于高性能的数据管道、流分析、数据集成和关键任务应用。
+**Kafka最新定义**：Kafka是一个开源的分布式事件流平台（Event Streaming Platform），被数千家公司用于高性能的数据管道、流分析、数据集成和关键任务应用。
 
 <img src="images/1.png" alt="2" style="zoom:50%;left:-50%" />
 
@@ -22,9 +22,9 @@
 
 ##### 1.2.1 传统消息队列的应用场景
 
-传统的消息队列的主要应用场景包括：**缓存/消峰、解耦**和**异步通信**。
+传统的消息队列的主要应用场景包括**：缓存/消峰、解耦**和**异步通信**。
 
-**缓冲/消峰：** 有助于控制和优化数据流经过系统的速度，解决生产消息和消费消息的处理速度不一致的情况。
+**缓冲/消峰**： 有助于控制和优化数据流经过系统的速度，解决生产消息和消费消息的处理速度不一致的情况。
 
 ![3](images/3.png)
 
@@ -32,7 +32,7 @@
 
 ![4](images/4.png)
 
-**异步通信：**允许用户把一个消息放入队列，但并不立即处理它，然后再需要的时候再去处理它们。
+**异步通信**：允许用户把一个消息放入队列，但并不立即处理它，然后再需要的时候再去处理它们。
 
 ![5](images/5.png)
 
@@ -66,17 +66,17 @@
 
 
 
-- **Producer：**消息生产者，就是向Kafka broker 发消息的客户端。
-- **Consumer：**消息消费者，向Kafka broker 取消息的客户端。
+- **Producer**：消息生产者，就是向Kafka broker 发消息的客户端。
+- **Consumer**：消息消费者，向Kafka broker 取消息的客户端。
 
-- **Consumer Group（CG）：**消费者组，由多个consumer组成。消费者组内每个消费者负责消费不同分区的数据，一个分区只能由一个组内消费者消费；消费者组之间互不影响。素有的消费者都属于某个消费者组，即消费者组是逻辑上的一个订阅者。
+- **Consumer Group（CG）**：消费者组，由多个consumer组成。消费者组内每个消费者负责消费不同分区的数据，一个分区只能由一个组内消费者消费；消费者组之间互不影响。素有的消费者都属于某个消费者组，即消费者组是逻辑上的一个订阅者。
 
-- **Broker：**一台Kafka服务器就是一个broker。一个集群由多个broker组成。一个broker可以容纳多个topic。
-- **Topic：** 可以理解为一个队列，生产者和消费者面向的斗士一个topic。
-- **Partition：** 为了实现扩展性，一个非常大的topic可以分布到多个broker（即服务器）上，一个topic可以分为多个partition，每个partition是一个有序的队列。
-- **Replica：**副本。一个topic的每个分区都有若干个副本，一个Leader和若干个Follower。
-- **Leader：**每个分区多个副本的 "主"，生产者发送数据的对象，以及消费者消费数据的对象都是Leader。
-- **Follower：**每个分区多个副本中的 "从"，实时从 Leader 中同步数据，保持和 Leader 数据的同步。Leader 发生故障时，某个Follower会成为新的 Leader。
+- **Broker**：一台Kafka服务器就是一个broker。一个集群由多个broker组成。一个broker可以容纳多个topic。
+- **Topic**： 可以理解为一个队列，生产者和消费者面向的斗士一个topic。
+- **Partition**： 为了实现扩展性，一个非常大的topic可以分布到多个broker（即服务器）上，一个topic可以分为多个partition，每个partition是一个有序的队列。
+- **Replica**：副本。一个topic的每个分区都有若干个副本，一个Leader和若干个Follower。
+- **Leader**：每个分区多个副本的 "主"，生产者发送数据的对象，以及消费者消费数据的对象都是Leader。
+- **Follower**：每个分区多个副本中的 "从"，实时从 Leader 中同步数据，保持和 Leader 数据的同步。Leader 发生故障时，某个Follower会成为新的 Leader。
 
 ### 二、Kafka快速入门
 
@@ -153,7 +153,7 @@ zookeeper.connect=hadoop102:2181,hadoop103:2181,hadoop104:2181/kafka
 
 6、分别在hadoop103和hadoop104 上修改配置文件/opt/module/kafka/config/server.properties中的 broker.id=1、broker.id=2
 
-**注：**broker.id 不得重复，整个集群中唯一
+**注**：broker.id 不得重复，整个集群中唯一
 
 ```bash
 [atguigu@hadoop103 module]$ vim kafka/config/server.properties
@@ -270,7 +270,7 @@ esac
 [atguigu@hadoop102 ~]$ kf.sh stop
 ```
 
-**注意：**停止 Kafka 集群时，一定要等 Kafka 所有节点进程全部停止后再停止 Zookeeper集群。因为 Zookeeper 集群当中记录着 Kafka 集群相关信息，Zookeeper 集群一旦先停止，Kafka 集群就没有办法再获取停止进程的信息，只能手动杀死 Kafka 进程了。
+**注意**：停止 Kafka 集群时，一定要等 Kafka 所有节点进程全部停止后再停止 Zookeeper集群。因为 Zookeeper 集群当中记录着 Kafka 集群相关信息，Zookeeper 集群一旦先停止，Kafka 集群就没有办法再获取停止进程的信息，只能手动杀死 Kafka 进程了。
 
 待续。。。。。。
 
@@ -610,7 +610,7 @@ public class CustomProducerCallback {
 
 ```
 
-**测试：**
+**测试**：
 
 1. 在在 hadoop102 上开启 Kafka 消费者。
 
@@ -914,7 +914,7 @@ public class CustomProducerCallbackPartitions {
 
 ```
 
-**测试：**
+**测试**：
 
 ① 在 hadoop102 上开启 Kafka 消费者。
 
