@@ -1526,6 +1526,1349 @@ Clearing topic-level throttles on topic first
 
 ##### 4.3.1 副本基本信息
 
+1. Kafka副本作用：提高数据可靠性。
+2. Kafka默认副本1个，生产环境一般配置为2个，保证数据可靠性；太多副本会增加磁盘存储空间，增加网络上数据传输，降低效率。
+3. Kafka中副本为：Leader和Follower。Kafka生产者只会把数据发往 Leader，然后Follower 找 Leader 进行同步数据。
+4. Kafka 分区中的所有副本统称为 AR（Assigned Repllicas）。
+
+AR = ISR + OSR
+
+**ISR**：表示 Leader 保持同步的 Follower 集合。如果 Follower 长时间未 向 Leader 发送通信请求或同步数据，则该 Follower 将被踢出 ISR。该时间阈值由 **replica.lag.time.max.ms** 参数设定，默认 30s 。Leader 发生故障之后，就会从 ISR 中选举新的 Leader。
+
+**OSR**：表示 Follower 与 Leader 副本同步时，延迟过多的副本。
+
+##### 4.3.2 Leader 选举流程
+
+​	Kafka 集群中有一个 broker 的 Controller 会被选举为 Controller Leader ，负责管理集群 broker 的上下线，所有 topic 的分区副本分配 和 Leader 选举等工作。
+
+![27](images/27.png)
+
+1. 创建一个新的 topic，4 个分区，4 个副本
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --create --topic atguigu1 --partitions 4 --replication-factor 
+4
+Created topic atguigu1.
+```
+
+2. 查看 Leader 分布情况
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --describe 
+--topic atguigu1
+Topic: atguigu1 TopicId: awpgX_7WR-OX3Vl6HE8sVg PartitionCount: 4 ReplicationFactor: 4
+Configs: segment.bytes=1073741824
+Topic: atguigu1 Partition: 0 Leader: 3 Replicas: 3,0,2,1 Isr: 3,0,2,1
+Topic: atguigu1 Partition: 1 Leader: 1 Replicas: 1,2,3,0 Isr: 1,2,3,0
+Topic: atguigu1 Partition: 2 Leader: 0 Replicas: 0,3,1,2 Isr: 0,3,1,2
+Topic: atguigu1 Partition: 3 Leader: 2 Replicas: 2,1,0,3 Isr: 2,1,0,3
+```
+
+3. 停止掉 hadoop105 的 kafka 进程，并查看 Leader 分区情况
+
+```bash
+[atguigu@hadoop105 kafka]$ bin/kafka-server-stop.sh
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --describe 
+--topic atguigu1
+Topic: atguigu1 TopicId: awpgX_7WR-OX3Vl6HE8sVg PartitionCount: 4 ReplicationFactor: 4
+Configs: segment.bytes=1073741824
+Topic: atguigu1 Partition: 0 Leader: 0 Replicas: 3,0,2,1 Isr: 0,2,1
+Topic: atguigu1 Partition: 1 Leader: 1 Replicas: 1,2,3,0 Isr: 1,2,0
+Topic: atguigu1 Partition: 2 Leader: 0 Replicas: 0,3,1,2 Isr: 0,1,2
+Topic: atguigu1 Partition: 3 Leader: 2 Replicas: 2,1,0,3 Isr: 2,1,0
+```
+
+4. 停止掉 hadoop104 的 kafka 进程，并查看 Leader 分区情况
+
+```bash
+[atguigu@hadoop104 kafka]$ bin/kafka-server-stop.sh
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --describe 
+--topic atguigu1
+Topic: atguigu1 TopicId: awpgX_7WR-OX3Vl6HE8sVg PartitionCount: 4 ReplicationFactor: 4
+Configs: segment.bytes=1073741824
+Topic: atguigu1 Partition: 0 Leader: 0 Replicas: 3,0,2,1 Isr: 0,1
+Topic: atguigu1 Partition: 1 Leader: 1 Replicas: 1,2,3,0 Isr: 1,0
+Topic: atguigu1 Partition: 2 Leader: 0 Replicas: 0,3,1,2 Isr: 0,1
+Topic: atguigu1 Partition: 3 Leader: 1 Replicas: 2,1,0,3 Isr: 1,0
+```
+
+5. 启动 hadoop105 的 kafka 进程，并查看 Leader 分区情况
+
+```bash
+[atguigu@hadoop105 kafka]$ bin/kafka-server-start.sh -daemon config/server.properties
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --describe 
+--topic atguigu1
+Topic: atguigu1 TopicId: awpgX_7WR-OX3Vl6HE8sVg PartitionCount: 4 ReplicationFactor: 4
+Configs: segment.bytes=1073741824
+Topic: atguigu1 Partition: 0 Leader: 0 Replicas: 3,0,2,1 Isr: 0,1,3
+Topic: atguigu1 Partition: 1 Leader: 1 Replicas: 1,2,3,0 Isr: 1,0,3
+Topic: atguigu1 Partition: 2 Leader: 0 Replicas: 0,3,1,2 Isr: 0,1,3
+Topic: atguigu1 Partition: 3 Leader: 1 Replicas: 2,1,0,3 Isr: 1,0,3
+```
+
+6. 启动 hadoop104 的 kafka 进程，并查看 Leader 分区情况
+
+```bash
+[atguigu@hadoop104 kafka]$ bin/kafka-server-start.sh -daemon config/server.properties
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --describe 
+--topic atguigu1
+Topic: atguigu1 TopicId: awpgX_7WR-OX3Vl6HE8sVg PartitionCount: 4 ReplicationFactor: 4
+Configs: segment.bytes=1073741824
+Topic: atguigu1 Partition: 0 Leader: 0 Replicas: 3,0,2,1 Isr: 0,1,3,2
+Topic: atguigu1 Partition: 1 Leader: 1 Replicas: 1,2,3,0 Isr: 1,0,3,2
+Topic: atguigu1 Partition: 2 Leader: 0 Replicas: 0,3,1,2 Isr: 0,1,3,2
+Topic: atguigu1 Partition: 3 Leader: 1 Replicas: 2,1,0,3 Isr: 1,0,3,2
+```
+
+7. 停止掉 hadoop103 的 kafka 进程，并查看 Leader 分区情况
+
+```bash
+[atguigu@hadoop103 kafka]$ bin/kafka-server-stop.sh
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server hadoop102:9092 --describe 
+--topic atguigu1
+Topic: atguigu1 TopicId: awpgX_7WR-OX3Vl6HE8sVg PartitionCount: 4 ReplicationFactor: 4
+Configs: segment.bytes=1073741824
+Topic: atguigu1 Partition: 0 Leader: 0 Replicas: 3,0,2,1 Isr: 0,3,2
+Topic: atguigu1 Partition: 1 Leader: 2 Replicas: 1,2,3,0 Isr: 0,3,2
+Topic: atguigu1 Partition: 2 Leader: 0 Replicas: 0,3,1,2 Isr: 0,3,2
+Topic: atguigu1 Partition: 3 Leader: 2 Replicas: 2,1,0,3 Isr: 0,3,2
+```
+
+##### 4.3.3 Leader  和 Follower 故障处理细节
+
+**LEO（Log End Offset）**: 每个副本的最后一个offset，LEO其实就是最新的 offset + 1。
+
+**HW（High Watermark）**：所有副本中最小的LEO。
+
+![28](images/28.png)
+
+**LEO**（**Log End Offset**）：每个副本的最后一个offset，LEO其实就是最新的offset + 1
+
+**HW**（**High Watermark**）：所有副本中最小的LEO
+
+![29](images/29.png)
+
+##### 4.3.4 分区副本分配
+
+如果kafka服务器只有 4 个节点，那么设置kafka的分区数大于服务器台数，在kafka底层如何分配存储副本呢？
+
+1、创建16分区，3个副本。
+
+- ① 创建一个新的topic ，名称为 sedond 。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --create --partitions 16 --replication-factor 3 --
+topic second
+```
+
+- ② 查看分区和副本情况。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --describe --topic second
+Topic: second4 Partition: 0 Leader: 0 Replicas: 0,1,2 Isr: 0,1,2
+Topic: second4 Partition: 1 Leader: 1 Replicas: 1,2,3 Isr: 1,2,3
+Topic: second4 Partition: 2 Leader: 2 Replicas: 2,3,0 Isr: 2,3,0
+Topic: second4 Partition: 3 Leader: 3 Replicas: 3,0,1 Isr: 3,0,1
+Topic: second4 Partition: 4 Leader: 0 Replicas: 0,2,3 Isr: 0,2,3
+Topic: second4 Partition: 5 Leader: 1 Replicas: 1,3,0 Isr: 1,3,0
+Topic: second4 Partition: 6 Leader: 2 Replicas: 2,0,1 Isr: 2,0,1
+Topic: second4 Partition: 7 Leader: 3 Replicas: 3,1,2 Isr: 3,1,2
+Topic: second4 Partition: 8 Leader: 0 Replicas: 0,3,1 Isr: 0,3,1
+Topic: second4 Partition: 9 Leader: 1 Replicas: 1,0,2 Isr: 1,0,2
+Topic: second4 Partition: 10 Leader: 2 Replicas: 2,1,3 Isr: 2,1,3
+Topic: second4 Partition: 11 Leader: 3 Replicas: 3,2,0 Isr: 3,2,0
+Topic: second4 Partition: 12 Leader: 0 Replicas: 0,1,2 Isr: 0,1,2
+Topic: second4 Partition: 13 Leader: 1 Replicas: 1,2,3 Isr: 1,2,3
+Topic: second4 Partition: 14 Leader: 2 Replicas: 2,3,0 Isr: 2,3,0
+Topic: second4 Partition: 15 Leader: 3 Replicas: 3,0,1 Isr: 3,0,1
+```
+
+![30](images/30.png)
+
+##### 4.3.5 生产经验 --- 活动调整分区副本存储
+
+在生产环境中，每台服务器的配置和西能不一致，但是kafka只会根据自己的代码规则创建对应的分区副本，就会导致个别服务器存储压力较大。所有需要手动调整分区副本的存储。
+
+**需求**：创建一个新的 topic ，4个分区，两个副本，名称为three 。将该 topic 的所有副本都存储到 broker0 和 broker1 两台服务器上。 
+
+![31](images/31.png)
+
+手动调整分区副本存储的步骤如下：
+
+1. 创建一个新的 topic，名称为 three。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --create --partitions 4 --replication-factor 2 --
+topic three
+```
+
+2. 查看分区副本存储情况
+
+```
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --describe --topic three
+```
+
+3. 创建副本存储计划（所有副本都指定存储在 broker0、broker1 中）。
+
+```bash
+[atguigu@hadoop102 kafka]$ vim increase-replication-factor.json
+```
+
+输入如下内容：
+
+```json
+{
+  "version":1,
+  "partitions":[{"topic":"three","partition":0,"replicas":[0,1]},
+  {"topic":"three","partition":1,"replicas":[0,1]},
+  {"topic":"three","partition":2,"replicas":[1,0]},
+  {"topic":"three","partition":3,"replicas":[1,0]}] 
+}
+```
+
+4. 执行副本存储计划。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --execute
+```
+
+5. 验证副本存储计划。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --verify
+```
+
+6. 查看分区副本存储情况。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --describe --topic three
+```
+
+##### 4.3.6 生产经验 --- Leader Partition 负载平衡
+
+​	正常情况下，Kafka本身会自动把Leader Partition均匀分散在各个机器上，来保证每台机器的读写吞吐量都是均匀的。但是如果某 些broker宕机，会导致Leader Partition过于集中在其他少部分几台broker上，这会导致少数几台broker的读写请求压力过高，其他宕机的broker重启之后都是follower partition，读写请求很低，造成集群负载不均衡。 
+
+![32](images/32.png)
+
+| 参数名称                                | 描述                                                         |
+| --------------------------------------- | ------------------------------------------------------------ |
+| auto.leader.rebalance.enable            | 默认是 true。 自动 Leader Partition 平衡。生产环<br/>境中，leader 重选举的代价比较大，可能会带来<br/>性能影响，建议设置为 false 关闭。 |
+| leader.imbalance.per.broker.percentage  | 默认是 10%。每个 broker 允许的不平衡的 leader<br/>的比率。如果每个 broker 超过了这个值，控制器<br/>会触发 leader 的平衡。 |
+| leader.imbalance.check.interval.seconds | 默认值 300 秒。检查 leader 负载是否平衡的间隔<br/>时间。     |
+
+##### 4.3.7 生产经验 --- 增加副本因子
+
+在生产环境当中，由于某个主题的重要等级需要提升，我们考虑增加副本。副本数的
+
+增加需要先制定计划，然后根据计划执行。
+
+1. 创建 topic
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --create --partitions 3 --replication-factor 1 --
+topic four
+```
+
+2. 手动增加副本存储
+
+- ① 创建副本存储计划（所有副本都指定存储在 broker0、broker1、broker2 中）。
+
+```bash
+[atguigu@hadoop102 kafka]$ vim increase-replication-factor.json
+```
+
+输入如下内容：
+
+```json
+{"version":1,"partitions":[{"topic":"four","partition":0,"replica
+s":[0,1,2]},{"topic":"four","partition":1,"replicas":[0,1,2]},{"t
+opic":"four","partition":2,"replicas":[0,1,2]}]}
+```
+
+- ② 执行副本存储计划。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --execute
+```
+
+#### 4.4 文件存储
+
+##### 4.4.1 文件存储机制
+
+1. **Topic 数据的存储机制**
+
+![33](images/33.png)
+
+2. **思考：Topic数据到底存储在什么位置？**
+
+- ① 启动生产者，并发送消息。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-console-producer.sh --
+bootstrap-server hadoop102:9092 --topic first
+>hello world
+```
+
+- ② 查看 hadoop102（或者 hadoop103、hadoop104）的/opt/module/kafka/datas/first-1 （first-0、first-2）路径上的文件
+
+```bash
+[atguigu@hadoop104 first-1]$ ls
+00000000000000000092.index
+00000000000000000092.log
+00000000000000000092.snapshot
+00000000000000000092.timeindex
+leader-epoch-checkpoint
+partition.metadata
+```
+
+- ③ 直接查看 log 日志，发现是乱码。
+
+```bash
+[atguigu@hadoop104 first-1]$ cat 00000000000000000092.log 
+\CYnF|©|©ÿÿÿÿÿÿÿÿÿÿÿÿÿÿ"hello world
+```
+
+- ④ 通过工具查看 index 和 log 信息。
+
+```bash
+[atguigu@hadoop104 first-1]$ kafka-run-class.sh kafka.tools.DumpLogSegments 
+--files ./00000000000000000000.index 
+Dumping ./00000000000000000000.index
+offset: 3 position: 152
+```
+
+```bash
+[atguigu@hadoop104 first-1]$ kafka-run-class.sh kafka.tools.DumpLogSegments 
+--files ./00000000000000000000.log
+Dumping datas/first-0/00000000000000000000.log
+Starting offset: 0
+baseOffset: 0 lastOffset: 1 count: 2 baseSequence: -1 lastSequence: -1 producerId: -1 
+producerEpoch: -1 partitionLeaderEpoch: 0 isTransactional: false isControl: false position: 
+0 CreateTime: 1636338440962 size: 75 magic: 2 compresscodec: none crc: 2745337109 isvalid: 
+true
+baseOffset: 2 lastOffset: 2 count: 1 baseSequence: -1 lastSequence: -1 producerId: -1 
+producerEpoch: -1 partitionLeaderEpoch: 0 isTransactional: false isControl: false position: 
+75 CreateTime: 1636351749089 size: 77 magic: 2 compresscodec: none crc: 273943004 isvalid: 
+true
+baseOffset: 3 lastOffset: 3 count: 1 baseSequence: -1 lastSequence: -1 producerId: -1 
+producerEpoch: -1 partitionLeaderEpoch: 0 isTransactional: false isControl: false position: 
+152 CreateTime: 1636351749119 size: 77 magic: 2 compresscodec: none crc: 106207379 isvalid: 
+true
+baseOffset: 4 lastOffset: 8 count: 5 baseSequence: -1 lastSequence: -1 producerId: -1 
+producerEpoch: -1 partitionLeaderEpoch: 0 isTransactional: false isControl: false position: 
+229 CreateTime: 1636353061435 size: 141 magic: 2 compresscodec: none crc: 157376877 isvalid: 
+true
+baseOffset: 9 lastOffset: 13 count: 5 baseSequence: -1 lastSequence: -1 producerId: -1 
+producerEpoch: -1 partitionLeaderEpoch: 0 isTransactional: false isControl: false position: 
+370 CreateTime: 1636353204051 size: 146 magic: 2 compresscodec: none crc: 4058582827 isvalid: 
+true
+```
+
+3. **index文件和log文件详解**
+
+![34](images/34.png)
+
+说明：日志存储参数配置
+
+| 参数                     | 描述                                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| log.segment.bytes        | Kafka 中 log 日志是分成一块块存储的，此配置是指 log 日志划分<br/>成块的大小，默认值 1G。 |
+| log.index.interval.bytes | 默认 4kb，kafka 里面每当写入了 4kb 大小的日志（.log），<br/>然后就往 index 文件里面记录一个索引。 稀疏索引。 |
+
+##### 4.4.2 文件清理策略
+
+Kafka 中默认的日志保存时间为 7 天，可以通过调整如下参数修改保存时间。
+
+- Log.retention.hours，最低优先级小时，默认7天。
+- log.retention.minutes，分钟。
+- log.retention.ms，最高优先级毫秒。
+- log.retention.check.interval.ms，负责设置检查周期，默认 5 分钟。
+
+那么日志一旦超过了设置的时间，怎么处理呢？
+
+Kafka 中提供的日志清理策略有 delete 和 compact 两种。
+
+1. **delete 日志阐述：将过期数据删除**
+
+- log.cleanup.policy = delete 所有数据启用阐述策略
+
+(1) 基于时间：默认打开。以  segment 中所有记录中的最大时间戳作为该文件时间戳。
+
+(2) 基于大小：默认关闭。超过设置的所有日志总大小，阐述最早的 segment 。
+
+log.retention.bytes，默认等于-1，表示无穷大。
+
+**思考：**如果一个 segment 中有一部分数据过期，一部分没有过期，怎么处理？
+
+![35](images/35.png)
+
+2. **compact 日志压缩**
+
+compact日志压缩：对于相同 key 的不同 value 值，值保留最后一个版本。
+
+- log.cleanup.policy = compact所有数据启动压缩策略
+
+![36](images/36.png)
+
+压缩后的offset可能是不连续的，比如上图中没有6，当从这些offset消费消息时，将会拿到比这个 offset 大的 offset 对应的消息，实际上会拿到 offset 为 7 的消息，并从这个位置开始消费。
+
+​	这种策略只适合特殊场景，比如消息的 key 是用户 ID，value 是用户的资料，通过这种压缩策略，整个消息集里就保存了所有用户最新的资料。
+
+#### 4.5 高效读写数据
+
+1. Kafka 本身是分布式集群，可以采用分区技术，并行高度。
+
+2. 读数据采用稀疏索引，可以快速定位要消费的数据
+
+3. 顺序写磁盘
+
+   kafka 的 producer 生产数据，要写入到 log 文件中，写的过程是一直追加到文件末端，为顺序写。官网有数据表明，同样的磁盘，顺序写能到 600M/s，而随机写只有 100 k/s。这与磁盘的机械机构有关，顺序写之所以快，是因为为其省去了大量磁头寻址的时间。
+
+![37](images/37.png)
+
+4. **页缓存** **+** **零拷贝技术**
+
+**零拷贝**：Kafka 的数据加工处理操作交由 Kafka 生产者和 Kafka 消费者处理。Kafka Broker 应用层不关系存储的数据，所以就不用走应用层，传输效率高。
+
+**PageCache页缓存**：Kafka 重度依赖底层操作系统提供的 PageCache 功能。当上层有写操作时，操作系统只是将数据写入 PageCache。当读操作发生时，先从PageCache中查找，如果找不到，再去聪攀中读取。实际上 PageCache 是把尽可能多的空闲内存都当做了磁盘缓存来使用。
+
+![38](images/38.png)
+
+
+
+| 参数                        | 描述                                                         |
+| --------------------------- | ------------------------------------------------------------ |
+| log.flush.interval.messages | 强制页缓存刷写到磁盘的条数，默认是 long 的最大值，<br/>9223372036854775807。一般不建议修改，交给系统自己管<br/>理。 |
+| log.flush.interval.ms       | 每隔多久，刷数据到磁盘，默认是 null。一般不建议修改，<br/>交给系统自己管理。 |
+
+### 五、Kafka 消费者
+
+#### 5.1 Kafka 消费方式
+
+- **pull（拉）模式**：consumer 采用从 broker 中主动拉去数据。Kafka 采用这种方式。
+- **push（推）模式**：Kafka没有采用这种方式，因为由 broker 决定消息发送速率，很难适应所有消费者的消费速率。例如推送的速度是 50m/s，Consumer1，Consumer2就来不及处理消息。
+
+pull 模式不足之处是，如果Kafka 没有数据，消费者可能会陷入循环中，一直返回空数据。
+
+![39](images/39.png)
+
+#### 5.2 Kafka 消费者工作流程
+
+##### 5.2.1 消费者总体工作流程
+
+![40](images/40.png)
+
+##### 5.2.2 消费者组原理
+
+**Consumer Group （CG）**：消费者组，由多个consumer组成。形成一个消费者组的条件，是所有消费者的  groupid  相同。
+
+- 消费者组内每个消费者负责消费不同分区的数据，一个分区只能由一个组内消费者消费。
+- 消费者组之间互不影响。所有的消费者都属于某个消费者组，即消费者组是逻辑上的一个订阅者。
+
+![41](images/41.png)
+
+
+
+![42](images/42.png)
+
+1、**coordinator：辅助实现消费者组的初始化和分区的分配。**
+
+coordinator节点选择 = groupid的hashcode值 % 50（ __consumer_offsets的分区数量）
+
+例如： groupid的hashcode值 = 1，1% 50 = 1，那么__consumer_offsets 主题的1号分区，在哪个broker上，就选择这个节点的coordinator 作为这个消费者组的老大。消费者组下的所有的消费者提交offset的时候就往这个分区去提交offset。
+
+1. 每个consumer都发送JoinGroup请求 
+
+2. 选出一个 consumer 作为 leader。
+3. 把要消费的 topic 情况发送给 leader 消费者
+
+4. leader会负责制定消费方案
+
+5. 把消费方案发给coordinator。
+
+6. Coordinator就把消费方案下发给各个consumer。
+
+7. 每个消费者都会和coordinator保持心跳（默认3s），一旦超时（session.timeout.ms=45s），该消费者会被移除，并触发再平衡；
+
+   或者消费者处理消息的时间过长（max.poll.interval.ms5分钟），也会触发再平衡。
+
+![43](images/43.png)
+
+![44](images/44.png)
+
+##### 5.2.3 消费者重要参数
+
+| 参数名称                              | 描述                                                         |
+| ------------------------------------- | ------------------------------------------------------------ |
+| bootstrap.servers                     | 向 Kafka 集群建立初始连接用到的 host/port 列表。             |
+| key.deserializer 和value.deserializer | 指定接收消息的 key 和 value 的反序列化类型。一定要写全类名。 |
+| group.id                              | 标记消费者所属的消费者组。                                   |
+| enable.auto.commit                    | 默认值为 true，消费者会自动周期性地向服务器提交偏移量。      |
+| auto.commit.interval.ms               | 如果设置了 enable.auto.commit 的值为 true， 则该值定义了<br/>消费者偏移量向 Kafka 提交的频率，默认 5s。 |
+| auto.offset.reset                     | 当 Kafka 中没有初始偏移量或当前偏移量在服务器中不存在<br/>（如，数据被删除了），该如何处理？ earliest：自动重置偏<br/>移量到最早的偏移量。 latest：默认，自动重置偏移量为最<br/>新的偏移量。 none：如果消费组原来的（previous）偏移量<br/>不存在，则向消费者抛异常。 anything：向消费者抛异常。 |
+| offsets.topic.num.partitions          | __consumer_offsets 的分区数，默认是 50 个分区。              |
+| heartbeat.interval.ms                 | Kafka 消费者和 coordinator 之间的心跳时间，默认 3s。<br/>该条目的值必须小于 session.timeout.ms ，也不应该高于<br/>session.timeout.ms 的 1/3。 |
+| session.timeout.ms                    | Kafka 消费者和 coordinator 之间连接超时时间，默认 45s。<br/>超过该值，该消费者被移除，消费者组执行再平衡。 |
+| max.poll.interval.ms                  | 消费者处理消息的最大时长，默认是 5 分钟。超过该值，该<br/>消费者被移除，消费者组执行再平衡。 |
+| fetch.min.bytes                       | 默认 1 个字节。消费者获取服务器端一批消息最小的字节数。      |
+| fetch.max.wait.ms                     | 默认 500ms。如果没有从服务器端获取到一批数据的最小字<br/>节数。该时间到，仍然会返回数据。 |
+| fetch.max.bytes                       | 默认 Default: 52428800（50 m）。消费者获取服务器端一批<br/>消息最大的字节数。如果服务器端一批次的数据大于该值<br/>（50m）仍然可以拉取回来这批数据，因此，这不是一个绝<br/>对最大值。一批次的大小受 message.max.bytes （broker <br/>config）or max.message.bytes （topic config）影响。 |
+| max.poll.records                      | 一次 poll 拉取数据返回消息的最大条数，默认是 500 条。        |
+
+#### 5.3 消费者 API
+
+##### 5.3.1 独立消费者案例（订阅主题）
+
+- 需求：
+
+  创建一个独立消费者，消费 first 主题中数据。
+
+![45](images/45.png)
+
+【注意】：消费者 API 代码中必须配置消费者组 id。命令行启动消费者不填写消费者组 id 会被自动填写随机的消费者组 id。
+
+- 实现步骤
+  1. 创建包名：com.yooome.kafka.consumer
+  2. 编写代码
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Properties;
+
+public class CustomConsumer {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<String> topic = new ArrayList<>();
+        topic.add("first");
+        kafkaConsumer.subscribe(topic);
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String,String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord);
+            }
+        }
+    }
+}
+```
+
+测试：
+
+1. 在IDEA 中执行消费者程序。
+2. 在Kafka集群控制台，创建 Kafka 生产者，并输入数据。
+
+```bash
+[atguigu@hadoop102 kafka]$ bin/kafka-console-producer.sh --bootstrap-server hadoop102:9092 --topic first
+>hello
+```
+
+3. IDEA 控制台接受到的信息
+
+```json
+consumerRecord: ConsumerRecord(topic = first, partition = 0, leaderEpoch = 0, offset = 79, CreateTime = 1645702655382, serialized key size = -1, serialized value size = 4, headers = RecordHeaders(headers = [], isReadOnly = false), key = null, value = asga)
+```
+
+##### 5.3.2 独立消费者案例（订阅分区）
+
+1. **需求**：创建一个独立消费者，消费 first 主题 0 号分区的数据。
+
+![46](images/46.png)
+
+2. 实现步骤
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Properties;
+
+public class CustomConsumerPartition {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<TopicPartition> topicPartitions = new ArrayList<>();
+        topicPartitions.add(new TopicPartition("first", 0));
+        kafkaConsumer.assign(topicPartitions);
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord);
+            }
+        }
+    }
+}
+
+```
+
+测试：
+
+1. 在IDEA中执行消费者程序。
+
+2. 在IDEA中执行消费者程序 CustomProducerCallback()在控制台观察生成几个 0 号 分区的数据
+
+```json
+consumerRecord: ConsumerRecord(topic = first, partition = 0, leaderEpoch = 0, offset = 88, CreateTime = 1645703441423, serialized key size = -1, serialized value size = 7, headers = RecordHeaders(headers = [], isReadOnly = false), key = null, value = yooome3)
+```
+
+##### 5.3.3 消费者组案例
+
+1. **需求**：测试同一个主题的分区数据，只能由一个消费者组中的一个消费。
+
+![47](images/47.png)
+
+2. 案例实操
+
+   (1) 复制一份基础消费者的代码，在IDEA 中同时启动，即可启动同一个消费者组中的两个消费者。
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Properties;
+
+public class CustomConsumer {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<String> topic = new ArrayList<>();
+        topic.add("first");
+        kafkaConsumer.subscribe(topic);
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String,String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord);
+            }
+        }
+    }
+}
+
+```
+
+​	(2) 启动代码中的生产者发送消息，在IDEA控制台即可看到两个消费者在消费不同分区的数据（如果只发生到一个分区，可以在发送时增加延迟代码 Thread.sleep(2);)
+
+```json
+ConsumerRecord(topic = first, partition = 0, leaderEpoch = 2, offset = 3, CreateTime = 1629169606820, serialized key size = -1, serialized value size = 8, headers = RecordHeaders(headers = [], isReadOnly = false), key = null, value = hello1)
+
+ConsumerRecord(topic = first, partition = 1, leaderEpoch = 3, offset = 2, CreateTime = 1629169609524, serialized key size = -1, serialized value size = 6, headers = RecordHeaders(headers = [], isReadOnly = false), key = null, value = hello2)
+
+ConsumerRecord(topic = first, partition = 2, leaderEpoch = 3, offset = 21, CreateTime = 1629169611884, serialized key size = -1, serialized value size = 6, headers = RecordHeaders(headers = [], isReadOnly = false), key = null, value = hello3)
+```
+
+​	(3) 重新发送到一个全新的主题中，由于默认创建的主题分区数为 1，可以看到只能有一个消费者消费到数据。
+
+![48](images/48.png)
+
+#### 5.4 生产经验---分区的分配以及再平衡
+
+1、 一个consumer group 中有多个 consumer 组成， 一个 topic 有多个 partition 组成，现在的问题是，到底由哪个 consumer 来消费哪个 partition 的数据。
+
+2、 Kafka 有四种主流的分区分配策略：Range、RoundRobin、Sticky、CooperativeSticky。可以通过配置参数 partition.assignment.strategy，修改分区的分配策略。默认策略是 Range+ CooperativeSticky。Kafka 可以同时使用多个分区分配策略。
+
+![49](images/49.png)
+
+| 参数名称                      | 描述                                                         |
+| ----------------------------- | ------------------------------------------------------------ |
+| heartbeat.interval.ms         | Kafka 消费者和 coordinator 之间的心跳时间，默认 3s。<br/>该条目的值必须小于 session.timeout.ms，也不应该高于<br/>session.timeout.ms 的 1/3。 |
+| session.timeout.ms            | Kafka 消费者和 coordinator 之间连接超时时间，默认 45s。超<br/>过该值，该消费者被移除，消费者组执行再平衡。 |
+| max.poll.interval.ms          | 消费者处理消息的最大时长，默认是 5 分钟。超过该值，该<br/>消费者被移除，消费者组执行再平衡。 |
+| partition.assignment.strategy | 消 费 者 分 区 分 配 策 略 ， 默 认 策 略 是 Range +CooperativeSticky。Kafka 可以同时使用多个分区分配策略。可 以 选 择 的 策 略 包 括 ： Range 、 RoundRobin 、 Sticky 、CooperativeSticky |
+
+##### 5.4.1 Range 以及再平衡
+
+1. **Range 是对每个 topic 而言的**。
+
+​	首先对同一个 topic 里面的分区按照序号进行排序，并对消费者按照字母顺序进行 排序。
+
+假如现在有 7 个分区， 3 个消费者，排序后的分区将会是 0,1,2,3,4,5,6；消费者排序完成之后将会是 C0,C1,C2。
+
+通过 partitions数/consumer数  来决定每个消费者应该消费几个分区。如果除不尽，那么前面几个消费者将会多消费 1  个分区。
+
+例如，7/3 = 2 余 1 ，除不尽，那么 消费者 C0 便会多消费 1 个分区。 8/3=2余2，除不尽，那么C0和C1分别多消费一个。
+
+**注意**：如果只是针对 1 个 topic 而言，C0消费者多消费1个分区影响不是很大。但是如果有 N 多个 topic，那么针对每个 topic，消费者C0都将多消费 1 个分区，topic越多，C0消 费的分区会比其他消费者明显多消费 N 个分区。
+
+容易产生数据倾斜！
+
+![50](images/50.png)
+
+2. **Range分区分配策略案例**
+
+- ①修改主题 first 为 7 个分区
+
+```json
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --alter --topic first --partitions 7
+```
+
+【注意】分区数可以增加，但是不能减少。
+
+- ② 复制CustomConsuer类，创建 CustomConsumer2。这样可以由三个消费者 CustomConsumer、CustomConsumer1、CustomConsumer2 组成消费者组，组名都为“test”，同时启动 3 个消费者。
+
+![51](images/51.png)
+
+- ③ 启动CustomProducer生产者，发送 500 条消息，随机发送到不同的分区
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+import java.util.Properties;
+
+public class CustomProducer {
+    public static void main(String[] args) throws
+            InterruptedException {
+        Properties properties = new Properties();
+        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                "hadoop102:9092");
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class.getName());
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class.getName());
+        KafkaProducer<String, String> kafkaProducer = new
+                KafkaProducer<>(properties);
+        for (int i = 0; i < 7; i++) {
+            kafkaProducer.send(new ProducerRecord<>("first", i,
+                    "test", "atguigu"));
+        }
+        kafkaProducer.close();
+    }
+}
+```
+
+说明：Kafka 默认的分区分配策略就是 Range + CooperativeSticky，所以不需要修改策略。
+
+- ④ 观看 3 个消费者分别消费哪些分区的数据。
+
+![52](images/52.png)
+
+![53](images/53.png)
+
+![54](images/54.png)
+
+3. **Range 分区分配再平衡案例**
+
+（1）**停止掉 0 号消费者，快速重新发送消息观看结果（45s 以内，越快越好）**。 
+
+​		1 号消费者：消费到 3、4 号分区数据。 
+
+​		2 号消费者：消费到 5、6 号分区数据。 
+
+0 号消费者的任务会整体被分配到 1 号消费者或者 2 号消费者。
+
+**说明**：0 号消费者挂掉后，消费者组需要按照超时时间 45s 来判断它是否退出，所以需要等待，时间到了 45s 后，判断它真的退出就会把任务分配给其他 broker 执行。
+
+（2）**再次重新发送消息观看结果（45s 以后）。** 
+
+​		1 号消费者：消费到 0、1、2、3 号分区数据。 
+
+​		2 号消费者：消费到 4、5、6 号分区数据。
+
+**说明**：消费者 0 已经被踢出消费者组，所以重新按照 range 方式分配。
+
+##### 5.4.2 RoundRobin 以及再平衡
+
+1. **RoundRobin分区策略原理**
+
+RoundRobin 针对集群中 所有 Topic 而言。
+
+RoundRobin 轮询分区策略，是把所有的 partition 和所有的 consumer 都列出来，然后按照 hashcode 进行排序，最后通过轮询算法来分配 partition 给到各个消费者。
+
+![55](images/55.png)
+
+2. **RoundRobin 分区分配策略案例**
+
+（1）依次在 CustomConsumer、CustomConsumer1、CustomConsumer2 三个消费者代码中修改分区分配策略为 RoundRobin。
+
+```java
+// 修改分区分配策略
+properties.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.RoundRobinAssignor");
+```
+
+（2）重启 3 个消费者，重复发送消息的步骤，观看分区结果。 
+
+![56](images/56.png)
+
+![57](images/57.png)
+
+![58](images/58.png)
+
+3. **RoundRobin 分区分配在平衡案例**
+
+（1）停止掉 0 号消费者，快速重新发送消息观看结果（45s 以内，越快越好）。 
+
+​		1 号消费者：消费到 2、5 号分区数据
+
+​		2 号消费者：消费到 4、1 号分区数据
+
+​		0 号消费者的任务会按照 RoundRobin 的方式，把数据轮询分成 0 、6 和 3 号分区数据，
+
+分别由 1 号消费者或者 2 号消费者消费。
+
+**说明**：0 号消费者挂掉后，消费者组需要按照超时时间 45s 来判断它是否退出，所以需
+
+要等待，时间到了 45s 后，判断它真的退出就会把任务分配给其他 broker 执行。
+
+（2）再次重新发送消息观看结果（45s 以后）。 
+
+​		1 号消费者：消费到 0、2、4、6 号分区数据
+
+​		2 号消费者：消费到 1、3、5 号分区数据
+
+**说明**：消费者 0 已经被踢出消费者组，所以重新按照 RoundRobin 方式分配。
+
+##### 5.4.3 Sticky 以及在平衡
+
+**粘性分区定义：**可以理解为分配的结果带有“粘性的”。即在执行一次新的分配之前，考虑上一次分配的结果，尽量少的调整分配的变动，可以节省大量的开销。粘性分区是 Kafka 从 0.11.x 版本开始引入这种分配策略，首先会尽量均衡的放置分区到消费者上面，在出现同一消费者组内消费者出现问题的时候，会尽量保持原有分配的分区不变化。
+
+1）需求：
+
+设置主题为 first，7 个分区；准备 3 个消费者，采用粘性分区策略，并进行消费，观察消费分配情况。然后再停止其中一个消费者，再次观察消费分配情况。 
+
+2）步骤：
+
+（1）修改分区分配策略为粘性。
+
+注意：3 个消费者都应该注释掉，之后重启 3 个消费者，如果出现报错，全部停止等会再重启，或者修改为全新的消费者组。
+
+```java
+// 修改分区分配策略
+ArrayList<String> startegys = new ArrayList<>();
+startegys.add("org.apache.kafka.clients.consumer.StickyAssignor");
+properties.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, startegys);
+```
+
+（2）使用同样的生产者发送 500 条消息。
+
+可以看到会尽量保持分区的个数近似划分分区。
+
+![59](images/59.png)
+
+![60](images/60.png)
+
+**3）Sticky分区分配再平衡案例**
+
+（1）停止掉 0 号消费者，快速重新发送消息观看结果（45s 以内，越快越好）。 
+
+​		1 号消费者：消费到 2、5、3 号分区数据。 
+
+​		2 号消费者：消费到 4、6 号分区数据。 
+
+​		0 号消费者的任务会按照粘性规则，尽可能均衡的随机分成 0 和 1 号分区数据，分别
+
+由 1 号消费者或者 2 号消费者消费。
+
+**说明**：0 号消费者挂掉后，消费者组需要按照超时时间 45s 来判断它是否退出，所以需要等待，时间到了 45s 后，判断它真的退出就会把任务分配给其他 broker 执行。
+
+（2）再次重新发送消息观看结果（45s 以后）。 
+
+​		1 号消费者：消费到 2、3、5 号分区数据。 
+
+​		2 号消费者：消费到 0、1、4、6 号分区数据。
+
+**说明**：消费者 0 已经被踢出消费者组，所以重新按照粘性方式分配。
+
+#### 5.5 offset 位移
+
+##### 5.5.1 offset 的默认维护位置
+
+![61](images/61.png)
+
+__consumer_offsets 主题里面采用 key 和 value 的方式存储数据。key 是 group.id+topic+分区号，value 就是当前 offset 的值。每隔一段时间，kafka 内部会对这个 topic 进行compact，也就是每个 group.id+topic+分区号就保留最新数据。
+
+**1）消费 offset 案例**
+
+（0）思想：__consumer_offsets 为 Kafka 中的 topic，那就可以通过消费者进行消费。 
+
+（1）在配置文件 config/consumer.properties 中添加配置 exclude.internal.topics=false，
+
+默认是 true，表示不能消费系统主题。为了查看该系统主题数据，所以该参数修改为 false。 
+
+（2）采用命令行方式，创建一个新的 topic。
+
+```java
+[atguigu@hadoop102 kafka]$ bin/kafka-topics.sh --bootstrap-server 
+hadoop102:9092 --create --topic atguigu --partitions 2 --replication-factor 2
+```
+
+（3）启动生产者往 atguigu 生产数据。
+
+```java
+[atguigu@hadoop102 kafka]$ bin/kafka-console-producer.sh --topic atguigu --bootstrap-server hadoop102:9092
+```
+
+（4）启动消费者消费 atguigu 数据。
+
+```java
+[atguigu@hadoop104 kafka]$ bin/kafka-console-consumer.sh --bootstrap-server hadoop102:9092 --topic atguigu --group test
+```
+
+注意：指定消费者组名称，更好观察数据存储位置（key 是 group.id+topic+分区号）。 
+
+（5）查看消费者消费主题__consumer_offsets。
+
+```java
+[atguigu@hadoop102 kafka]$ bin/kafka-console-consumer.sh --topic 
+__consumer_offsets --bootstrap-server hadoop102:9092 --consumer.config config/consumer.properties --formatter 
+"kafka.coordinator.group.GroupMetadataManager\$OffsetsMessageFormatter" --from-beginning
+  
+[offset,atguigu,1]::OffsetAndMetadata(offset=7, 
+leaderEpoch=Optional[0], metadata=, commitTimestamp=1622442520203, expireTimestamp=None)
+  
+[offset,atguigu,0]::OffsetAndMetadata(offset=8, leaderEpoch=Optional[0], metadata=,commitTimestamp=1622442520203, expireTimestamp=None)
+```
+
+##### 5.5.2 自动提交offset
+
+为了使我们能够专注于自己的业务逻辑，Kafka提供了自动提交offset的功能。
+
+自动提交offset的相关参数：
+
+- **enable.auto.commit**：是否开启自动提交offset功能，默认是true
+
+-  **auto.commit.interval.ms**：自动提交offset的时间间隔，默认是5s
+
+![62](images/62.png)
+
+| 参数名称                | 描述                                                         |
+| ----------------------- | ------------------------------------------------------------ |
+| enable.auto.commit      | 默认值为 true，消费者会自动周期性地向服务器提交偏移量。      |
+| auto.commit.interval.ms | 如果设置了 enable.auto.commit 的值为 true， 则该值定义了消费者偏移量向 Kafka 提交的频率，默认 5s。 |
+
+1. **消费者自动提交offset**
+
+```java
+package com.yooome.kafka.consumer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+
+import java.util.Arrays;
+import java.util.Properties;
+
+public class CustomConsumerAutoOffset {
+    public static void main(String[] args) {
+        // 1. 创建 kafka 消费者配置类
+        Properties properties = new Properties();
+        // 2. 添加配置参数
+        // 添加连接
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                "hadoop102:9092");
+        // 配置序列化 必须
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringDeserializer");
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringDeserializer");
+        // 配置消费者组
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        // 是否自动提交 offset
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                true);
+        // 提交 offset 的时间周期 1000ms，默认 5s
+        properties.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
+                1000);
+        //3. 创建 kafka 消费者
+        KafkaConsumer<String, String> consumer = new
+                KafkaConsumer<>(properties);
+        //4. 设置消费主题 形参是列表
+        consumer.subscribe(Arrays.asList("first"));
+        //5. 消费数据
+        while (true) {
+        // 读取消息
+            ConsumerRecords<String, String> consumerRecords =
+                    consumer.poll(Duration.ofSeconds(1));
+        // 输出消息
+            for (ConsumerRecord<String, String> consumerRecord :
+                    consumerRecords) {
+                System.out.println(consumerRecord.value());
+            }
+        }
+    }
+}
+```
+
+##### 5.5.3 手动提交offset
+
+虽然自动提交offset十分简单比那里，但由于其是基于时间提交的，开发人员难以把握 offset 提交的时机。一次 Kafka 还提供了手动提交 offset 的API。
+
+手动提交 offset 的方法有两种：分别是 commitSync(同步提交)和commitAsync(异步提交)。两者的相同点是，都会将本次提交的一批数据最高的偏移量提交；不同点是，同步提交阻塞当前线程，一直到提交成功，并且会自动失败重试（由不可控因素导致，也会出现提交失败）；而异步提交则没有失败重试机制，故有可能提交失败。
+
+- **commitSync（同步提交）**：必须等待offset提交完毕，再去消费下一批数据。
+- **commitAsync（异步提交）** ：发送完提交offset请求后，就开始消费下一批数据了。
+
+![截屏 1](images/截屏 1.png)
+
+**1）同步提交 offset**
+
+由于同步提交 offset 有失败重试机制，故更加可靠，但是由于一直等待提交结果，提交的效率比较低。以下为同步提交 offset 的示例。
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Properties;
+
+public class CustomConsumerByHandSync {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        // 是否自动提交 offset
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<String> topic = new ArrayList<>();
+        topic.add("first");
+        kafkaConsumer.subscribe(topic);
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String,String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord.value());
+            }
+            // 同步提交 offset
+            kafkaConsumer.commitSync();
+        }
+    }
+}
+```
+
+**2）异步提交 offset**
+
+虽然同步提交 offset 更可靠一些，但是由于其会阻塞当前线程，直到提交成功。因此吞吐量会受到很大的影响。因此更多的情况下，会选用异步提交 offset 的方式。以下为异步提交 offset 的示例：
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Properties;
+
+public class CustomConsumerByHandSync {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test");
+        // 是否自动提交 offset
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<String> topic = new ArrayList<>();
+        topic.add("first");
+        kafkaConsumer.subscribe(topic);
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String,String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord.value());
+            }
+            // 异步提交 offset
+            kafkaConsumer.commitAsync();
+        }
+    }
+}
+
+```
+
+##### **5.5.4** **指定** **Offset** **消费**
+
+auto.offset.reset = earliest | latest | none 默认是 latest。 
+
+当 Kafka 中没有初始偏移量（消费者组第一次消费）或服务器上不再存在当前偏移量
+
+时（例如该数据已被删除），该怎么办？ 
+
+（1）earliest：自动将偏移量重置为最早的偏移量，--from-beginning。 
+
+（2）latest（默认值）：自动将偏移量重置为最新偏移量。
+
+（3）none：如果未找到消费者组的先前偏移量，则向消费者抛出异常。
+
+![63](images/63.png)
+
+​	(4) 任意指定 offset 位移开始消费
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Properties;
+import java.util.Set;
+
+public class CustomConsumerSeek {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test2");
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<String> topic = new ArrayList<>();
+        topic.add("first");
+        kafkaConsumer.subscribe(topic);
+        Set<TopicPartition> assignment= new HashSet<>();
+        while (assignment.size() == 0) {
+            kafkaConsumer.poll(Duration.ofSeconds(1));
+        // 获取消费者分区分配信息（有了分区分配信息才能开始消费）
+            assignment = kafkaConsumer.assignment();
+        }
+        // 遍历所有分区，并指定 offset 从 1700 的位置开始消费
+        for (TopicPartition tp: assignment) {
+            kafkaConsumer.seek(tp, 1700);
+        }
+
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String,String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord);
+            }
+        }
+    }
+}
+
+```
+
+【注意】：每次执行完，需要修改消费者组名；
+
+##### **5.5.5** **指定时间消费**
+
+需求：在生产环境中，会遇到最近消费的几个小时数据异常，想重新按照时间消费。
+
+例如要求按照时间消费前一天的数据，怎么处理？
+
+操作步骤：
+
+```java
+package com.yooome.kafka.producer;
+
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.time.Duration;
+import java.util.*;
+
+public class CustomConsumerSeek {
+    public static void main(String[] args) {
+        // 1. 创建kafka生产者配置对象
+        Properties properties = new Properties();
+        // 2. 给 kafka 配置对象添加配置信息：bootstrap.servers
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        // key,value 序列化（必须）：key.serializer，value.serializer
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test2");
+        // 3. 创建 kafka 生产者对象
+        KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
+
+        ArrayList<String> topic = new ArrayList<>();
+        topic.add("first");
+        kafkaConsumer.subscribe(topic);
+        Set<TopicPartition> assignment = new HashSet<>();
+        while (assignment.size() == 0) {
+            kafkaConsumer.poll(Duration.ofSeconds(1));
+// 获取消费者分区分配信息（有了分区分配信息才能开始消费）
+            assignment = kafkaConsumer.assignment();
+        }
+        HashMap<TopicPartition, Long> timestampToSearch = new
+                HashMap<>();
+        // 封装集合存储，每个分区对应一天前的数据
+        for (TopicPartition topicPartition : assignment) {
+            timestampToSearch.put(topicPartition,
+                    System.currentTimeMillis() - 1 * 24 * 3600 * 1000);
+        }
+        // 获取从 1 天前开始消费的每个分区的 offset
+        Map<TopicPartition, OffsetAndTimestamp> offsets =
+                kafkaConsumer.offsetsForTimes(timestampToSearch);
+        // 遍历每个分区，对每个分区设置消费时间。
+        for (TopicPartition topicPartition : assignment) {
+            OffsetAndTimestamp offsetAndTimestamp =
+                    offsets.get(topicPartition);
+        // 根据时间指定开始消费的位置
+            if (offsetAndTimestamp != null) {
+                kafkaConsumer.seek(topicPartition,
+                        offsetAndTimestamp.offset());
+            }
+        }
+
+        // 拉去数据打印
+        while (true) {
+            ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofSeconds(1));
+            for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
+                System.out.println("consumerRecord: " + consumerRecord);
+            }
+        }
+    }
+}
+
+```
+
+##### 5.5.6 漏消费和重复消费
+
+**重复消费**：已经消费了数据，但是  offset 没有提交。
+
+**漏消费**：先提交 offset 后消费，有可能会造成数据的漏消费。
+
+（1）场景1：重复消费。自动提交offset引起。 
+
+![64](images/64.png)
+
+（2）场景1：漏消费。设置offset为手动提交，当offset被提交时，数据还在内存中未落盘，此时刚好消费者线程被kill掉，那么offset已经提交，但是数据未处理，导致这部分内存中的数据丢失。
+
+![65](images/65.png)
+
+思考：怎么能做到既不漏消费也不重复消费呢？详看消费者事务。
+
+#### 5.6 生产经验----消费者事务
+
+如果想完成Consumer端的精准一次性消费，那么需要Kafka消费端将消费过程和提交offset过程做原子绑定。此时我们需要将Kafka的offset保存到支持事务的自定义介质（比 如MySQL）。这部分知识会在后续项目部分涉及。
+
+![66](images/66.png)
+
+#### 5.7 生产经验----数据积压（消费者如何提高吞吐量）
+
+![67](images/67.png)
+
+| 参数名称         | 描述                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| fetch.max.bytes  | 默认 Default: 52428800（50 m）。消费者获取服务器端一批<br/>消息最大的字节数。如果服务器端一批次的数据大于该值<br/>（50m）仍然可以拉取回来这批数据，因此，这不是一个绝<br/>对最大值。一批次的大小受 message.max.bytes （broker <br/>config）or max.message.bytes （topic config）影响。 |
+| max.poll.records | 一次 poll 拉取数据返回消息的最大条数，默认是 500 条          |
+
+
+
+
+
+
+
+
+
+
+
 
 
 
