@@ -2859,17 +2859,421 @@ public class CustomConsumerSeek {
 | fetch.max.bytes  | 默认 Default: 52428800（50 m）。消费者获取服务器端一批<br/>消息最大的字节数。如果服务器端一批次的数据大于该值<br/>（50m）仍然可以拉取回来这批数据，因此，这不是一个绝<br/>对最大值。一批次的大小受 message.max.bytes （broker <br/>config）or max.message.bytes （topic config）影响。 |
 | max.poll.records | 一次 poll 拉取数据返回消息的最大条数，默认是 500 条          |
 
+### 六、Kafka-Eagle监控
+
+Kafka-Eagle 框架可以监控 Kafka 集群的整体运行情况，在生产环境中经常使用。
+
+#### 6.1 Mysql环境准备
+
+Kafka-Eagle 的安装依赖于 MySQL，MySQL 主要用来存储可视化展示的数据。如果集群中之前安装过 MySQL 可以跨过该步。
+
+#### 6.2 Kafka环境准备
+
+1. **关闭Kafka集群**
+
+```java
+[atguigu@hadoop102 kafka]$ kf.sh stop
+```
+
+2. **修改/opt/module/kafka/bin/kafka-server-start.sh命令中**
+
+```java
+[atguigu@hadoop102 kafka]$ vim bin/kafka-server-start.sh
+```
+
+修改如下参数值：
+
+```java
+if [ "x$KAFKA_HEAP_OPTS" = "x" ]; then
+export KAFKA_HEAP_OPTS="-Xmx1G -Xms1G"
+fi
+```
+
+为
+
+```java
+if [ "x$KAFKA_HEAP_OPTS" = "x" ]; then
+export KAFKA_HEAP_OPTS="-server -Xms2G -Xmx2G -
+XX:PermSize=128m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -
+XX:ParallelGCThreads=8 -XX:ConcGCThreads=5 -
+XX:InitiatingHeapOccupancyPercent=70"
+export JMX_PORT="9999"
+#export KAFKA_HEAP_OPTS="-Xmx1G -Xms1G"
+fi
+```
+
+注意：修改之后在启动 Kafka 之前要分发之其他节点
+
+```java
+[atguigu@hadoop102 bin]$ xsync kafka-server-start.sh
+```
+
+#### 6.3 Kafka-Eagle 安装
+
+1.  [官网](https://www.kafka-eagle.org/)
+
+2. **上传压缩包  kafka-eagle-bin-2.0.8.tar.gz 到集群/opt/software目录**
+
+3. **解压到本地**
+
+```java
+[atguigu@hadoop102 software]$ tar -zxvf kafka-eagle-bin-2.0.8.tar.gz
+```
+
+4. **进入刚才解压的目录**
+
+```java
+[atguigu@hadoop102 kafka-eagle-bin-2.0.8]$ ll
+总用量 79164
+-rw-rw-r--. 1 atguigu atguigu 81062577 10 月 13 00:00 efak-web-
+2.0.8-bin.tar.gz
+```
+
+5. 修改名称
+
+```java
+[atguigu@hadoop102 module]$ mv efak-web-2.0.8/ efak
+```
 
 
 
+6. **将efak-web-2.0.8-bin.tar.gz 解压至/opt/module**
 
+```java
+[atguigu@hadoop102 module]$ mv efak-web-2.0.8/ efak
+```
 
+7. **修改配置文件 /opt/module/efak/conf/system-config.properties**
 
+```shell
+[atguigu@hadoop102 conf]$ vim system-config.properties
+######################################
+# multi zookeeper & kafka cluster list
+# Settings prefixed with 'kafka.eagle.' will be deprecated, use 'efak.' 
+instead
+######################################
+efak.zk.cluster.alias=cluster1
+cluster1.zk.list=hadoop102:2181,hadoop103:2181,hadoop104:2181/kafka
+######################################
+# zookeeper enable acl
+######################################
+cluster1.zk.acl.enable=false
+cluster1.zk.acl.schema=digest
+cluster1.zk.acl.username=test
+cluster1.zk.acl.password=test123
+######################################
+# broker size online list
+######################################
+cluster1.efak.broker.size=20
+######################################
+# zk client thread limit
+######################################
+kafka.zk.limit.size=32
+######################################
+# EFAK webui port
+######################################
+efak.webui.port=8048
+######################################
+# kafka jmx acl and ssl authenticate
+######################################
+cluster1.efak.jmx.acl=false
+cluster1.efak.jmx.user=keadmin
+cluster1.efak.jmx.password=keadmin123
+cluster1.efak.jmx.ssl=false
+cluster1.efak.jmx.truststore.location=/data/ssl/certificates/kafka.truststor
+e
+cluster1.efak.jmx.truststore.password=ke123456
+######################################
+# kafka offset storage
+######################################
+# offset 保存在 kafka
+cluster1.efak.offset.storage=kafka
+######################################
+# kafka jmx uri
+######################################
+cluster1.efak.jmx.uri=service:jmx:rmi:///jndi/rmi://%s/jmxrmi
+######################################
+# kafka metrics, 15 days by default
+######################################
+efak.metrics.charts=true
+efak.metrics.retain=15
+######################################
+# kafka sql topic records max
+######################################
+efak.sql.topic.records.max=5000
+efak.sql.topic.preview.records.max=10
+######################################
+# delete kafka topic token
+######################################
+efak.topic.token=keadmin
+######################################
+# kafka sasl authenticate
+######################################
+cluster1.efak.sasl.enable=false
+cluster1.efak.sasl.protocol=SASL_PLAINTEXT
+cluster1.efak.sasl.mechanism=SCRAM-SHA-256
+cluster1.efak.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramL
+oginModule required username="kafka" password="kafka-eagle";
+cluster1.efak.sasl.client.id=
+cluster1.efak.blacklist.topics=
+cluster1.efak.sasl.cgroup.enable=false
+cluster1.efak.sasl.cgroup.topics=
+cluster2.efak.sasl.enable=false
+cluster2.efak.sasl.protocol=SASL_PLAINTEXT
+cluster2.efak.sasl.mechanism=PLAIN
+cluster2.efak.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainL
+oginModule required username="kafka" password="kafka-eagle";
+cluster2.efak.sasl.client.id=
+cluster2.efak.blacklist.topics=
+cluster2.efak.sasl.cgroup.enable=false
+cluster2.efak.sasl.cgroup.topics=
+######################################
+# kafka ssl authenticate
+######################################
+cluster3.efak.ssl.enable=false
+cluster3.efak.ssl.protocol=SSL
+cluster3.efak.ssl.truststore.location=
+cluster3.efak.ssl.truststore.password=
+cluster3.efak.ssl.keystore.location=
+cluster3.efak.ssl.keystore.password=
+cluster3.efak.ssl.key.password=
+cluster3.efak.ssl.endpoint.identification.algorithm=https
+cluster3.efak.blacklist.topics=
+cluster3.efak.ssl.cgroup.enable=false
+cluster3.efak.ssl.cgroup.topics=
+######################################
+# kafka sqlite jdbc driver address
+######################################
+# 配置 mysql 连接
+efak.driver=com.mysql.jdbc.Driver
+efak.url=jdbc:mysql://hadoop102:3306/ke?useUnicode=true&characterEncoding=UT
+F-8&zeroDateTimeBehavior=convertToNull
+efak.username=root
+efak.password=000000
+######################################
+# kafka mysql jdbc driver address
+######################################
+#efak.driver=com.mysql.cj.jdbc.Driver
+#efak.url=jdbc:mysql://127.0.0.1:3306/ke?useUnicode=true&characterEncoding=U
+TF-8&zeroDateTimeBehavior=convertToNull
+#efak.username=root
+#efak.password=123456
+```
 
+8. **添加环境变量**
 
+```shell
+[atguigu@hadoop102 conf]$ sudo vim /etc/profile.d/my_env.sh
+# kafkaEFAK
+export KE_HOME=/opt/module/efak
+export PATH=$PATH:$KE_HOME/bin
+```
 
+注意：source /etc/profile
 
+```shell
+[atguigu@hadoop102 conf]$ source /etc/profile
+```
 
+9. **启动**
+
+   （1）注意：启动之前需要先启动 ZK 以及 KAFKA。
+
+```java
+[atguigu@hadoop102 kafka]$ kf.sh start
+```
+
+​		（2）启动 efak
+
+```java
+[atguigu@hadoop102 efak]$ bin/ke.sh start
+Version 2.0.8 -- Copyright 2016-2021
+*****************************************************************
+* EFAK Service has started success.
+* Welcome, Now you can visit 'http://192.168.10.102:8048'
+* Account:admin ,Password:123456
+*****************************************************************
+* <Usage> ke.sh [start|status|stop|restart|stats] </Usage>
+* <Usage> https://www.kafka-eagle.org/ </Usage>
+*****************************************************************
+```
+
+说明：如果停止 efak，执行命令。
+
+```java
+[atguigu@hadoop102 efak]$ bin/ke.sh stop
+```
+
+#### 6.4 Kafka-Eagle页面操作
+
+##### 6.4.1 登录页面查看监控数据
+
+http://192.168.10.102:8048/
+
+![68](images/68.png)
+
+![69](images/69.png)
+
+![70](images/70.png)
+
+### 七、Kafka-Kraft模式
+
+#### 7.1 Kafka-Kraft架构
+
+![71](images/71.png)
+
+左图为 Kafka 现有架构，元数据在 zookeeper 中，运行时动态选举 controller，由controller 进行 Kafka 集群管理。右图为 kraft 模式架构（实验性），不再依赖 zookeeper 集群，而是用三台 controller 节点代替 zookeeper，元数据保存在 controller 中，由 controller 直接进行 Kafka 集群管理。
+
+这样做的好处有以下几个： 
+
+- Kafka 不再依赖外部框架，而是能够独立运行； 
+
+- controller 管理集群时，不再需要从 zookeeper 中先读取数据，集群性能上升； 
+
+- 由于不依赖 zookeeper，集群扩展时不再受到 zookeeper 读写能力限制； 
+
+- controller 不再动态选举，而是由配置文件规定。这样我们可以有针对性的加强controller 节点的配置，而不是像以前一样对随机 controller 节点的高负载束手无策。
+
+#### 7.2 Kafka-Kraft集群部署
+
+1. **再次解压一份kafka安装包**
+
+```java
+[atguigu@hadoop102 software]$ tar -zxvf kafka_2.12-3.0.0.tgz -C /opt/module/
+```
+
+2. **重命名为Kafka2**
+
+```java
+[atguigu@hadoop102 module]$ mv kafka_2.12-3.0.0/ kafka2
+```
+
+3. **在 hadoop102 上修改/opt/module/kafka2/config/kraft/server.properties 配置文件**
+
+```shell
+[atguigu@hadoop102 kraft]$ vim server.properties
+#kafka 的角色（controller 相当于主机、broker 节点相当于从机，主机类似 zk 功 能）
+process.roles=broker, controller
+#节点 ID
+node.id=2
+#controller 服务协议别名
+controller.listener.names=CONTROLLER
+#全 Controller 列表
+controller.quorum.voters=2@hadoop102:9093,3@hadoop103:9093,4@hado
+op104:9093
+#不同服务器绑定的端口
+listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+#broker 服务协议别名
+inter.broker.listener.name=PLAINTEXT
+#broker 对外暴露的地址
+advertised.Listeners=PLAINTEXT://hadoop102:9092
+#协议别名到安全协议的映射
+listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLA
+INTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
+#kafka 数据存储目录
+log.dirs=/opt/module/kafka2/data
+```
+
+4. **发布kafka2**
+
+```java
+[atguigu@hadoop102 module]$ xsync kafka2/
+```
+
+- 在 hadoop103 和 hadoop104 上 需 要 对 node.id 相应改变 ， 值 需 要 和controller.quorum.voters 对应。
+
+- 在 hadoop103 和 hadoop104 上需要 根据各自的主机名称，修改相应的advertised.Listeners 地址。
+
+5. **初始化集群数据目录**
+
+- ① 首先生成存储目录唯一ID
+
+```java
+[atguigu@hadoop102 kafka2]$ bin/kafka-storage.sh random-uuid
+J7s9e8PPTKOO47PxzI39VA
+```
+
+- ② 用该 ID 格式化 kafka 存储目录（三台节点）。
+
+```java
+[atguigu@hadoop102 kafka2]$ bin/kafka-storage.sh format -t 
+J7s9e8PPTKOO47PxzI39VA -c 
+/opt/module/kafka2/config/kraft/server.properties
+[atguigu@hadoop103 kafka2]$ bin/kafka-storage.sh format -t 
+J7s9e8PPTKOO47PxzI39VA -c 
+/opt/module/kafka2/config/kraft/server.properties
+[atguigu@hadoop104 kafka2]$ bin/kafka-storage.sh format -t 
+J7s9e8PPTKOO47PxzI39VA -c 
+/opt/module/kafka2/config/kraft/server.properties
+```
+
+6. 启动kafka集群
+
+```java
+[atguigu@hadoop102 kafka2]$ bin/kafka-server-start.sh -daemon 
+config/kraft/server.properties
+[atguigu@hadoop103 kafka2]$ bin/kafka-server-start.sh -daemon 
+config/kraft/server.properties
+[atguigu@hadoop104 kafka2]$ bin/kafka-server-start.sh -daemon 
+config/kraft/server.properties
+```
+
+7. 停止kafka集群
+
+```java
+[atguigu@hadoop102 kafka2]$ bin/kafka-server-stop.sh
+[atguigu@hadoop103 kafka2]$ bin/kafka-server-stop.sh
+[atguigu@hadoop104 kafka2]$ bin/kafka-server-stop.sh
+```
+
+#### 7.3 Kafka-kraft集群启动停止脚本
+
+1. 在/home/atguigu/bin 目录下创建文件 kf2.sh 脚本文件
+
+```java
+[atguigu@hadoop102 bin]$ vim kf2.sh
+```
+
+脚本如下：
+
+```shell
+#! /bin/bash
+case $1 in
+"start"){
+for i in hadoop102 hadoop103 hadoop104
+do
+echo " --------启动 $i Kafka2-------"
+ssh $i "/opt/module/kafka2/bin/kafka-server-start.sh -
+daemon /opt/module/kafka2/config/kraft/server.properties"
+done
+};;
+"stop"){
+for i in hadoop102 hadoop103 hadoop104
+do
+echo " --------停止 $i Kafka2-------"
+ssh $i "/opt/module/kafka2/bin/kafka-server-stop.sh "
+done
+};;
+esac
+```
+
+2. 添加执行权限
+
+```shell
+[atguigu@hadoop102 bin]$ chmod +x kf2.sh
+```
+
+3. 启动集群命令
+
+```shell
+[atguigu@hadoop102 ~]$ kf2.sh start
+```
+
+4. 停止集群命令
+
+```shell
+[atguigu@hadoop102 ~]$ kf2.sh stop
+```
 
 
 
