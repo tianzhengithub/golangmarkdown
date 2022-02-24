@@ -404,8 +404,6 @@ yooome@192 kafka % ./bin/kafka-console-consumer.sh --bootstrap-server localhost:
 
 ##### 3.1.2 生产者重要参数列表
 
-
-
 | 参数名称                              | 描述                                                         |
 | ------------------------------------- | ------------------------------------------------------------ |
 | bootstrap.servers                     | 生产者连接集群所需的 broker 地 址 清 单 。 例 如hadoop102:9092,hadoop103:9092,hadoop104:9092，可以设置 1 个或者多个，中间用逗号隔开。注意这里并非需要所有的 broker 地址，因为生产者从给定的 broker里查找到其他 broker 信息。 |
@@ -1216,17 +1214,317 @@ public class CustomProducerTransactions {
 
 1. 启动Zookeeper客户端
 
+```basic
+yooome@192 zookeeper % ./bin/zkCli.sh 
+```
+
+2. 通过ls命令可以查看kafka相关信息
+
+```basic
+[zk: localhost:2181(CONNECTING) 0] ls /
+```
+
+3. Zookeeper中存储的Kafka信息
+
+```basic
+[zk: localhost:2181(CONNECTING) 0] ls /
+[admin, brokers, cluster, config, consumers, controller, controller_epoch, feature, isr_change_notification, latest_producer_id_block, log_dir_event_notification, zookeeper]
+```
+
+![25](images/25.png)
+
+##### 4.1.2 Kafka Broker总体工作流程
+
+![26](images/26.png)
 
 
 
+1、模拟Kafka上下线，Zookeeper中数据变化
 
+- ① 查看/kafka/brokers/ids 路径上的节点。
 
+```basci
+[zk: localhost:2181(CONNECTED) 2] ls /kafka/brokers/ids
+[0, 1, 2]
+```
 
+- ② 查看/kafka/controller 路径上的数据。
 
+```bash
+[zk: localhost:2181(CONNECTED) 15] get /kafka/controller
+{"version":1,"brokerid":0,"timestamp":"1637292471777"}
+```
 
+- ③ 查看/kafka/brokers/topics/first/partitions/0/state 路径上的数据。
 
+```bash
+[zk: localhost:2181(CONNECTED) 16] get /kafka/brokers/topics/first/partitions/0/state
+{"controller_epoch":24,"leader":0,"version":1,"leader_epoch":18,"isr":[0,1,2]}
+```
 
+- ④ 停止 hadoop104 上的 kafka。
 
+```bash
+[atguigu@hadoop104 kafka]$ bin/kafka-server-stop.sh
+```
+
+- ⑤ 再次查看/kafka/brokers/ids 路径上的节点。
+
+```bash
+[zk: localhost:2181(CONNECTED) 3] ls /kafka/brokers/ids
+[0, 1]
+```
+
+- ⑥ 再次查看/kafka/controller 路径上的数据。
+
+```bash
+[zk: localhost:2181(CONNECTED) 15] get /kafka/controller
+{"version":1,"brokerid":0,"timestamp":"1637292471777"}
+```
+
+- ⑦ 再次查看/kafka/brokers/topics/first/partitions/0/state 路径上的数据。
+
+```bash
+[zk: localhost:2181(CONNECTED) 16] get 
+/kafka/brokers/topics/first/partitions/0/state
+{"controller_epoch":24,"leader":0,"version":1,"leader_epoch":18,"isr":[0,1]}
+```
+
+- ⑧ 启动 hadoop104 上的 kafka。
+
+```bash
+[atguigu@hadoop104 kafka]$ bin/kafka-server-start.sh -
+daemon ./config/server.properties
+```
+
+- ⑨ 再次观察（1）、（2）、（3）步骤中的内容。
+
+##### 4.1.3 Broker重要参数
+
+| 参数名称                                | 描述                                                         |
+| --------------------------------------- | ------------------------------------------------------------ |
+| replica.lag.time.max.ms                 | ISR 中，如果 Follower 长时间未向 Leader 发送通<br/>信请求或同步数据，则该 Follower 将被踢出 ISR。<br/>该时间阈值，默认 30s。 |
+| auto.leader.rebalance.enable            | 默认是 true。 自动 Leader Partition 平衡。                   |
+| leader.imbalance.per.broker.percentage  | 默认是 10%。每个 broker 允许的不平衡的 leader<br/>的比率。如果每个 broker 超过了这个值，控制器<br/>会触发 leader 的平衡。 |
+| leader.imbalance.check.interval.seconds | 默认值 300 秒。检查 leader 负载是否平衡的间隔时间。          |
+| log.segment.bytes                       | 间。Kafka 中 log 日志是分成一块块存储的，此配置是指 log 日志划分 成块的大小，默认值 1G。 |
+| log.index.interval.bytes                | 默认 4kb，kafka 里面每当写入了 4kb 大小的日志<br/>（.log），然后就往 index 文件里面记录一个索引。 |
+| log.retention.hours                     | Kafka 中数据保存的时间，默认 7 天。                          |
+| log.retention.minutes                   | Kafka 中数据保存的时间，分钟级别，默认关闭。                 |
+| log.retention.ms                        | Kafka 中数据保存的时间，毫秒级别，默认关闭。                 |
+| log.retention.check.interval.ms         | 检查数据是否保存超时的间隔，默认是 5 分钟。                  |
+| log.retention.bytes                     | 默认等于-1，表示无穷大。超过设置的所有日志总<br/>大小，删除最早的 segment。 |
+| log.cleanup.policy                      | 默认是 delete，表示所有数据启用删除策略；<br/>如果设置值为 compact，表示所有数据启用压缩策<br/>略。 |
+| num.io.threads                          | 默认是 8。负责写磁盘的线程数。整个参数值要占<br/>总核数的 50%。 |
+| num.replica.fetchers                    | 副本拉取线程数，这个参数占总核数的 50%的 1/3                 |
+| num.network.threads                     | 默认是 3。数据传输线程数，这个参数占总核数的<br/>50%的 2/3 。 |
+| log.flush.interval.messages             | 强制页缓存刷写到磁盘的条数，默认是 long 的最<br/>大值，9223372036854775807。一般不建议修改，<br/>交给系统自己管理。 |
+| log.flush.interval.ms                   | 每隔多久，刷数据到磁盘，默认是 null。一般不建<br/>议修改，交给系统自己管理。 |
+
+#### 4.2 生产经验-----节点服役和退役
+
+##### 4.2.1 服役新节点
+
+**1、新节点准备**
+
+- ① 关闭hadoop104，并右键执行克隆操作。
+- ② 开启hadoop105，并修改IP地址。
+
+```shell
+[root@hadoop104 ~]# vim /etc/sysconfig/network-scripts/ifcfg-ens33
+DEVICE=ens33
+TYPE=Ethernet
+ONBOOT=yes
+BOOTPROTO=static
+NAME="ens33"
+IPADDR=192.168.10.105
+PREFIX=24
+GATEWAY=192.168.10.2
+DNS1=192.168.10.2
+```
+
+- ③ 在hadoop105 上修改主机名称为hadoop105。
+
+```shell
+[root@hadoop104 ~]# vim /etc/hostname
+hadoop105
+```
+
+- ④ 重新启动hadoop104、hadoop105
+
+- ⑤ 修改 haodoop105 中 kafka 的 broker.id 为 3。 
+- ⑥ 删除 hadoop105 中 kafka 下的 datas 和 logs。
+
+```shell
+[atguigu@hadoop105 kafka]$ rm -rf datas/* logs/*
+```
+
+- ⑦ 启动 hadoop102、hadoop103、hadoop104 上的 kafka 集群。
+
+```shell
+[atguigu@hadoop102 ~]$ zk.sh start
+[atguigu@hadoop102 ~]$ kf.sh start
+```
+
+- ⑧ 单独启动 hadoop105 中的 kafka。
+
+```shell
+[atguigu@hadoop105 kafka]$ bin/kafka-server-start.sh -
+daemon ./config/server.properties
+```
+
+**2、执行负载均衡操作**
+
+- ① 创建一个要均衡的主题
+
+```shell
+[atguigu@hadoop102 kafka]$ vim topics-to-move.json
+{
+  "topics": [
+  {"topic": "first"}
+  ],
+  "version": 1
+}
+```
+
+- ② 生成一个负载均衡的计划
+
+```shell
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --topics-to-move-json-file 
+topics-to-move.json --broker-list "0,1,2,3" --generate
+Current partition replica assignment
+{"version":1,"partitions":[{"topic":"first","partition":0,"replic
+as":[0,2,1],"log_dirs":["any","any","any"]},{"topic":"first","par
+tition":1,"replicas":[2,1,0],"log_dirs":["any","any","any"]},{"to
+pic":"first","partition":2,"replicas":[1,0,2],"log_dirs":["any","
+any","any"]}]}
+Proposed partition reassignment configuration
+{"version":1,"partitions":[{"topic":"first","partition":0,"replic
+as":[2,3,0],"log_dirs":["any","any","any"]},{"topic":"first","par
+tition":1,"replicas":[3,0,1],"log_dirs":["any","any","any"]},{"to
+pic":"first","partition":2,"replicas":[0,1,2],"log_dirs":["any","
+any","any"]}]}
+```
+
+- ③ 创建副本存储计划（所有副本存储在 broker0、broker1、broker2、broker3中)。
+
+```shell
+[atguigu@hadoop102 kafka]$ vim increase-replication-factor.json
+```
+
+输入如下内容：
+
+```json
+{"version":1,"partitions":[{"topic":"first","partition":0,"replic
+as":[2,3,0],"log_dirs":["any","any","any"]},{"topic":"first","par
+tition":1,"replicas":[3,0,1],"log_dirs":["any","any","any"]},{"to
+pic":"first","partition":2,"replicas":[0,1,2],"log_dirs":["any","
+any","any"]}]}
+```
+
+- ④ 执行副本存储计划
+
+```shell
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --execute
+```
+
+- ⑤ 验证副本存储计划。
+
+```shell
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --verify
+Status of partition reassignment:
+Reassignment of partition first-0 is complete.
+Reassignment of partition first-1 is complete.
+Reassignment of partition first-2 is complete.
+Clearing broker-level throttles on brokers 0,1,2,3
+Clearing topic-level throttles on topic first
+```
+
+##### 4.2.2 退役旧节点
+
+**1、执行负载均衡操作**
+
+先按照退役一台节点，生成执行计划，然后按照服役时操作流程执行负载均衡。
+
+- ① 创建一个要均衡的主题。
+
+```json
+[atguigu@hadoop102 kafka]$ vim topics-to-move.json
+{
+  "topics": [
+  {"topic": "first"}
+  ],
+  "version": 1
+}
+```
+
+- ② 创建执行计划。
+
+```json
+bootstrap-server hadoop102:9092 --topics-to-move-json-file 
+topics-to-move.json --broker-list "0,1,2" --generate
+Current partition replica assignment
+{"version":1,"partitions":[{"topic":"first","partition":0,"replic
+as":[2,0,1],"log_dirs":["any","any","any"]},{"topic":"first","par
+tition":1,"replicas":[3,1,2],"log_dirs":["any","any","any"]},{"to
+pic":"first","partition":2,"replicas":[0,2,3],"log_dirs":["any","
+any","any"]}]}
+Proposed partition reassignment configuration
+{"version":1,"partitions":[{"topic":"first","partition":0,"replicas":[2,0,1],"log_dirs":["any","any","any"]},{"topic":"first","par
+tition":1,"replicas":[0,1,2],"log_dirs":["any","any","any"]},{"to
+pic":"first","partition":2,"replicas":[1,2,0],"log_dirs":["any","
+any","any"]}]}
+```
+
+- ③ 创建副本存储计划（所有副本存储在 broker0、broker1、broker2 中）。
+
+```json
+[atguigu@hadoop102 kafka]$ vim increase-replication-factor.json
+{"version":1,"partitions":[{"topic":"first","partition":0,"replic
+as":[2,0,1],"log_dirs":["any","any","any"]},{"topic":"first","par
+tition":1,"replicas":[0,1,2],"log_dirs":["any","any","any"]},{"to
+pic":"first","partition":2,"replicas":[1,2,0],"log_dirs":["any","
+any","any"]}]}
+```
+
+- ④ 执行副本存储计划。
+
+```json
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --execute
+```
+
+- ⑤ 验证副本存储计划。
+
+```shell
+[atguigu@hadoop102 kafka]$ bin/kafka-reassign-partitions.sh --
+bootstrap-server hadoop102:9092 --reassignment-json-file 
+increase-replication-factor.json --verify
+Status of partition reassignment:
+Reassignment of partition first-0 is complete.
+Reassignment of partition first-1 is complete.
+Reassignment of partition first-2 is complete.
+Clearing broker-level throttles on brokers 0,1,2,3
+Clearing topic-level throttles on topic first
+```
+
+**2、执行停止命令**
+
+在hadoop105 上执行停止命令即可
+
+```shell
+[atguigu@hadoop105 kafka]$ bin/kafka-server-stop.sh
+```
+
+#### 4.3 Kafka副本
+
+##### 4.3.1 副本基本信息
 
 
 
