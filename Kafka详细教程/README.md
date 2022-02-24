@@ -149,6 +149,7 @@ zookeeper.connect=hadoop102:2181,hadoop103:2181,hadoop104:2181/kafka
 5、分发安装包
 
 ```ba
+[yooome@hadoop102 module]$ xsync kafka/
 ```
 
 6、分别在hadoop103和hadoop104 上修改配置文件/opt/module/kafka/config/server.properties中的 broker.id=1、broker.id=2
