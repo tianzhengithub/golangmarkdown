@@ -1803,7 +1803,7 @@ Spring Cloud Bus配合Spring Cloud Config使用可以实现配置的动态刷新
 
 ![img](images/458fd679c01274ca84f785e1f75c1336.png)
 
-Spring Cloud Bus是用来将分布式系统的节点与轻量级消息系统连接起来的框架，它政和路Java的事件机制和消息中间件的功能。SpringCloudBus目前支持RabbitMQ和Kafka。
+Spring Cloud Bus是用来将分布式系统的节点与轻量级消息系统连接起来的框架，它整合了Java的事件机制和消息中间件的功能。SpringCloudBus目前支持RabbitMQ和Kafka。
 
 #### 5.2 能干什么？
 
