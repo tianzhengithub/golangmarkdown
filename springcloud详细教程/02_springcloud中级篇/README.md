@@ -3145,6 +3145,8 @@ eureka:
 - https://dl.bintray.com/openzipkin/maven/io/zipkin/java/zipkin-server/
 - zipkin-server-2.12.9-exec.jar
 
+下载地址：https://repo1.maven.org/maven2/io/zipkin/zipkin-server/2.23.2/zipkin-server-2.23.2-exec.jar
+
 **运行jar**
 
 ```bash
