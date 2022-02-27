@@ -2682,11 +2682,65 @@ Topic主题进行广播
 
 #### 6.4 Stream消息驱动之生产者
 
-新建Module：cloud-stream-rabbitmq-provider8801
+新建Module：cloud-stream-kafka-provider8801
 
 POM
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-stream-kafka-provider8801</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-kafka</artifactId>
+        </dependency>
+        <!--基础配置-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+</project>
 ```
 
 YML
@@ -2699,22 +2753,15 @@ spring:
   application:
     name: cloud-stream-provider
   cloud:
-      stream:
-        binders: # 在此处配置要绑定的rabbitmq的服务信息；
-          defaultRabbit: # 表示定义的名称，用于于binding整合
-            type: rabbit # 消息组件类型
-            environment: # 设置rabbitmq的相关的环境配置
-              spring:
-                rabbitmq:
-                  host: localhost
-                  port: 5672
-                  username: guest
-                  password: guest
-        bindings: # 服务的整合处理
-          output: # 这个名字是一个通道的名称
-            destination: studyExchange # 表示要使用的Exchange名称定义
-            content-type: application/json # 设置消息类型，本次为json，文本则设置“text/plain”
-            binder: defaultRabbit # 设置要绑定的消息服务的具体设置
+    stream:
+      kafka:
+        binder:
+          brokers: localhost:9092
+          auto-create-topics: true
+      bindings: # 服务的整合处理
+        output: # 这个名字是一个通道的名称
+          destination: first # 表示要使用的Exchange名称定义
+          content-type: application/json # 设置消息类型，本次为json，文本则设置“text/plain”
 
 eureka:
   client: # 客户端进行Eureka注册的配置
@@ -2725,20 +2772,22 @@ eureka:
     lease-expiration-duration-in-seconds: 5 # 如果现在超过了5秒的间隔（默认是90秒）
     instance-id: send-8801.com  # 在信息列表时显示主机名称
     prefer-ip-address: true     # 访问的路径变为IP地址
-
-
 ```
 
 主启动类StreamMQApplication8801
 
 ```java
+package com.yooome.springcloud;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
 
 @SpringBootApplication
-public class StreamMQMain8801 {
+@EnableEurekaClient
+public class KafkaProviderApplication8801 {
     public static void main(String[] args) {
-        SpringApplication.run(StreamMQMain8801.class,args);
+        SpringApplication.run(KafkaProviderApplication8801.class, args);
     }
 }
 
@@ -2749,54 +2798,58 @@ public class StreamMQMain8801 {
 1、消息发送接口
 
 ```java
+package com.yooome.springcloud.provider;
+
 public interface IMessageProvider {
     public String send();
 }
+
 ```
 
 2、发送消息接口实现类
 
 ```java
-import com.lun.springcloud.service.IMessageProvider;
+package com.yooome.springcloud.provider;
+
 import org.springframework.cloud.stream.annotation.EnableBinding;
+import org.springframework.cloud.stream.annotation.Output;
 import org.springframework.cloud.stream.messaging.Source;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.UUID;
 
-
-@EnableBinding(Source.class) //定义消息的推送管道
-public class MessageProviderImpl implements IMessageProvider
-{
+@EnableBinding(Source.class) // 定义消息的推送管道
+@Service
+public class MessageProviderImpl implements IMessageProvider{
     @Resource
-    private MessageChannel output; // 消息发送管道
-
+    @Output(Source.OUTPUT)
+    private MessageChannel messageChannel; // 发送消息管道
     @Override
-    public String send()
-    {
+    public String send() {
         String serial = UUID.randomUUID().toString();
-        output.send(MessageBuilder.withPayload(serial).build());
+        messageChannel.send(MessageBuilder.withPayload(serial).build());
         System.out.println("*****serial: "+serial);
         return null;
     }
 }
-
 ```
 
 3、Controller
 
 ```java
-import com.lun.springcloud.service.IMessageProvider;
+package com.yooome.springcloud.controller;
+
+import com.yooome.springcloud.provider.IMessageProvider;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 
 @RestController
-public class SendMessageController
-{
+public class ProducerController {
     @Resource
     private IMessageProvider messageProvider;
 
@@ -2804,9 +2857,7 @@ public class SendMessageController
     public String sendMessage() {
         return messageProvider.send();
     }
-
 }
-
 ```
 
 **测试**
@@ -2823,11 +2874,63 @@ public class SendMessageController
 
 #### 6.5 Stream消息驱动之消费者
 
-新建Module：cloud-stream-rabbitmq-consumer8802
+新建Module：cloud-stream-kafka-consumer8802
 
 POM
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>cloud-stream-kafka-consumer8802</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--基础配置-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+</project>
 ```
 
 YML
@@ -2838,27 +2941,19 @@ server:
 
 spring:
   application:
-    name: cloud-stream-consumer
+    name: cloud-stream-comsumer
   cloud:
-      stream:
-        binders: # 在此处配置要绑定的rabbitmq的服务信息；
-          defaultRabbit: # 表示定义的名称，用于于binding整合
-            type: rabbit # 消息组件类型
-            environment: # 设置rabbitmq的相关的环境配置
-              spring:
-                rabbitmq:
-                  host: localhost
-                  port: 5672
-                  username: guest
-                  password: guest
-        bindings: # 服务的整合处理
-          input: # 这个名字是一个通道的名称
-            destination: studyExchange # 表示要使用的Exchange名称定义
-            content-type: application/json # 设置消息类型，本次为对象json，如果是文本则设置“text/plain”
-            binder: defaultRabbit # 设置要绑定的消息服务的具体设置
-
+    stream:
+      kafka:
+        binder:
+          brokers: localhost:9092
+          auto-create-topics: true
+      bindings:
+        input: # 这个名字是一个通道的名称
+          destination: first # 表示要使用的Exchange名称定义
+          content-type: application/json # 设置消息类型，本次为对象json，如果是文本则设置“text/plain”
 eureka:
-  client: # 客户端进行Eureka注册的配置
+  client:
     service-url:
       defaultZone: http://localhost:7001/eureka
   instance:
@@ -2871,41 +2966,42 @@ eureka:
 主启动类StreamMQMain8802
 
 ```java
+package com.yooome.springcloud;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
 
 @SpringBootApplication
-public class StreamMQMain8802 {
+@EnableEurekaClient
+public class KafkaConsumerApplication8802 {
     public static void main(String[] args) {
-        SpringApplication.run(StreamMQMain8802.class,args);
+        SpringApplication.run(KafkaConsumerApplication8802.class, args);
     }
 }
-
 ```
 
 业务类
 
 ```java
+package com.yooome.springcloud.controller;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.cloud.stream.messaging.Sink;
 import org.springframework.messaging.Message;
-import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RestController;
 
-
-@Component
+@RestController
 @EnableBinding(Sink.class)
-public class ReceiveMessageListenerController
-{
+public class ReceiveMessageListenerController {
     @Value("${server.port}")
     private String serverPort;
 
-
     @StreamListener(Sink.INPUT)
-    public void input(Message<String> message)
-    {
-        System.out.println("消费者1号,----->接受到的消息: "+message.getPayload()+"\t  port: "+serverPort);
+    public void input(Message<String> message) {
+        System.out.println("消费者1号，------>接收到的消息：" + message.getPayload() + "\t port：" + serverPort);
     }
 }
 
