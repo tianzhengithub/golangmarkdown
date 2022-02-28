@@ -269,7 +269,7 @@ net.ipv4.ip_forward = 1
 
 ```powershell
 # 1.安装ipset和ipvsadm
-[root@master ~]# yum install ipset ipvsadmin -y
+[root@master ~]# yum install ipset ipvsadm -y
 # 2.添加需要加载的模块写入脚本文件
 [root@master ~]# cat <<EOF> /etc/sysconfig/modules/ipvs.modules
 #!/bin/bash
