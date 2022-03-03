@@ -746,7 +746,7 @@ DockerFile是用来构建Docker镜像的文本文件，是有一条条构建镜�
 >
 >       ```shell
 >       命令格式：ENTRYPOINT["<executeable>","<param1>","<param2>",...]
->             
+>                   
 >       ENTRYPOINT 可以和CMD一起用，一般是 变参 才会使用 CMD ，这里的CMD等于是在给 ENTRYPOINT 传参。当制定了 ENTRYPOINT 后，CMD的含义就发生了变化，不再是直接运行其命令而是将 CMD 的内容作为参数传递给 ENTRYPOINT 指定，他两个组合会变成<ENTRYPOINT> "<CMD>"
 >       案例如下：假设已通过 Dockerfile 构建了 nginx:test 镜像
 >       ```
@@ -924,62 +924,62 @@ docker_boot
 <?xml version ="1.0" encoding ="UTF-8"?>
  <project xmlns ="http://maven.apache.org/POM/4.0.0" xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
       xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"> 
-   <modelVersion> 4.0.0 </ modelVersion> 
+   <modelVersion> 4.0.0 </modelVersion> 
    <parent> 
-     <groupId> org.springframework.boot </ groupId> 
-     <artifactId> spring-boot-starter-parent </ artifactId> 
-     <version> 2.5.6 </ version> 
-     <relativePath /> 
-   </ parent> 
+     <groupId> org.springframework.boot </groupId> 
+     <artifactId> spring-boot-starter-parent </artifactId> 
+     <version> 2.5.6 </version> 
+     <relativePath/> 
+   </parent> 
  
-   <groupId> com.atguigu.docker </ groupId> 
-   <artifactId> docker_boot </ artifactId> 
-   <version> 0.0.1-SNAPSHOT </ version> 
+   <groupId> com.atguigu.docker </groupId> 
+   <artifactId> docker_boot </artifactId> 
+   <version> 0.0.1-SNAPSHOT </version> 
  
    <properties> 
-     <project.build.sourceEncoding> UTF-8 </ project.build.sourceEncoding> 
-     <maven.compiler.source> 1.8 </ maven.compiler.source> 
-     <maven.compiler.target> 1.8 </ maven.compiler.target> 
-     <junit.version> 4.12 </ junit.version> 
-     <log4j.version> 1.2.17 </ log4j.version> 
-     <lombok.version> 1.16.18 </ lombok.version> 
-     <mysql.version> 5.1.47 </ mysql.version> 
-     <druid.version> 1.1.16 </ druid.version> 
-     <mapper.version> 4.1.5 </ mapper.version> 
-     <mybatis.spring.boot.version> 1.3.0 </ mybatis.spring.boot.version> 
-   </ properties> 
+     <project.build.sourceEncoding> UTF-8 </project.build.sourceEncoding> 
+     <maven.compiler.source> 1.8 </maven.compiler.source> 
+     <maven.compiler.target> 1.8 </maven.compiler.target> 
+     <junit.version> 4.12 </junit.version> 
+     <log4j.version> 1.2.17 </log4j.version> 
+     <lombok.version> 1.16.18 </lombok.version> 
+     <mysql.version> 5.1.47 </mysql.version> 
+     <druid.version> 1.1.16 </druid.version> 
+     <mapper.version> 4.1.5 </mapper.version> 
+     <mybatis.spring.boot.version> 1.3.0 </mybatis.spring.boot.version> 
+   </properties> 
  
    <dependencies> 
      <!--SpringBoot 通用依赖模块 -->
      <dependency> 
-       <groupId> org.springframework.boot </ groupId> 
-       <artifactId> spring-boot-starter-web </ artifactId> 
-     </ dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-web </artifactId> 
+     </dependency> 
      <dependency> 
-       <groupId> org.springframework.boot </ groupId> 
-       <artifactId> spring-boot-starter-actuator </ artifactId> 
-     </ dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-actuator </artifactId> 
+     </dependency> 
      <!--test-->
      <dependency> 
-       <groupId> org.springframework.boot </ groupId> 
-       <artifactId> spring-boot-starter-test </ artifactId> 
-       <scope> test </ scope> 
-     </ dependency> 
-   </ dependencies> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-test </artifactId> 
+       <scope> test </scope> 
+     </dependency> 
+   </dependencies> 
    <build> 
      <plugins> 
        <plugin> 
-         <groupId> org.springframework.boot </ groupId> 
-         <artifactId> spring-boot-maven-plugin </ artifactId> 
-       </ plugin> 
+         <groupId> org.springframework.boot </groupId> 
+         <artifactId> spring-boot-maven-plugin </artifactId> 
+       </plugin> 
        <plugin> 
-         <groupId> org.apache.maven.plugins </ groupId> 
-         <artifactId> maven-resources-plugin </ artifactId> 
-         <version> 3.1.0 </ version> 
-       </ plugin> 
-     </ plugins> 
-   </ build> 
- </ project> 
+         <groupId> org.apache.maven.plugins </groupId> 
+         <artifactId> maven-resources-plugin </artifactId> 
+         <version> 3.1.0 </version> 
+       </plugin> 
+     </plugins> 
+   </build> 
+ </project> 
 ````
 
 **写YML**
@@ -1520,184 +1520,184 @@ CREATE TABLE `t_user` (
 
 ```xml
 <? xml version ="1.0" encoding ="UTF-8" ?>
-< project xmlns ="http://maven.apache.org/POM/4.0.0" xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
-      xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" > 
-   < modelVersion > 4.0.0 </ modelVersion > 
-   < parent > 
-     < groupId > org.springframework.boot </ groupId > 
-     < artifactId > spring-boot-starter-parent </ artifactId > 
-     < version > 2.5.6 </ version > 
+<project xmlns ="http://maven.apache.org/POM/4.0.0" xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+      xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"> 
+   <modelVersion> 4.0.0 </modelVersion> 
+   <parent> 
+     <groupId> org.springframework.boot </groupId> 
+     <artifactId> spring-boot-starter-parent </artifactId> 
+     <version> 2.5.6 </version> 
      <!--<version>2.3.10.RELEASE</version>-->
-     < relativePath />  <!-- lookup parent from repository -->
-   </ parent > 
+     <relativePath/>  <!-- lookup parent from repository -->
+   </parent> 
 
-   < groupId > com.atguigu.docker </ groupId > 
-   < artifactId > docker_boot </ artifactId > 
-   < version > 0.0.1-SNAPSHOT </ version > 
+   <groupId> com.atguigu.docker </groupId> 
+   <artifactId> docker_boot </artifactId> 
+   <version> 0.0.1-SNAPSHOT </version> 
 
-   < properties > 
-     < project.build.sourceEncoding > UTF-8 </ project.build.sourceEncoding > 
-     < maven.compiler.source > 1.8 </ maven.compiler.source > 
-     < maven.compiler.target > 1.8 </ maven.compiler.target > 
-     < junit.version > 4.12 </ junit.version > 
-     < log4j.version > 1.2.17 </ log4j.version > 
-     < lombok.version > 1.16.18 </ lombok.version > 
-     < mysql.version > 5.1.47 </ mysql.version > 
-     < druid.version > 1.1.16 </ druid.version > 
-     < mapper.version > 4.1.5 </ mapper.version > 
-     < mybatis.spring.boot.version > 1.3.0 </ mybatis.spring.boot.version > 
-   </ properties > 
+   <properties> 
+     <project.build.sourceEncoding> UTF-8 </project.build.sourceEncoding> 
+     <maven.compiler.source> 1.8 </maven.compiler.source> 
+     <maven.compiler.target> 1.8 </maven.compiler.target> 
+     <junit.version> 4.12 </junit.version> 
+     <log4j.version> 1.2.17 </log4j.version> 
+     <lombok.version> 1.16.18 </lombok.version> 
+     <mysql.version> 5.1.47 </mysql.version> 
+     <druid.version> 1.1.16 </druid.version> 
+     <mapper.version> 4.1.5 </mapper.version> 
+     <mybatis.spring.boot.version> 1.3.0 </mybatis.spring.boot.version> 
+   </properties> 
 
-   < dependencies > 
+   <dependencies> 
      <!--guava Google 开源的  Guava 中自带的布隆过滤器 -->
-     < dependency > 
-       < groupId > com.google.guava </ groupId > 
-       < artifactId > guava </ artifactId > 
-       < version > 23.0 </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> com.google.guava </groupId> 
+       <artifactId> guava </artifactId> 
+       <version> 23.0 </version> 
+     </dependency> 
      <!-- redisson -->
-    < dependency > 
-       < groupId > org.redisson </ groupId > 
-       < artifactId > redisson </ artifactId > 
-       < version > 3.13.4 </ version > 
-     </ dependency > 
+    <dependency> 
+       <groupId> org.redisson </groupId> 
+       <artifactId> redisson </artifactId> 
+       <version> 3.13.4 </version> 
+     </dependency> 
      <!--SpringBoot 通用依赖模块 -->
-     < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-starter-web </ artifactId > 
-     </ dependency > 
-     < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-starter-actuator </ artifactId > 
-     </ dependency > 
+     <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-web </artifactId> 
+     </dependency> 
+     <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-actuator </artifactId> 
+     </dependency> 
      <!--swagger2-->
-     < dependency > 
-       < groupId > io.springfox </ groupId > 
-       < artifactId > springfox-swagger2 </ artifactId > 
-       < version > 2.9.2 </ version > 
-     </ dependency > 
-     < dependency > 
-       < groupId > io.springfox </ groupId > 
-       < artifactId > springfox-swagger-ui </ artifactId > 
-       < version > 2.9.2 </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> io.springfox </groupId> 
+       <artifactId> springfox-swagger2 </artifactId> 
+       <version> 2.9.2 </version> 
+     </dependency> 
+     <dependency> 
+       <groupId> io.springfox </groupId> 
+       <artifactId> springfox-swagger-ui </artifactId> 
+       <version> 2.9.2 </version> 
+     </dependency> 
      <!--SpringBoot 与 Redis 整合依赖 -->
-     < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-starter-data-redis </ artifactId > 
-     </ dependency > 
+     <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-data-redis </artifactId> 
+     </dependency> 
      <!--springCache-->
-    < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-starter-cache </ artifactId > 
-     </ dependency > 
+    <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-cache </artifactId> 
+     </dependency> 
      <!--springCache 连接池依赖包 -->
-    < dependency > 
-       < groupId > org.apache.commons </ groupId > 
-       < artifactId > commons-pool2 </ artifactId > 
-     </ dependency > 
+    <dependency> 
+       <groupId> org.apache.commons </groupId> 
+       <artifactId> commons-pool2 </artifactId> 
+     </dependency> 
      <!-- jedis -->
-     < dependency > 
-       < groupId > redis.clients </ groupId > 
-       < artifactId > jedis </ artifactId > 
-       < version > 3.1.0 </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> redis.clients </groupId> 
+       <artifactId> jedis </artifactId> 
+       <version> 3.1.0 </version> 
+     </dependency> 
      <!--Mysql 数据库驱动 -->
-     < dependency > 
-       < groupId > mysql </ groupId > 
-       < artifactId > mysql-connector-java </ artifactId > 
-       < version > 5.1.47 </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> mysql </groupId> 
+       <artifactId> mysql-connector-java </artifactId> 
+       <version> 5.1.47 </version> 
+     </dependency> 
      <!--SpringBoot 集成 druid 连接池 -->
-     < dependency > 
-       < groupId > com.alibaba </ groupId > 
-       < artifactId > druid-spring-boot-starter </ artifactId > 
-       < version > 1.1.10 </ version > 
-     </ dependency > 
-     < dependency > 
-       < groupId > com.alibaba </ groupId > 
-       < artifactId > druid </ artifactId > 
-       < version > ${druid.version} </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> com.alibaba </groupId> 
+       <artifactId> druid-spring-boot-starter </artifactId> 
+       <version> 1.1.10 </version> 
+     </dependency> 
+     <dependency> 
+       <groupId> com.alibaba </groupId> 
+       <artifactId> druid </artifactId> 
+       <version> ${druid.version} </version> 
+     </dependency> 
      <!--mybatis 和 springboot 整合 -->
-     < dependency > 
-       < groupId > org.mybatis.spring.boot </ groupId > 
-       < artifactId > mybatis-spring-boot-starter </ artifactId > 
-       < version > ${mybatis.spring.boot.version} </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> org.mybatis.spring.boot </groupId> 
+       <artifactId> mybatis-spring-boot-starter </artifactId> 
+       <version> ${mybatis.spring.boot.version} </version> 
+     </dependency> 
      <!-- 添加 springboot 对 amqp 的支持 -->
-    < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-starter-amqp </ artifactId > 
-     </ dependency > 
-     < dependency > 
-       < groupId > commons-codec </ groupId > 
-       < artifactId > commons-codec </ artifactId > 
-       < version > 1.10 </ version > 
-     </ dependency > 
+    <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-amqp </artifactId> 
+     </dependency> 
+     <dependency> 
+       <groupId> commons-codec </groupId> 
+       <artifactId> commons-codec </artifactId> 
+       <version> 1.10 </version> 
+     </dependency> 
      <!-- 通用基础配置 junit/devtools/test/log4j/lombok/hutool-->
      <!--hutool-->
-     < dependency > 
-       < groupId > cn.hutool </ groupId > 
-       < artifactId > hutool-all </ artifactId > 
-       < version > 5.2.3 </ version > 
-     </ dependency > 
-     < dependency > 
-       < groupId > junit </ groupId > 
-       < artifactId > junit </ artifactId > 
-       < version > ${junit.version} </ version > 
-     </ dependency > 
-     < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-devtools </ artifactId > 
-       < scope > runtime </ scope > 
-       < optional > true </ optional > 
-     </ dependency > 
-     < dependency > 
-       < groupId > org.springframework.boot </ groupId > 
-       < artifactId > spring-boot-starter-test </ artifactId > 
-       < scope > test </ scope > 
-     </ dependency > 
-     < dependency > 
-       < groupId > log4j </ groupId > 
-       < artifactId > log4j </ artifactId > 
-       < version > ${log4j.version} </ version > 
-     </ dependency > 
-     < dependency > 
-       < groupId > org.projectlombok </ groupId > 
-       < artifactId > lombok </ artifactId > 
-       < version > ${lombok.version} </ version > 
-       < optional > true </ optional > 
-     </ dependency > 
+     <dependency> 
+       <groupId> cn.hutool </groupId> 
+       <artifactId> hutool-all </artifactId> 
+       <version> 5.2.3 </version> 
+     </dependency> 
+     <dependency> 
+       <groupId> junit </groupId> 
+       <artifactId> junit </artifactId> 
+       <version> ${junit.version} </version> 
+     </dependency> 
+     <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-devtools </artifactId> 
+       <scope> runtime </scope> 
+       <optional> true </optional> 
+     </dependency> 
+     <dependency> 
+       <groupId> org.springframework.boot </groupId> 
+       <artifactId> spring-boot-starter-test </artifactId> 
+       <scope> test </scope> 
+     </dependency> 
+     <dependency> 
+       <groupId> log4j </groupId> 
+       <artifactId> log4j </artifactId> 
+       <version> ${log4j.version} </version> 
+     </dependency> 
+     <dependency> 
+       <groupId> org.projectlombok </groupId> 
+       <artifactId> lombok </artifactId> 
+       <version> ${lombok.version} </version> 
+       <optional> true </optional> 
+     </dependency> 
      <!--persistence-->
-     < dependency > 
-       < groupId > javax.persistence </ groupId > 
-       < artifactId > persistence-api </ artifactId > 
-       < version > 1.0.2 </ version > 
-     </ dependency > 
+     <dependency> 
+       <groupId> javax.persistence </groupId> 
+       <artifactId> persistence-api </artifactId> 
+       <version> 1.0.2 </version> 
+     </dependency> 
      <!-- 通用 Mapper-->
-     < dependency > 
-       < groupId > tk.mybatis </ groupId > 
-       < artifactId > mapper </ artifactId > 
-       < version > ${mapper.version} </ version > 
-     </ dependency > 
-   </ dependencies > 
+     <dependency> 
+       <groupId> tk.mybatis </groupId> 
+       <artifactId> mapper </artifactId> 
+       <version> ${mapper.version} </version> 
+     </dependency> 
+   </dependencies> 
 
-   < build > 
-     < plugins > 
-       < plugin > 
-         < groupId > org.springframework.boot </ groupId > 
-         < artifactId > spring-boot-maven-plugin </ artifactId > 
-       </ plugin > 
-       < plugin > 
-         < groupId > org.apache.maven.plugins </ groupId > 
-         < artifactId > maven-resources-plugin </ artifactId > 
-         < version > 3.1.0 </ version > 
-       </ plugin > 
-     </ plugins > 
-   </ build > 
+   <build> 
+     <plugins> 
+       <plugin> 
+         <groupId> org.springframework.boot </groupId> 
+         <artifactId> spring-boot-maven-plugin </artifactId> 
+       </plugin> 
+       <plugin> 
+         <groupId> org.apache.maven.plugins </groupId> 
+         <artifactId> maven-resources-plugin </artifactId> 
+         <version> 3.1.0 </version> 
+       </plugin> 
+     </plugins> 
+   </build> 
 
- </ project > 
+ </project> 
 ```
 
 **写YML**
@@ -2093,19 +2093,19 @@ public interface  UserMapper  extends  Mapper<User> {
 ```xml
  <? xml version ="1.0"  encoding ="UTF-8" ?>  
 
-<!DOCTYPE   mapper   PUBLIC   "-//mybatis.org//DTD Mapper 3.0//EN"   "http://mybatis.org/dtd/mybatis-3-mapper.dtd" > 
-< mapper  namespace ="com.atguigu.docker.mapper.UserMapper" >     
-  < resultMap  id ="BaseResultMap"  type ="com.atguigu.docker.entities.User" >        
+<!DOCTYPE   mapper   PUBLIC   "-//mybatis.org//DTD Mapper 3.0//EN"   "http://mybatis.org/dtd/mybatis-3-mapper.dtd"> 
+<mapper  namespace ="com.atguigu.docker.mapper.UserMapper">     
+  <resultMap  id ="BaseResultMap"  type ="com.atguigu.docker.entities.User">        
     <!--        WARNING - @mbg.generated      -->       
-    < id  column ="id"  jdbcType ="INTEGER"  property ="id"  />        
-    < result  column ="username"  jdbcType ="VARCHAR"  property ="username"  />       
-    < result  column ="password"  jdbcType ="VARCHAR"  property ="password"  />       
-    < result  column ="sex"  jdbcType ="TINYINT"  property ="sex"  />       
-    < result  column ="deleted"  jdbcType ="TINYINT"  property ="deleted"  />       
-    < result  column ="update_time"  jdbcType ="TIMESTAMP"  property ="updateTime"  />       
-    < result  column ="create_time"  jdbcType ="TIMESTAMP"  property ="createTime"  />     
-  </ resultMap >  
-</ mapper > 
+    <id  column ="id"  jdbcType ="INTEGER"  property ="id" />        
+    <result  column ="username"  jdbcType ="VARCHAR"  property ="username" />       
+    <result  column ="password"  jdbcType ="VARCHAR"  property ="password" />       
+    <result  column ="sex"  jdbcType ="TINYINT"  property ="sex" />       
+    <result  column ="deleted"  jdbcType ="TINYINT"  property ="deleted" />       
+    <result  column ="update_time"  jdbcType ="TIMESTAMP"  property ="updateTime" />       
+    <result  column ="create_time"  jdbcType ="TIMESTAMP"  property ="createTime" />     
+  </resultMap>  
+</mapper> 
 ```
 
 **新建Service**
