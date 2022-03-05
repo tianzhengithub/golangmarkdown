@@ -518,7 +518,7 @@ http
 
 6. 访问测试
 
-<img src="/Users/yooome/Desktop/8.png" alt="8" style="zoom:50%;" />
+<img src="images/8.png" alt="8" style="zoom:50%;" />
 
 #### 4.2 多端口反向代理
 
