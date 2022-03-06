@@ -237,18 +237,17 @@ Sentinel分为两个部分：
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>cloud2020</artifactId>
-        <groupId>com.atguigu.springcloud</groupId>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>cloudalibaba-sentinel-service8401</artifactId>
-
     <dependencies>
         <dependency><!-- 引入自己定义的api通用包，可以使用Payment支付Entity -->
-            <groupId>com.atguigu.springcloud</groupId>
-            <artifactId>cloud-api-commons</artifactId>
+            <groupId>com.yooome.springcloud</groupId>
+            <artifactId>cloud-api-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!--SpringCloud ailibaba nacos -->
@@ -304,6 +303,10 @@ Sentinel分为两个部分：
         </dependency>
 
     </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
 
 </project>
 ```
@@ -461,7 +464,7 @@ public class FlowLimitController {
 
 ![img](images/65af4de19564cceebe7cd67589babd69.png)
 
-#### 4.7 Sentinel流控-关联
+#### 4.7 Sentinel流控-流控模式-关联
 
 ##### 4.7.1 **是什么？**
 
@@ -593,7 +596,7 @@ public class FlowLimitController {
 
 ![img](images/6a002ef360a4e5f20ee2748a092f0211.png)
 
-- RT（平均响应时间，秒级）
+- RT（平均响应时间，秒级）**response time**
 
   平均响应时间 超出阈值 且 在时间窗口内通过的请求>=5，两个条件同时满足后触发降级。
   窗口期过后关闭断路器。
