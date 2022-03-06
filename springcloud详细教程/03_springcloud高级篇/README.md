@@ -1576,7 +1576,7 @@ public class CircleBreakerController {
 页面返回结果：
 
 ```json
-{"code":444,"message":"兜底异常nandlerFal1back, exception内容illegalkrgumentEBxceptiorn,非法参数异常……","data":{"id":4,"seria:"null"}}
+{"code":444,"message":"兜底异常handlerFal1back, exception内容illegalkrgumentEBxceptiorn,非法参数异常……","data":{"id":4,"seria:"null"}}
 ```
 
 #### 6.3 Sentinel服务熔断只配置blockHandler
