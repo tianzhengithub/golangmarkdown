@@ -2274,7 +2274,7 @@ CREATE TABLE `undo_log` (
 
 seata-order-service2001
 
-POM
+1、POM
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -2282,15 +2282,19 @@ POM
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>cloud2020</artifactId>
-        <groupId>com.atguigu.springcloud</groupId>
+        <artifactId>yooomecloud</artifactId>
+        <groupId>com.yooome.springcloud</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>seata-order-service2001</artifactId>
-
     <dependencies>
+        <dependency>
+            <groupId>com.yooome.springcloud</groupId>
+            <artifactId>cloud-api-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!--nacos-->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
@@ -2310,7 +2314,7 @@ POM
         <dependency>
             <groupId>io.seata</groupId>
             <artifactId>seata-all</artifactId>
-            <version>0.9.0</version>
+            <version>1.4.2</version>
         </dependency>
         <!--feign-->
         <dependency>
@@ -2330,7 +2334,6 @@ POM
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.37</version>
         </dependency>
         <dependency>
             <groupId>com.alibaba</groupId>
@@ -2340,7 +2343,6 @@ POM
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>2.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -2353,14 +2355,17 @@ POM
             <optional>true</optional>
         </dependency>
     </dependencies>
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
 
 </project>
-
 ```
 
 配置文件
 
-YML
+2、YML
 
 ```yml
 server:
@@ -2397,162 +2402,91 @@ mybatis:
 
 ```
 
-file.conf
+3、file.conf
 
-```properties
-transport {
-  # tcp udt unix-domain-socket
-  type = "TCP"
-  #NIO NATIVE
-  server = "NIO"
-  #enable heartbeat
-  heartbeat = true
-  #thread factory for netty
-  thread-factory {
-    boss-thread-prefix = "NettyBoss"
-    worker-thread-prefix = "NettyServerNIOWorker"
-    server-executor-thread-prefix = "NettyServerBizHandler"
-    share-boss-worker = false
-    client-selector-thread-prefix = "NettyClientSelector"
-    client-selector-thread-size = 1
-    client-worker-thread-prefix = "NettyClientWorkerThread"
-    # netty boss thread size,will not be used for UDT
-    boss-thread-size = 1
-    #auto default pin or 8
-    worker-thread-size = 8
-  }
-  shutdown {
-    # when destroy server, wait seconds
-    wait = 3
-  }
-  serialization = "seata"
-  compressor = "none"
-}
-
-service {
-
-  vgroup_mapping.fsp_tx_group = "default" #修改自定义事务组名称
-
-  default.grouplist = "127.0.0.1:8091"
-  enableDegrade = false
-  disable = false
-  max.commit.retry.timeout = "-1"
-  max.rollback.retry.timeout = "-1"
-  disableGlobalTransaction = false
-}
-
-
-client {
-  async.commit.buffer.limit = 10000
-  lock {
-    retry.internal = 10
-    retry.times = 30
-  }
-  report.retry.count = 5
-  tm.commit.retry.count = 1
-  tm.rollback.retry.count = 1
-}
-
-## transaction log store
+```bash
+## transaction log store, only used in seata-server
 store {
-  ## store mode: file、db
+  ## store mode: file、db、redis
   mode = "db"
-
-  ## file store
+  ## rsa decryption public key
+  publicKey = ""
+  ## file store property
   file {
+    ## store location dir
     dir = "sessionStore"
-
     # branch session size , if exceeded first try compress lockkey, still exceeded throws exceptions
-    max-branch-session-size = 16384
+    maxBranchSessionSize = 16384
     # globe session size , if exceeded throws exceptions
-    max-global-session-size = 512
+    maxGlobalSessionSize = 512
     # file buffer size , if exceeded allocate new buffer
-    file-write-buffer-cache-size = 16384
+    fileWriteBufferCacheSize = 16384
     # when recover batch read size
-    session.reload.read_size = 100
+    sessionReloadReadSize = 100
     # async, sync
-    flush-disk-mode = async
+    flushDiskMode = async
   }
 
-  ## database store
+  ## database store property
   db {
-    ## the implement of javax.sql.DataSource, such as DruidDataSource(druid)/BasicDataSource(dbcp) etc.
-    datasource = "dbcp"
-    ## mysql/oracle/h2/oceanbase etc.
-    db-type = "mysql"
-    driver-class-name = "com.mysql.jdbc.Driver"
-    url = "jdbc:mysql://127.0.0.1:3306/seata"
+    ## the implement of javax.sql.DataSource, such as DruidDataSource(druid)/BasicDataSource(dbcp)/HikariDataSource(hikari) etc.
+    datasource = "druid"
+    ## mysql/oracle/postgresql/h2/oceanbase etc.
+    dbType = "mysql"
+    driverClassName = "com.mysql.cj.jdbc.Driver"
+    ## if using mysql to store the data, recommend add rewriteBatchedStatements=true in jdbc connection param
+    url = "jdbc:mysql://127.0.0.1:3306/seata?rewriteBatchedStatements=true&useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimeZone=GTM%2B8"
     user = "root"
-    password = "123456"
-    min-conn = 1
-    max-conn = 3
-    global.table = "global_table"
-    branch.table = "branch_table"
-    lock-table = "lock_table"
-    query-limit = 100
-  }
-}
-lock {
-  ## the lock store mode: local、remote
-  mode = "remote"
-
-  local {
-    ## store locks in user's database
+    password = "root"
+    minConn = 5
+    maxConn = 100
+    globalTable = "global_table"
+    branchTable = "branch_table"
+    lockTable = "lock_table"
+    queryLimit = 100
+    maxWait = 5000
   }
 
-  remote {
-    ## store locks in the seata's server
-  }
-}
-recovery {
-  #schedule committing retry period in milliseconds
-  committing-retry-period = 1000
-  #schedule asyn committing retry period in milliseconds
-  asyn-committing-retry-period = 1000
-  #schedule rollbacking retry period in milliseconds
-  rollbacking-retry-period = 1000
-  #schedule timeout retry period in milliseconds
-  timeout-retry-period = 1000
-}
-
-transaction {
-  undo.data.validation = true
-  undo.log.serialization = "jackson"
-  undo.log.save.days = 7
-  #schedule delete expired undo_log in milliseconds
-  undo.log.delete.period = 86400000
-  undo.log.table = "undo_log"
-}
-
-## metrics settings
-metrics {
-  enabled = false
-  registry-type = "compact"
-  # multi exporters use comma divided
-  exporter-list = "prometheus"
-  exporter-prometheus-port = 9898
-}
-
-support {
-  ## spring
-  spring {
-    # auto proxy the DataSource bean
-    datasource.autoproxy = false
+  ## redis store property
+  redis {
+    ## redis mode: single、sentinel
+    mode = "single"
+    ## single mode property
+    single {
+      host = "127.0.0.1"
+      port = "6379"
+    }
+    ## sentinel mode property
+    sentinel {
+      masterName = ""
+      ## such as "10.28.235.65:26379,10.28.235.65:26380,10.28.235.65:26381"
+      sentinelHosts = ""
+    }
+    password = ""
+    database = "0"
+    minConn = 1
+    maxConn = 10
+    maxTotal = 100
+    queryLimit = 100
   }
 }
 ```
 
-registry.conf
+4、registry.conf
 
-```properties
+```bash
 registry {
   # file 、nacos 、eureka、redis、zk、consul、etcd3、sofa
   type = "nacos"
 
   nacos {
-    serverAddr = "localhost:8848"
-    namespace = ""
+    application = "seata-server"
+    serverAddr = "127.0.0.1:8848"
+    group = "SEATA_GROUP"
+    namespace = "87433f84-460f-4a02-a162-510a66c113ee"
     cluster = "default"
+    username = "nacos"
+    password = "nacos"
   }
   eureka {
     serviceUrl = "http://localhost:8761/eureka"
@@ -2561,17 +2495,23 @@ registry {
   }
   redis {
     serverAddr = "localhost:6379"
-    db = "0"
+    db = 0
+    password = ""
+    cluster = "default"
+    timeout = 0
   }
   zk {
     cluster = "default"
     serverAddr = "127.0.0.1:2181"
-    session.timeout = 6000
-    connect.timeout = 2000
+    sessionTimeout = 6000
+    connectTimeout = 2000
+    username = ""
+    password = ""
   }
   consul {
     cluster = "default"
     serverAddr = "127.0.0.1:8500"
+    aclToken = ""
   }
   etcd3 {
     cluster = "default"
@@ -2593,23 +2533,36 @@ registry {
 
 config {
   # file、nacos 、apollo、zk、consul、etcd3
-  type = "file"
+  type = "nacos"
 
   nacos {
-    serverAddr = "localhost"
-    namespace = ""
+    serverAddr = "127.0.0.1:8848"
+    namespace = "87433f84-460f-4a02-a162-510a66c113ee"
+    group = "SEATA_GROUP"
+    username = "nacos"
+    password = "nacos"
+    dataId = "seataServer.properties"
   }
   consul {
     serverAddr = "127.0.0.1:8500"
+    aclToken = ""
   }
   apollo {
-    app.id = "seata-server"
-    apollo.meta = "http://192.168.1.204:8801"
+    appId = "seata-server"
+    ## apolloConfigService will cover apolloMeta
+    apolloMeta = "http://192.168.1.204:8801"
+    apolloConfigService = "http://192.168.1.204:8080"
+    namespace = "application"
+    apolloAccesskeySecret = ""
+    cluster = "seata"
   }
   zk {
     serverAddr = "127.0.0.1:2181"
-    session.timeout = 6000
-    connect.timeout = 2000
+    sessionTimeout = 6000
+    connectTimeout = 2000
+    username = ""
+    password = ""
+    nodePath = "/seata/seata.properties"
   }
   etcd3 {
     serverAddr = "http://localhost:2379"
@@ -2618,9 +2571,10 @@ config {
     name = "file.conf"
   }
 }
+
 ```
 
-domain
+5、domain
 
 ```java
 import lombok.AllArgsConstructor;
@@ -2675,7 +2629,7 @@ public class Order
 
 #### 8.4 Seata之Order-Module撸码(上)
 
-Dao接口及实现
+1、Dao接口及实现
 
 ```java
 import com.atguigu.springcloud.alibaba.domain.Order;
@@ -2724,7 +2678,7 @@ public interface OrderDao
 
 ```
 
-Service接口及实现
+2、Service接口及实现
 
 - OrderService
   1. OrderServiceImpl
@@ -2957,9 +2911,9 @@ public class SeataOrderMainApp2001
 
 seata- storage - service2002
 
-POM（与seata-order-service2001模块大致相同）
+1、POM（与seata-order-service2001模块大致相同）
 
-YML
+2、YML
 
 ```yml
 server:
@@ -2991,11 +2945,11 @@ mybatis:
 
 ```
 
-file.conf（与seata-order-service2001模块大致相同）
+3、file.conf（与seata-order-service2001模块大致相同）
 
-registry.conf（与seata-order-service2001模块大致相同）
+4、registry.conf（与seata-order-service2001模块大致相同）
 
-domain
+5、domain
 
 ```java
 import lombok.Data;
@@ -3028,7 +2982,7 @@ public class Storage {
 
 ```
 
-CommonResult（与seata-order-service2001模块大致相同）
+6、CommonResult（与seata-order-service2001模块大致相同）
 
 Dao接口及实现
 
@@ -3073,7 +3027,7 @@ public interface StorageDao {
 
 ```
 
-Serviece接口实现
+7、Serviece接口实现
 
 ```java
 public interface StorageService {
@@ -3117,7 +3071,7 @@ public class StorageServiceImpl implements StorageService {
 
 ```
 
-Controller
+8、Controller
 
 ```java
 import com.atguigu.springcloud.alibaba.domain.CommonResult ;
@@ -3145,9 +3099,9 @@ public class StorageController {
 	
 ```
 
-Config配置（与seata-order-service2001模块大致相同）
+9、Config配置（与seata-order-service2001模块大致相同）
 
-主启动（与seata-order-service2001模块大致相同）
+10、主启动（与seata-order-service2001模块大致相同）
 
 #### 8.6 Seata之Account-Module说明
 
@@ -3155,9 +3109,9 @@ Config配置（与seata-order-service2001模块大致相同）
 
 seata- account- service2003
 
-POM（与seata-order-service2001模块大致相同）
+1、POM（与seata-order-service2001模块大致相同）
 
-YML
+2、YML
 
 ```yml
 server:
@@ -3193,11 +3147,11 @@ mybatis:
 
 ```
 
-file.conf（与seata-order-service2001模块大致相同）
+3、file.conf（与seata-order-service2001模块大致相同）
 
-registry.conf（与seata-order-service2001模块大致相同）
+4、registry.conf（与seata-order-service2001模块大致相同）
 
-domain
+5、domain
 
 ```java
 import lombok.AllArgsConstructor;
@@ -3236,9 +3190,9 @@ public class Account {
 
 ```
 
-CommonResult（与seata-order-service2001模块大致相同）
+6、CommonResult（与seata-order-service2001模块大致相同）
 
-Dao接口及实现
+7、Dao接口及实现
 
 ```java
 import org.apache.ibatis.annotations.Mapper;
@@ -3343,7 +3297,7 @@ public class AccountServiceImpl implements AccountService {
 
 ```
 
-Controller
+8、Controller
 
 ```java
 import com.atguigu.springcloud.alibaba.domain.CommonResult ;
@@ -3375,9 +3329,9 @@ public class AccountController {
 
 ```
 
-Config配置（与seata-order-service2001模块大致相同）
+9、Config配置（与seata-order-service2001模块大致相同）
 
-主启动（与seata-order-service2001模块大致相同）
+10、主启动（与seata-order-service2001模块大致相同）
 
 #### 8.7 Seata之@GlobalTransactional验证
 
