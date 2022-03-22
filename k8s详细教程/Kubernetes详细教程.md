@@ -413,8 +413,31 @@ wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-
 ```powershell
 https://github.com/flannel-io/flannel/tree/master/Documentation/kube-flannel.yml
 ```
+也可手动拉取指定版本
+docker pull quay.io/coreos/flannel:v0.14.0              #拉取flannel网络，三台主机
+docker images                  #查看仓库是否拉去下来
 
-![截屏2021-10-01 下午10.23.00](images/截屏2021-10-01 下午10.23.00.png)
+```个人笔记```
+若是集群状态一直是 notready,用下面语句查看原因，
+journalctl -f -u kubelet.service
+若原因是： cni.go:237] Unable to update cni config: no networks found in /etc/cni/net.d
+mkdir -p /etc/cni/net.d                    #创建目录给flannel做配置文件
+vim /etc/cni/net.d/10-flannel.conf         #编写配置文件
+```powershell
+
+{
+ "name":"cbr0",
+ "cniVersion":"0.3.1",
+ "type":"flannel",
+ "deledate":{
+    "hairpinMode":true,
+    "isDefaultGateway":true
+  }
+
+}
+
+```
+
 
 ##### 2.6.14 使用kubeadm reset重置集群
 
