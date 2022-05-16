@@ -28,7 +28,7 @@
   >
   > 容器化的应用程序可以跨云服务商、跨Linux操作系统发行版进行部署
 
-![image-20200505183738289](Kubenetes.assets/image-20200505183738289.png)
+![image-20200505183738289](./images/image-20200505183738289.png)
 
 容器化部署方式给带来很多的便利，但是也会出现一些问题，比如说：
 
@@ -41,11 +41,11 @@
 - **Mesos**：Apache的一个资源统一管控的工具，需要和Marathon结合使用
 - **Kubernetes**：Google开源的的容器编排工具
 
-![image-20200524150339551](Kubenetes.assets/image-20200524150339551.png)
+![image-20200524150339551](images/image-20200524150339551.png)
 
 #### 1.2 kubernetes简介
 
-![image-20200406232838722](Kubenetes.assets/image-20200406232838722.png)
+![image-20200406232838722](./Kubenetes.assets/image-20200406232838722.png)
 
  
 
@@ -82,7 +82,7 @@ kubernetes的本质是**一组服务器集群**，它可以在集群的每个节
 >
 > **Docker** : 负责节点上容器的各种操作
 
-![image-20200406184656917](Kubenetes.assets/image-20200406184656917.png)
+![image-20200406184656917](images/image-20200406184656917.png)
 
 下面，以部署一个nginx服务来说明kubernetes系统各个组件调用关系：
 
@@ -138,7 +138,7 @@ Kubeadm 是一个K8s 部署工具，提供kubeadm init 和kubeadm join，用于�
 
 Kubeadm 降低部署门槛，但屏蔽了很多细节，遇到问题很难排查。如果想更容易可控，推荐使用二进制包部署Kubernetes 集群，虽然手动部署麻烦点，期间可以学习很多工作原理，也利于后期维护。
 
-![image-20200404094800622](Kubenetes.assets/image-20200404094800622.png)
+![image-20200404094800622](images/image-20200404094800622.png)
 
 #### 2.2 kubeadm 部署方式介绍
 
@@ -165,11 +165,9 @@ kubeadm 是官方社区推出的一个用于快速部署kubernetes 集群的工�
 - 部署Kubernetes Node，将节点加入Kubernetes 集群中
 - 部署Dashboard Web 页面，可视化查看Kubernetes 资源
 
-#### 2.5 准备环境
+#### 2.5 准备环境 
 
- 
-
-![image-20210609000002940](Kubenetes.assets/image-20210609000002940.png)
+![image-20210609000002940](images/image-20210609000002940.png)
 
 | 角色     | IP地址      | 组件                              |
 | :------- | :---------- | :-------------------------------- |
@@ -508,7 +506,7 @@ kubectl get pod,svc
 
 ##### 2.7.4 查看pod
 
-![img](images/2232696-20210621233130477-111035427.png)
+![2232696-20210621233130477-111035427](images/2232696-20210621233130477-111035427.png)
 
 浏览器测试结果：
 
@@ -6082,7 +6080,7 @@ ca.crt:     1025 bytes
 
 选中某个Pod，可以对其执行日志（logs）、进入执行（exec）、编辑、删除操作
 
-![img](Kubenetes.assets/image-20200520163832827.png)
+
 
 > Dashboard提供了kubectl的绝大部分功能，这里不再一一演示
 
