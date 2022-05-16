@@ -1261,70 +1261,7 @@ spec:
 
 ![image-20200408193950807](Kubenetes.assets/image-20200408193950807.png)
 
-##### 4.4.1 命令操作
+##### 
 
-```shell
-# 命令格式: kubectl create deployment 名称  [参数] 
-# --image  指定pod的镜像
-# --port   指定端口
-# --replicas  指定创建pod数量
-# --namespace  指定namespace
-[root@master ~]# kubectl run nginx --image=nginx:latest --port=80 --replicas=3 -n dev
-deployment.apps/nginx created
 
-# 查看创建的Pod
-[root@master ~]# kubectl get pods -n dev
-NAME                     READY   STATUS    RESTARTS   AGE
-nginx-5ff7956ff6-6k8cb   1/1     Running   0          19s
-nginx-5ff7956ff6-jxfjt   1/1     Running   0          19s
-nginx-5ff7956ff6-v6jqw   1/1     Running   0          19s
 
-# 查看deployment的信息
-[root@master ~]# kubectl get deploy -n dev
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   3/3     3            3           2m42s
-
-# UP-TO-DATE：成功升级的副本数量
-# AVAILABLE：可用副本的数量
-[root@master ~]# kubectl get deploy -n dev -o wide
-NAME    READY UP-TO-DATE  AVAILABLE   AGE     CONTAINERS   IMAGES              SELECTOR
-nginx   3/3     3         3           2m51s   nginx        nginx:latest        run=nginx
-
-# 查看deployment的详细信息
-[root@master ~]# kubectl describe deploy nginx -n dev
-Name:                   nginx
-Namespace:              dev
-CreationTimestamp:      Wed, 08 May 2021 11:14:14 +0800
-Labels:                 run=nginx
-Annotations:            deployment.kubernetes.io/revision: 1
-Selector:               run=nginx
-Replicas:               3 desired | 3 updated | 3 total | 3 available | 0 unavailable
-StrategyType:           RollingUpdate
-MinReadySeconds:        0
-RollingUpdateStrategy:  25% max unavailable, 25% max surge
-Pod Template:
-  Labels:  run=nginx
-  Containers:
-   nginx:
-    Image:        nginx:latest
-    Port:         80/TCP
-    Host Port:    0/TCP
-    Environment:  <none>
-    Mounts:       <none>
-  Volumes:        <none>
-Conditions:
-  Type           Status  Reason
-  ----           ------  ------
-  Available      True    MinimumReplicasAvailable
-  Progressing    True    NewReplicaSetAvailable
-OldReplicaSets:  <none>
-NewReplicaSet:   nginx-5ff7956ff6 (3/3 replicas created)
-Events:
-  Type    Reason             Age    From                   Message
-  ----    ------             ----   ----                   -------
-  Normal  ScalingReplicaSet  5m43s  deployment-controller  Scaled up replicaset nginx-5ff7956ff6 to 3
-  
-# 删除 
-[root@master ~]# kubectl delete deploy nginx -n dev
-deployment.apps "nginx" deleted
-```
