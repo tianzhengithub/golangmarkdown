@@ -1322,7 +1322,7 @@ spec:
 
 Service可以看作是一组同类Pod**对外的访问接口**。借助Service，应用可以方便地实现服务发现和负载均衡。
 
-![image-20200408194716912](../../k8s/k8s详细教程-调整版/Kubenetes.assets/image-20200408194716912.png)
+![image-20200408194716912](Kubenetes.assets/image-20200408194716912.png)
 
 ##### 4.5.1 创建集群内部可访问的Service
 
