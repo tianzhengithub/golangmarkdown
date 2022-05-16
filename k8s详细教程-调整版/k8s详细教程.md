@@ -528,7 +528,7 @@ kubectl get pod,svc
 >
 > 当然，如果Pod中程序的数据需要持久化，kubernetes还提供了各种`存储`系统。
 
-![image-20200406225334627](../../k8s/k8s详细教程-调整版/Kubenetes.assets/image-20200406225334627.png)
+![image-20200406225334627](Kubenetes.assets/image-20200406225334627.png)
 
 > 学习kubernetes的核心，就是学习如何对集群上的`Pod、Pod控制器、Service、存储`等各种资源进行操作
 
