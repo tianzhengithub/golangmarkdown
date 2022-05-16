@@ -1328,37 +1328,3 @@ Events:
 [root@master ~]# kubectl delete deploy nginx -n dev
 deployment.apps "nginx" deleted
 ```
-
-##### 4.4.2 配置操作
-
-创建一个deploy-nginx.yaml，内容如下：
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx
-  namespace: dev
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      run: nginx
-  template:
-    metadata:
-      labels:
-        run: nginx
-    spec:
-      containers:
-      - image: nginx:latest
-        name: nginx
-        ports:
-        - containerPort: 80
-          protocol: TCP
-```
-
-然后就可以执行对应的创建和删除命令了：
-
-创建：kubectl create -f deploy-nginx.yaml
-
-删除：kubectl delete -f deploy-nginx.yaml
