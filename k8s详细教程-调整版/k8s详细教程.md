@@ -4550,7 +4550,7 @@ Ingress（以Nginx为例）的工作原理如下：
 
 ##### 7.5.1 环境准备 搭建ingress环境
 
-```makefile
+```yaml
 # 创建文件夹
 [root@k8s-master01 ~]# mkdir ingress-controller
 [root@k8s-master01 ~]# cd ingress-controller/
@@ -4662,7 +4662,7 @@ spec:
     targetPort: 8080
 ```
 
-```shell
+```yaml
 # 创建
 [root@k8s-master01 ~]# kubectl create -f tomcat-nginx.yaml
 
@@ -4729,7 +4729,7 @@ tomcat.itheima.com  / tomcat-service:8080(10.244.1.94:8080,10.244.1.95:8080,10.2
 
 创建证书
 
-```shell
+```yaml
 # 生成证书
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/C=CN/ST=BJ/L=BJ/O=nginx/CN=itheima.com"
 
