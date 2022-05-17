@@ -3245,7 +3245,8 @@ spec: # 详情描述
   strategy: # 策略
     type: RollingUpdate # 滚动更新策略
     rollingUpdate: # 滚动更新
-
+      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
+     
 ```
 
 ##### 6.3.1 创建deployment
