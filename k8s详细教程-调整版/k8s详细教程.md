@@ -3040,7 +3040,7 @@ Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方
 
 ReplicaSet的主要作用是**保证一定数量的pod正常运行**，它会持续监听这些Pod的运行状态，一旦Pod发生故障，就会重启或重建。同时它还支持对pod数量的扩缩容和镜像版本的升降级。
 
-![img](../../k8s/k8s详细教程-调整版/Kubenetes.assets/image-20200612005334159.png)
+![img](Kubenetes.assets/image-20200612005334159.png)
 
 ReplicaSet的资源清单文件：
 
@@ -3216,3 +3216,104 @@ replicaset.apps "pc-replicaset" deleted
 #### 6.3 Deployment(Deploy)
 
 为了更好的解决服务编排的问题，kubernetes在V1.2版本开始，引入了Deployment控制器。值得一提的是，这种控制器并不直接管理pod，而是通过管理ReplicaSet来简介管理Pod，即：Deployment管理ReplicaSet，ReplicaSet管理Pod。所以Deployment比ReplicaSet功能更加强大。
+
+为了更好的解决服务编排的问题，kubernetes在V1.2版本开始，引入了Deployment控制器。值得一提的是，这种控制器并不直接管理pod，而是通过管理ReplicaSet来简介管理Pod，即：Deployment管理ReplicaSet，ReplicaSet管理Pod。所以Deployment比ReplicaSet功能更加强大。
+
+![img](Kubenetes.assets/image-20200612005524778.png)
+
+Deployment主要功能有下面几个：
+
+- 支持ReplicaSet的所有功能
+- 支持发布的停止、继续
+- 支持滚动升级和回滚版本
+
+Deployment的资源清单文件：
+
+```yaml
+apiVersion: apps/v1 # 版本号
+kind: Deployment # 类型       
+metadata: # 元数据
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签
+    controller: deploy
+spec: # 详情描述
+  replicas: 3 # 副本数量
+  revisionHistoryLimit: 3 # 保留历史版本
+  paused: false # 暂停部署，默认是false
+  progressDeadlineSeconds: 600 # 部署超时时间（s），默认是600
+  strategy: # 策略
+    type: RollingUpdate # 滚动更新策略
+    rollingUpdate: # 滚动更新
+      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
+      maxUnavailable: 30% # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
+  selector: # 选择器，通过它指定该控制器管理哪些pod
+    matchLabels:      # Labels匹配规则
+      app: nginx-pod
+    matchExpressions: # Expressions匹配规则
+      - {key: app, operator: In, values: [nginx-pod]}
+  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.17.1
+        ports:
+        - containerPort: 80
+```
+
+##### 6.3.1 创建deployment
+
+创建pc-deployment.yaml，内容如下：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment      
+metadata:
+  name: pc-deployment
+  namespace: dev
+spec: 
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.17.1
+```
+
+```yaml
+# 创建deployment
+[root@k8s-master01 ~]# kubectl create -f pc-deployment.yaml --record=true
+deployment.apps/pc-deployment created
+
+# 查看deployment
+# UP-TO-DATE 最新版本的pod的数量
+# AVAILABLE  当前可用的pod的数量
+[root@k8s-master01 ~]# kubectl get deploy pc-deployment -n dev
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+pc-deployment   3/3     3            3           15s
+
+# 查看rs
+# 发现rs的名称是在原来deployment的名字后面添加了一个10位数的随机串
+[root@k8s-master01 ~]# kubectl get rs -n dev
+NAME                       DESIRED   CURRENT   READY   AGE
+pc-deployment-6696798b78   3         3         3       23s
+
+# 查看pod
+[root@k8s-master01 ~]# kubectl get pods -n dev
+NAME                             READY   STATUS    RESTARTS   AGE
+pc-deployment-6696798b78-d2c8n   1/1     Running   0          107s
+pc-deployment-6696798b78-smpvp   1/1     Running   0          107s
+pc-deployment-6696798b78-wvjd8   1/1     Running   0          107s
+```
+
+##### 6.3.2 扩缩容
+
