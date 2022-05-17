@@ -4170,22 +4170,5 @@ cronjob.batch "pc-cronjob" deleted
 
 ![img](Kubenetes.assets/image-20200408194716912-1626783758946.png)
 
-Service在很多情况下只是一个概念，真正起作用的其实是kube-proxy服务进程，每个Node节点上都运行着一个kube-proxy服务进程。当创建Service的时候会通过api-server向etcd写入创建的service的信息，而kube-proxy会基于监听的机制发现这种Service的变动，然后**它会将最新的Service信息转换成对应的访问规则**。
 
-![img](Kubenetes.assets/image-20200509121254425.png)
-
-
-
-```
-
-# 当访问这个入口的时候，可以发现后面有三个pod的服务在等待调用，
-# kube-proxy会基于rr（轮询）的策略，将请求分发到其中一个pod上去
-# 这个规则会同时在集群内的所有节点上都生成，所以在任何一个节点上访问都可以。
-[root@node1 ~]# ipvsadm -Ln
-IP Virtual Server version 1.2.1 (size=4096)
-Prot LocalAddress:Port Scheduler Flags
-  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-```
-
-kube-proxy目前支持三种工作模式:
 
