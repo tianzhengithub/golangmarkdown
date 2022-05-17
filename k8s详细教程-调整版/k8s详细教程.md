@@ -3247,21 +3247,6 @@ spec: # 详情描述
     rollingUpdate: # 滚动更新
       maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
       maxUnavailable: 30% # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
-  selector: # 选择器，通过它指定该控制器管理哪些pod
-    matchLabels:      # Labels匹配规则
-      app: nginx-pod
-    matchExpressions: # Expressions匹配规则
-      - {key: app, operator: In, values: [nginx-pod]}
-  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本
-    metadata:
-      labels:
-        app: nginx-pod
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.17.1xxxxx
-        ports:
-        - containerPort: 80
 ```
 
 ##### 6.3.1 创建deployment
