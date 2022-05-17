@@ -3237,6 +3237,12 @@ metadata: # 元数据
   namespace: # 所属命名空间 
   labels: #标签
     controller: deploy
+spec: # 详情描述
+  replicas: 3 # 副本数量
+  revisionHistoryLimit: 3 # 保留历史版本
+  paused: false # 暂停部署，默认是false
+  progressDeadlineSeconds: 600 # 部署超时时间（s），默认是600
+ 
 ```
 
 ##### 6.3.1 创建deployment
