@@ -3242,7 +3242,10 @@ spec: # 详情描述
   revisionHistoryLimit: 3 # 保留历史版本
   paused: false # 暂停部署，默认是false
   progressDeadlineSeconds: 600 # 部署超时时间（s），默认是600
- 
+  strategy: # 策略
+    type: RollingUpdate # 滚动更新策略
+    rollingUpdate: # 滚动更新
+
 ```
 
 ##### 6.3.1 创建deployment
