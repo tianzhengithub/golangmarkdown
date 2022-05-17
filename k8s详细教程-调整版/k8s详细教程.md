@@ -4157,34 +4157,3 @@ TCP  10.97.97.97:80 rr
 
 kube-proxy目前支持三种工作模式:
 
-##### 7.1.1 userspace 模式
-
-userspace模式下，kube-proxy会为每一个Service创建一个监听端口，发向Cluster IP的请求被Iptables规则重定向到kube-proxy监听的端口上，kube-proxy根据LB算法选择一个提供服务的Pod并和其建立链接，以将请求转发到Pod上。  该模式下，kube-proxy充当了一个四层负责均衡器的角色。由于kube-proxy运行在userspace中，在进行转发处理时会增加内核和用户空间之间的数据拷贝，虽然比较稳定，但是效率比较低。
-
-![img](Kubenetes.assets/image-20200509151424280.png)
-
-##### 7.1.2 iptables 模式
-
-iptables模式下，kube-proxy为service后端的每个Pod创建对应的iptables规则，直接将发向Cluster IP的请求重定向到一个Pod IP。  该模式下kube-proxy不承担四层负责均衡器的角色，只负责创建iptables规则。该模式的优点是较userspace模式效率更高，但不能提供灵活的LB策略，当后端Pod不可用时也无法进行重试。
-
-![img](Kubenetes.assets/image-20200509152947714.png)
-
-##### 7.1.3 ipvs 模式
-
-ipvs模式和iptables类似，kube-proxy监控Pod的变化并创建相应的ipvs规则。ipvs相对iptables转发效率更高。除此以外，ipvs支持更多的LB算法。
-
-![img](Kubenetes.assets/image-20200509153731363.png)
-
-```yaml
-# 此模式必须安装ipvs内核模块，否则会降级为iptables
-# 开启ipvs
-[root@k8s-master01 ~]# kubectl edit cm kube-proxy -n kube-system
-# 修改mode: "ipvs"
-[root@k8s-master01 ~]# kubectl delete pod -l k8s-app=kube-proxy -n kube-system
-[root@node1 ~]# ipvsadm -Ln
-IP Virtual Server version 1.2.1 (size=4096)
-Prot LocalAddress:Port Scheduler Flags
-  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-
-```
-
