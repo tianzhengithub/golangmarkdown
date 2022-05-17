@@ -4185,10 +4185,6 @@ Service在很多情况下只是一个概念，真正起作用的其实是kube-pr
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-TCP  10.97.97.97:80 rr
-  -> 10.244.1.39:80               Masq    1      0          0
-  -> 10.244.1.40:80               Masq    1      0          0
-  -> 10.244.2.33:80               Masq    1      0          0
 ```
 
 kube-proxy目前支持三种工作模式:
