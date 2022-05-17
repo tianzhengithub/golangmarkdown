@@ -3289,31 +3289,7 @@ spec:
         image: nginx:1.17.1
 ```
 
-```yaml
-# 创建deployment
-[root@k8s-master01 ~]# kubectl create -f pc-deployment.yaml --record=true
-deployment.apps/pc-deployment created
 
-# 查看deployment
-# UP-TO-DATE 最新版本的pod的数量
-# AVAILABLE  当前可用的pod的数量
-[root@k8s-master01 ~]# kubectl get deploy pc-deployment -n dev
-NAME            READY   UP-TO-DATE   AVAILABLE   AGE
-pc-deployment   3/3     3            3           15s
-
-# 查看rs
-# 发现rs的名称是在原来deployment的名字后面添加了一个10位数的随机串
-[root@k8s-master01 ~]# kubectl get rs -n dev
-NAME                       DESIRED   CURRENT   READY   AGE
-pc-deployment-6696798b78   3         3         3       23s
-
-# 查看pod
-[root@k8s-master01 ~]# kubectl get pods -n dev
-NAME                             READY   STATUS    RESTARTS   AGE
-pc-deployment-6696798b78-d2c8n   1/1     Running   0          107s
-pc-deployment-6696798b78-smpvp   1/1     Running   0          107s
-pc-deployment-6696798b78-wvjd8   1/1     Running   0          107s
-```
 
 ##### 6.3.2 扩缩容
 
