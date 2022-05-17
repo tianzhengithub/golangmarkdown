@@ -4152,9 +4152,7 @@ IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
 TCP  10.97.97.97:80 rr
-  -> 10.244.1.39:80               Masq    1      0          0
-  -> 10.244.1.40:80               Masq    1      0          0
-  -> 10.244.2.33:80               Masq    1      0          0
+
 ```
 
 kube-proxy目前支持三种工作模式:
@@ -4187,10 +4185,7 @@ ipvs模式和iptables类似，kube-proxy监控Pod的变化并创建相应的ipvs
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-TCP  10.97.97.97:80 rr
-  -> 10.244.1.39:80               Masq    1      0          0
-  -> 10.244.1.40:80               Masq    1      0          0
-  -> 10.244.2.33:80               Masq    1      0          0
+
 ```
 
 #### 7.2 Service类型
