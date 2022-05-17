@@ -4555,14 +4555,3 @@ www.a.shifen.com.       30      IN      A       39.156.66.18
 www.a.shifen.com.       30      IN      A       39.156.66.14
 ```
 
-#### 7.4 Ingress介绍
-
-在前面课程中已经提到，Service对集群之外暴露服务的主要方式有两种：NotePort和LoadBalancer，但是这两种方式，都有一定的缺点：
-
-- NodePort方式的缺点是会占用很多集群机器的端口，那么当集群服务变多的时候，这个缺点就愈发明显
-- LB方式的缺点是每个service需要一个LB，浪费、麻烦，并且需要kubernetes之外设备的支持
-
-基于这种现状，kubernetes提供了Ingress资源对象，Ingress只需要一个NodePort或者一个LB就可以满足暴露多个Service的需求。工作机制大致如下图表示：
-
-![img](Kubenetes.assets/image-20200623092808049.png)
-
