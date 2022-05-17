@@ -3237,16 +3237,6 @@ metadata: # 元数据
   namespace: # 所属命名空间 
   labels: #标签
     controller: deploy
-spec: # 详情描述
-  replicas: 3 # 副本数量
-  revisionHistoryLimit: 3 # 保留历史版本
-  paused: false # 暂停部署，默认是false
-  progressDeadlineSeconds: 600 # 部署超时时间（s），默认是600
-  strategy: # 策略
-    type: RollingUpdate # 滚动更新策略
-    rollingUpdate: # 滚动更新
-      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
-      maxUnavailable: 30% # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
 ```
 
 ##### 6.3.1 创建deployment
