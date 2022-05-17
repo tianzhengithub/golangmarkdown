@@ -4177,12 +4177,19 @@ Service在很多情况下只是一个概念，真正起作用的其实是kube-pr
 
 
 ```
-
+# 10.97.97.97:80 是service提供的访问入口
 # 当访问这个入口的时候，可以发现后面有三个pod的服务在等待调用，
 # kube-proxy会基于rr（轮询）的策略，将请求分发到其中一个pod上去
-# 这个规则会同时在内的所有节点上都生成，所以在任何一个节点上访
-
+# 这个规则会同时在集群内的所有节点上都生成，所以在任何一个节点，访问都可以。
+[root@node1 ~]# ipvsadm -Ln
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+TCP  10.97.97.97:80 rr
+  -> 10.244.1.39:80               Masq    1      0          0
+  -> 10.244.1.40:80               Masq    1      0          0
+  -> 10.244.2.33:80               Masq    1      0          0
 ```
 
-
+kube-proxy目前支持三种工作模式:
 
