@@ -1299,7 +1299,7 @@ Selector:               run=nginx
 Replicas:               3 desired | 3 updated | 3 total | 3 available | 0 unavailable
 StrategyType:           RollingUpdate
 MinReadySeconds:        0
-RollingUpdateStrategy:  25% max unavailable, 25% max surge
+RollingUpdateStrategy:  25% max unavailable, 25% max 违规词汇
 Pod Template:
   Labels:  run=nginx
   Containers:
@@ -3297,7 +3297,7 @@ spec: # 详情描述
   strategy: # 策略
     type: RollingUpdate # 滚动更新策略
     rollingUpdate: # 滚动更新
-      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
+      max违规词汇: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
       maxUnavailable: 30% # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
   selector: # 选择器，通过它指定该控制器管理哪些pod
     matchLabels:      # Labels匹配规则
@@ -3412,7 +3412,7 @@ strategy：指定新的Pod替换旧的Pod的策略， 支持两个属性：
     RollingUpdate：滚动更新，就是杀死一部分，就启动一部分，在更新过程中，存在两个版本Pod
   rollingUpdate：当type为RollingUpdate时生效，用于为RollingUpdate设置参数，支持两个属性：
     maxUnavailable：用来指定在升级过程中不可用Pod的最大数量，默认为25%。
-    maxSurge： 用来指定在升级过程中可以超过期望的Pod的最大数量，默认为25%。
+    max违规词汇： 用来指定在升级过程中可以超过期望的Pod的最大数量，默认为25%。
 ```
 
 重建更新
@@ -3465,7 +3465,7 @@ spec:
   strategy: # 策略
     type: RollingUpdate # 滚动更新策略
     rollingUpdate:
-      maxSurge: 25% 
+      max违规词汇: 25% 
       maxUnavailable: 25%
 ```
 
@@ -4202,7 +4202,7 @@ Service在很多情况下只是一个概念，真正起作用的其实是kube-pr
 # 10.97.97.97:80 是service提供的访问入口
 # 当访问这个入口的时候，可以发现后面有三个pod的服务在等待调用，
 # kube-proxy会基于rr（轮询）的策略，将请求分发到其中一个pod上去
-# 这个规则会同时在集群内的所有节点上都生成，所以在任何一个节点上访问都可以。
+# 这个规则会同时在集群内的所有节点上都生成，所以在任何一个节点上，都可以访问。
 [root@node1 ~]# ipvsadm -Ln
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
