@@ -481,13 +481,9 @@ protoc --version
 
 
 
+使用PostMan 进行访问
 
-
-
-
-
-
-
+![5](images/5.png)
 
 
 
