@@ -521,6 +521,193 @@ etcdctl --endpoints=$ENDPOINTS elect one p1
 etcdctl --endpoints=$ENDPOINTS elect one p2
 ```
 
+#### 1.15 如何检查集群状态
+
+检查 etcd 集群状态的指南
+
+为每台机器指定初始集群配置：
+
+```bash
+etcdctl --write-out=table --endpoints=$ENDPOINTS endpoint status
+```
+
+![5](images/5.png)
+
+
+
+```bash
+yooome@192 etcd % etcdctl --endpoints=$ENDPOINTS endpoint health
+127.0.0.1:12379 is healthy: successfully committed proposal: took = 2.374209ms
+127.0.0.1:32379 is healthy: successfully committed proposal: took = 2.496333ms
+127.0.0.1:22379 is healthy: successfully committed proposal: took = 2.452208ms
+yooome@192 etcd % 
+```
+
+#### 1.16 如何保存数据库
+
+获取 etcd 数据库快照的指南
+
+`snapshot`保存 etcd 数据库的时间点快照：
+
+![11_etcdctl_snapshot_2016051001](images/11_etcdctl_snapshot_2016051001.png)
+
+快照只能从一个 etcd 节点请求，因此`--endpoints`flag 应该只包含一个端点。
+
+```bash
+ENDPOINTS=$HOST_1:2379
+etcdctl --endpoints=$ENDPOINTS snapshot save my.db
+
+Snapshot saved at my.db
+```
+
+#### 1.17 如何将 etcd 从 v2 迁移到 v3
+
+`migrate`将 etcd v2 转换为 v3 数据：
+
+![12_etcdctl_migrate_2016061602](images/12_etcdctl_migrate_2016061602.png)
+
+
+
+```bash
+# write key in etcd version 2 store
+export ETCDCTL_API=2
+etcdctl --endpoints=http://$ENDPOINT set foo bar
+
+# read key in etcd v2
+etcdctl --endpoints=$ENDPOINTS --output="json" get foo
+
+# stop etcd node to migrate, one by one
+
+# migrate v2 data
+export ETCDCTL_API=3
+etcdctl --endpoints=$ENDPOINT migrate --data-dir="default.etcd" --wal-dir="default.etcd/member/wal"
+
+# restart etcd node after migrate, one by one
+
+# confirm that the key got migrated
+etcdctl --endpoints=$ENDPOINTS get /foo
+```
+
+#### 1.18 如何添加和删除成员
+
+`member`添加、删除、更新成员资格：
+
+![13_etcdctl_member_2016062301](images/13_etcdctl_member_2016062301.png)
+
+
+
+```bash
+# For each machine
+TOKEN=my-etcd-token-1
+CLUSTER_STATE=new
+NAME_1=etcd-node-1
+NAME_2=etcd-node-2
+NAME_3=etcd-node-3
+HOST_1=10.240.0.13
+HOST_2=10.240.0.14
+HOST_3=10.240.0.15
+CLUSTER=${NAME_1}=http://${HOST_1}:2380,${NAME_2}=http://${HOST_2}:2380,${NAME_3}=http://${HOST_3}:2380
+
+# For node 1
+THIS_NAME=${NAME_1}
+THIS_IP=${HOST_1}
+etcd --data-dir=data.etcd --name ${THIS_NAME} \
+	--initial-advertise-peer-urls http://${THIS_IP}:2380 \
+	--listen-peer-urls http://${THIS_IP}:2380 \
+	--advertise-client-urls http://${THIS_IP}:2379 \
+	--listen-client-urls http://${THIS_IP}:2379 \
+	--initial-cluster ${CLUSTER} \
+	--initial-cluster-state ${CLUSTER_STATE} \
+	--initial-cluster-token ${TOKEN}
+
+# For node 2
+THIS_NAME=${NAME_2}
+THIS_IP=${HOST_2}
+etcd --data-dir=data.etcd --name ${THIS_NAME} \
+	--initial-advertise-peer-urls http://${THIS_IP}:2380 \
+	--listen-peer-urls http://${THIS_IP}:2380 \
+	--advertise-client-urls http://${THIS_IP}:2379 \
+	--listen-client-urls http://${THIS_IP}:2379 \
+	--initial-cluster ${CLUSTER} \
+	--initial-cluster-state ${CLUSTER_STATE} \
+	--initial-cluster-token ${TOKEN}
+
+# For node 3
+THIS_NAME=${NAME_3}
+THIS_IP=${HOST_3}
+etcd --data-dir=data.etcd --name ${THIS_NAME} \
+	--initial-advertise-peer-urls http://${THIS_IP}:2380 \
+	--listen-peer-urls http://${THIS_IP}:2380 \
+	--advertise-client-urls http://${THIS_IP}:2379 \
+	--listen-client-urls http://${THIS_IP}:2379 \
+	--initial-cluster ${CLUSTER} \
+	--initial-cluster-state ${CLUSTER_STATE} \
+	--initial-cluster-token ${TOKEN}
+```
+
+`member remove`然后用和`member add`命令替换一个成员：
+
+```bash
+# get member ID
+export ETCDCTL_API=3
+HOST_1=10.240.0.13
+HOST_2=10.240.0.14
+HOST_3=10.240.0.15
+etcdctl --endpoints=${HOST_1}:2379,${HOST_2}:2379,${HOST_3}:2379 member list
+
+# remove the member
+MEMBER_ID=278c654c9a6dfd3b
+etcdctl --endpoints=${HOST_1}:2379,${HOST_2}:2379,${HOST_3}:2379 \
+	member remove ${MEMBER_ID}
+
+# add a new member (node 4)
+export ETCDCTL_API=3
+NAME_1=etcd-node-1
+NAME_2=etcd-node-2
+NAME_4=etcd-node-4
+HOST_1=10.240.0.13
+HOST_2=10.240.0.14
+HOST_4=10.240.0.16 # new member
+etcdctl --endpoints=${HOST_1}:2379,${HOST_2}:2379 \
+	member add ${NAME_4} \
+	--peer-urls=http://${HOST_4}:2380
+```
+
+`--initial-cluster-state existing`接下来，使用标志启动新成员：
+
+```bash
+# [WARNING] If the new member starts from the same disk space,
+# make sure to remove the data directory of the old member
+#
+# restart with 'existing' flag
+TOKEN=my-etcd-token-1
+CLUSTER_STATE=existing
+NAME_1=etcd-node-1
+NAME_2=etcd-node-2
+NAME_4=etcd-node-4
+HOST_1=10.240.0.13
+HOST_2=10.240.0.14
+HOST_4=10.240.0.16 # new member
+CLUSTER=${NAME_1}=http://${HOST_1}:2380,${NAME_2}=http://${HOST_2}:2380,${NAME_4}=http://${HOST_4}:2380
+
+THIS_NAME=${NAME_4}
+THIS_IP=${HOST_4}
+etcd --data-dir=data.etcd --name ${THIS_NAME} \
+	--initial-advertise-peer-urls http://${THIS_IP}:2380 \
+	--listen-peer-urls http://${THIS_IP}:2380 \
+	--advertise-client-urls http://${THIS_IP}:2379 \
+	--listen-client-urls http://${THIS_IP}:2379 \
+	--initial-cluster ${CLUSTER} \
+	--initial-cluster-state ${CLUSTER_STATE} \
+	--initial-cluster-token ${TOKEN}
+```
+
+
+
+
+
+
+
 
 
 
