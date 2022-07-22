@@ -69,10 +69,10 @@
 - **Producer**：消息生产者，就是向Kafka broker 发消息的客户端。
 - **Consumer**：消息消费者，向Kafka broker 取消息的客户端。
 
-- **Consumer Group（CG）**：消费者组，由多个consumer组成。消费者组内每个消费者负责消费不同分区的数据，一个分区只能由一个组内消费者消费；消费者组之间互不影响。素有的消费者都属于某个消费者组，即消费者组是逻辑上的一个订阅者。
+- **Consumer Group（CG）**：消费者组，由多个consumer组成。消费者组内每个消费者负责消费不同分区的数据，一个分区只能由一个组内消费者消费；消费者组之间互不影响。所有的消费者都属于某个消费者组，即消费者组是逻辑上的一个订阅者。
 
 - **Broker**：一台Kafka服务器就是一个broker。一个集群由多个broker组成。一个broker可以容纳多个topic。
-- **Topic**： 可以理解为一个队列，生产者和消费者面向的斗士一个topic。
+- **Topic**： 可以理解为一个队列，生产者和消费者面向的都是一个topic。
 - **Partition**： 为了实现扩展性，一个非常大的topic可以分布到多个broker（即服务器）上，一个topic可以分为多个partition，每个partition是一个有序的队列。
 - **Replica**：副本。一个topic的每个分区都有若干个副本，一个Leader和若干个Follower。
 - **Leader**：每个分区多个副本的 "主"，生产者发送数据的对象，以及消费者消费数据的对象都是Leader。
