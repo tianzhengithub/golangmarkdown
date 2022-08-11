@@ -26,8 +26,12 @@ MinorGC（或 young GC 或 YGC）日志：
 
 **FullGC**
 
-```
-[Full GC (Metadata GC Threshold) [PSYoungGen: 5104K->0K (132096K) ] [Par01dGen: 416K->5453K (50176K) ]5520K->5453K (182272K), [Metaspace: 20637K->20637K (1067008K) ], 0.0245883 secs] [Times: user=0.06 sys=0.00, real=0.02 secs]
+```bash
+[Full GC (Metadata GC Threshold) 
+[PSYoungGen: 5104K->0K (132096K) ] 
+[Par01dGen: 416K->5453K (50176K) ]5520K->5453K (182272K), 
+[Metaspace: 20637K->20637K (1067008K) ], 0.0245883 secs] 
+[Times: user=0.06 sys=0.00, real=0.02 secs]
 ```
 
 ![image-20210506202330868](images/0dcb239f0928bc374ac1b376b4189295.png)
