@@ -258,7 +258,15 @@ yellow open   shopping         dxKLUaNBSXeKPRROyeFlsg   1   1          0        
 }
 ```
 
+#### 2.8-1 查看所有索引
+
 再次查看所有索引，GET http://127.0.0.1:9200/_cat/indices?v，返回结果如下：
+
+```bash
+GET http://127.0.0.1:9200/_cat/indices?v
+```
+
+返回结果如下：
 
 ```
 health status index uuid pri rep docs.count docs.deleted store.size pri.store.size
