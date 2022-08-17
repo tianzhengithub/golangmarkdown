@@ -1776,3 +1776,561 @@ public class TestDemo
 
 ```
 
+### 六、volatile 与 Java内存模型
+
+![14](./images/14.png)
+
+#### 6.1 Volatile 的内存语义
+
+当写一个volatile变量时，JMM会把该线程对应的本地内存中的共享变量立即刷新回到主内存中。
+
+当读一个volatile变量时，JMM会把该线程对应的工作内存设置为无效，直接从主内存中读取共享变量。
+
+所以volatile的写内存语义是直接刷新到主内存中，读的内存语义是直接从主内存中读取。
+
+
+> 一句话，volatile修饰的变量在某个工作内存修改后立刻会刷新会主内存，并把其他工作内存的该变量设置为无效。
+
+##### 6.1.1 **是什么**
+
+内存屏障（也称内存栅栏，内存栅障，屏障指令等，是一类同步屏障指令，是CPU或编译器在对内存随机访问的操作中的一个同步点，使得此点之前的所有读写操作都执行后才可以开始执行此点之后的操作），避免代码重排序。内存屏障其实就是一种JVM指令，Java内存模型的重排规则会要求Java编译器在生成JVM指令时插入特定的内存屏障指令 ，通过这些内存屏障指令，volatile实现了Java内存模型中的可见性和有序性，但volatile无法保证原子性 。
+
+内存屏障之前的**所有写**操作都要回写到主内存，
+内存屏障之后的**所有读**操作都能获得内存屏障之前的所有写操作的最新结果(实现了可见性)。
+
+**写屏障**(Store Memory Barrier) ：告诉处理器在写屏障之前将所有存储在缓存(store buffer es) 中的数据同步到主内存。也就是说当看到Store屏障指令， 就必须把该指令之前所有写入指令执行完毕才能继续往下执行。
+**读屏障**(Load Memory Barrier) ：处理器在读屏障之后的读操作， 都在读屏障之后执行。也就是说在Load屏障指令之后就能够保证后面的读取数据指令一定能够读取到最新的数据。
+
+![15](./images/15.png)
+
+因此重排序时，不允许把内存屏障之后的指令重排序到内存屏障之前。
+一句话：对一个 volatile 域的写, happens-before 于任意后续对这个 volatile 域的读，也叫写后读。
+
+
+
+##### 6.1.2 内存屏障分类
+
+- 写屏障
+- 读屏障
+
+```java
+//Unsafe.class
+
+    public native void loadFence();
+
+    public native void storeFence();
+
+    public native void fullFence();
+
+```
+
+```java
+//Unsafe.java   
+//同上
+
+```
+
+```java
+//unsafe.cpp
+
+UNSAFE_ENTRY(void, Unsafe_LoadFence(JNIEnv* env, jobject unsafe))//读屏障
+  UnsafeWrapper("Unsafe_LoadFence");
+  OrderAccess::acquire();
+UNSAFE_END
+
+UNSAFE_ENTRY(void, Unsafe_StoreFence(JNIEnv* env, jobject unsafe))//写屏障
+  UnsafeWrapper("Unsafe_StoreFence");
+  OrderAccess::release();
+UNSAFE_END
+
+UNSAFE_ENTRY(void, Unsafe_FullFence(JNIEnv* env, jobject unsafe))
+  UnsafeWrapper("Unsafe_FullFence");
+  OrderAccess::fence();
+UNSAFE_END
+
+```
+
+```java
+//OrderAccess.hpp
+class OrderAccess : AllStatic {
+ public:
+  static void     loadload();//读读
+  static void     storestore();//写写
+  static void     loadstore();//读写
+  static void     storeload();//写读
+
+  static void     acquire();
+  static void     release();
+  static void     fence();
+
+```
+
+```java
+//orderAccess_linux_x86
+inline void OrderAccess::loadload()   { acquire(); }
+inline void OrderAccess::storestore() { release(); }
+inline void OrderAccess::loadstore()  { acquire(); }
+inline void OrderAccess::storeload()  { fence(); }
+
+inline void OrderAccess::acquire() {
+  volatile intptr_t local_dummy;
+#ifdef AMD64
+  __asm__ volatile ("movq 0(%%rsp), %0" : "=r" (local_dummy) : : "memory");
+#else__
+  asm__ volatile ("movl 0(%%esp),%0" : "=r" (local_dummy) : : "memory");
+#endif // AMD64
+}
+```
+
+![16](./images/16.png)
+
+##### 6.1.3 什么叫保证有序性
+
+- 禁止指令重排
+
+通过内存屏障禁止重排
+
+```properties
+1.  重排序有可能影响程序的执行和实现， 因此， 我们有时候希望告诉JVM你别“自作聪明”给我重排序， 我这里不需要排序， 听主人的。
+
+2.  对于编译器的重排序， JMM会根据重排序的规则， 禁止特定类型的编译器重排序。
+
+3.  对于处理器的重排序， Java编译器在生成指令序列的适当位置， 插入内存屏障指令， 来禁止特定类型的处理器排序。
+
+```
+
+#### 6.2 happens-before之volatile变量规则
+
+
+
+![17](./images/17.png)
+
+- 当第一个操作为volatile读时，不论第二个操作是什么，都不能重排序。这个操作保证了volatile读之后的操作不会被重排到volatile读之前。
+
+当第二个操作为volatile写时，不论第一个操作是什么，都不能重排序。这个操作保证了volatile写之前的操作不会被重排到volatile写之后。
+
+当第一个操作为volatile写时，第二个操作为volatile读时，不能重排。
+
+##### 6.2.1 JMM就将内存屏障插入策略分为4种规则
+
+###### 6.2.1.1 **读屏障**
+
+- 在每个`volatile读`操作的**后面**插入一个`LoadLoad`屏障
+
+- 在每个`volatile读`操作的**后面**插入一个`LoadStore`屏障
+
+![18](./images/18.png)
+
+###### 6.2.1.2 **写屏障**
+
+- 在每个`volatile写`操作的**前面**插入一个`StoreStore`屏障
+
+- 在每个`volatile写`操作的**后面**插入一个`StoreLoad`屏障
+
+![19](./images/19.png)
+
+#### 6.3 volatile特性
+
+##### 6.3.1 保证可见性
+
+保证不同线程对某个变量完成操作后结果及时可见，即该共享变量一旦改变所有线程立即可见。
+
+```java
+public class VolatileSeeDemo
+{
+    //static  boolean flag = true;       //不加volatile，没有可见性
+    static volatile boolean flag = true;       //加了volatile，保证可见性
+
+    public static void main(String[] args)
+    {
+        new Thread(() -> {
+            System.out.println(Thread.currentThread().getName()+"\t come in");
+            while (flag)//默认flag是true,如果未被修改就一直循环，下面那句话也打不出来
+            {
+
+            }
+            System.out.println(Thread.currentThread().getName()+"\t flag被修改为false,退出.....");
+        },"t1").start();
+
+        //暂停几秒
+        try { TimeUnit.SECONDS.sleep(2); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        flag = false;
+
+        System.out.println("main线程修改完成");
+    }
+}
+//没有volatile时
+//t1   come in
+//main线程修改完成
+//--------程序一直在跑（在循环里）
+
+//有volatile时
+//t1   come in
+//main线程修改完成
+//t1   flag被修改为false,退出.....
+```
+
+##### 6.3.2 上述代码原理解释
+
+线程t1中为何看不到被主线程main修改为false的flag的值？
+
+- 问题可能:
+
+1. 主线程修改了flag之后没有将其刷新到主内存，所以t1线程看不到。
+
+2. 主线程将flag刷新到了主内存，但是t1一直读取的是自己工作内存中flag的值，没有去主内存中更新获取flag最新的值。
+
+- 我们的诉求：
+
+1. 线程中修改了工作内存中的副本之后，立即将其刷新到主内存；
+
+2. 工作内存中每次读取共享变量时，都去主内存中重新读取，然后拷贝到工作内存。
+
+- 解决：
+
+使用volatile修饰共享变量，就可以达到上面的效果，被volatile修改的变量有以下特点：
+
+1. 线程中读取的时候，每次读取都会去主内存中读取共享变量最新的值 ，然后将其复制到工作内存
+
+2. 线程中修改了工作内存中变量的副本，修改之后会立即刷新到主内存
+   
+
+##### 6.3.3 volatile变量的读写过程
+
+> 原理一层层剖析：现象—失效/立刻刷新—内存屏障—缓存一致性协议/总线嗅探
+
+ead(读取)→load(加载)→use(使用)→assign(赋值)→store(存储)→write(写入)→lock(锁定)→unlock(解锁)
+
+老师的图
+
+![20](./images/20.png)
+
+
+
+- 一个更清晰简单的图
+
+![21](./images/21.png)
+
+
+
+> **read**: 作用于主内存，将变量的值从主内存传输到工作内存，主内存到工作内存
+> **load**: 作用于工作内存，将read从主内存传输的变量值放入工作内存变量副本中，即数据加载
+> **use**: 作用于工作内存，将工作内存变量副本的值传递给执行引擎，每当JVM遇到需要该变量的字节码指令时会执行该操作
+> **assign**: 作用于工作内存，将从执行引擎接收到的值赋值给工作内存变量，每当JVM遇到一个给变量赋值字节码指令时会执行该操作
+> **store**: 作用于工作内存，将赋值完毕的工作变量的值写回给主内存
+> **write**: 作用于主内存，将store传输过来的变量值赋值给主内存中的变量
+> 由于上述6条只能保证单条指令的原子性，针对多条指令的组合性原子保证，没有大面积加锁，所以，JVM提供了另外两个原子指令：
+> **lock**: 作用于主内存，将一个变量标记为一个线程独占的状态，只是写时候加锁，就只是锁了写变量的过程。
+> **unlock**: 作用于主内存，把一个处于锁定状态的变量释放，然后才能被其他线程占用
+
+##### 6.3.4 没有原子性
+
+- volatile变量的复合操作不具有原子性，比如number++
+
+- `synchronized`和`volatile`代码演示
+
+```java
+class MyNumber
+{
+    //volatile int number = 0;
+
+    int number = 0;
+    public synchronized void addPlusPlus()//加上synchronized
+    {
+        number++;
+    }
+}
+
+public class VolatileNoAtomicDemo
+{
+    public static void main(String[] args) throws InterruptedException
+    {
+        MyNumber myNumber = new MyNumber();
+
+        for (int i = 1; i <=10; i++) {
+            new Thread(() -> {
+                for (int j = 1; j <= 1000; j++) {
+                    myNumber.addPlusPlus();
+                }
+            },String.valueOf(i)).start();
+        }
+
+        //暂停几秒钟线程
+        try { TimeUnit.SECONDS.sleep(3); } catch (InterruptedException e) { e.printStackTrace(); }
+        System.out.println(Thread.currentThread().getName() + "\t" + myNumber.number);
+    }
+}
+//-------------volatile情况下
+//main  8302
+//-----------synchronized请款下
+//main  10000
+```
+
+##### 6.3.5 结论
+
+- volatile不适合参与到依赖当前值的运算，如i=i+1，i++之类的
+
+那么依靠可见性的特点volatile可以用在哪些地方呢？*通常volatile用作保存某个状态的boolean值或or int值。* *（一旦布尔值被改变迅速被看到，就可以做其他操作）*
+
+《深入理解Java虚拟机》
+
+![22](./images/22.png)
+
+##### 6.3.6 面试回答
+
+对于volatile变量，JVM只是保证从主内存加载到线程工作内存的值是最新的，也只是数据加载时是最新的。如果第二个线程在第一个线程**读取旧值**和**写回新值期**间读取i的阈值，也就造成了线程安全问题。
+
+（中间这个**蓝色框**代表的是在执行引擎操作期间）
+
+#### 6.4 禁止指令重排
+
+##### 6.4.1 说明与案例
+
+重排序
+
+重排序是指编译器和处理器为了优化程序性能而对指令序列进行重新排序的一种手段，有时候会改变程序语句的先后顺序
+
+不存在数据依赖关系，可以重排序；
+
+> 存在数据依赖关系 ，禁止重排序
+
+但重排后的指令绝对不能改变原有的串行语义！这点在并发设计中必须要重点考虑！
+
+重排序的分类和执行流程
+
+![12](./images/12.png)
+
+
+
+编译器优化的重排序： 编译器在不改变单线程串行语义的前提下，可以重新调整指令的执行顺序
+指令级并行的重排序： 处理器使用指令级并行技术来讲多条指令重叠执行，若不存在数据依赖性，处理器可以改变语句对应机器指令的执行顺序
+内存系统的重排序： 由于处理器使用缓存和读/写缓冲区，这使得加载和存储操作看上去可能是乱序执行
+
+数据依赖性 ：若两个操作访问同一变量，且这两个操作中有一个为写操作，此时两操作间就存在数据依赖性。
+
+案例
+
+不存在数据依赖关系，可以重排序 ===> 重排序OK 。
+
+![23](./images/23.png)
+
+存在数据依赖关系，禁止重排序===> 重排序发生，会导致程序运行结果不同。
+
+编译器和处理器在重排序时，会遵守数据依赖性，不会改变存在依赖关系的两个操作的执行,但不同处理器和不同线程之间的数据性不会被编译器和处理器考虑，其只会作用于单处理器和单线程环境，下面三种情况，只要重排序两个操作的执行顺序，程序的执行结果就会被改变。
+
+#### 6.5 volatile的底层实现是通过内存屏障，2次复习
+
+- volatile有关的禁止指令重排的行为
+
+![17](./images/17.png)
+
+- 四大屏障的插入情况
+
+![16](./images/16.png)
+
+![24](./images/24.png)
+
+- 案例
+
+```java
+public class VolatileTest {
+    int i = 0;
+    volatile boolean flag = false;
+    public void write(){
+        i = 2;//假如不加volatile，这两句话的顺序就有可能颠倒，影像最终结果
+        flag = true;
+    }
+    public void read(){
+        if(flag){
+            System.out.println("---i = " + i);
+        }
+    }
+}
+```
+
+- volatile写
+  1. 在每个`volatile写`操作的**前面**插入一个`StoreStore`屏障
+  2. 在每个`volatile写`操作的**后面**插入一个`StoreLoad`屏
+
+- volatile读
+  1. 在每个`volatile读`操作的**后面**插入一个`LoadLoad`屏障
+  2. 在每个`volatile读`操作的**后面**插入一个`LoadStore`屏障
+
+#### 6.6 如何正确使用volatile
+
+##### 6.6.1 单一赋值可以，但是含有符合运算赋值不可以（比如i++）
+
+- 下面这两个单一赋值可以的
+
+volatile int a = 10;
+
+volatile boolean flag = false
+
+##### 6.6.2 状态标志，判断业务是否结束
+
+```java
+//这个前面讲过
+public class UseVolatileDemo
+{
+    private volatile static boolean flag = true;
+
+    public static void main(String[] args)
+    {
+        new Thread(() -> {
+            while(flag) {
+                //do something......循环
+            }
+        },"t1").start();
+
+        //暂停几秒钟线程
+        try { TimeUnit.SECONDS.sleep(2L); } catch (InterruptedException e) { e.printStackTrace(); }
+
+        new Thread(() -> {
+            flag = false;
+        },"t2").start();
+    }
+}
+```
+
+##### 6.6.3 开销较低的读，写锁策略
+
+当读远多于写
+
+最土的方法就是加两个synchronized，但是读用volatile，写用synchronized可以提高性能
+
+```java
+public class UseVolatileDemo
+{
+    //
+   // 使用：当读远多于写，结合使用内部锁和 volatile 变量来减少同步的开销
+   // 理由：利用volatile保证读取操作的可见性；利用synchronized保证复合操作的原子性
+     
+    public class Counter
+    {
+        private volatile int value;
+
+        public int getValue()
+        {
+            return value;   //利用volatile保证读取操作的可见性
+              }
+        public synchronized int increment()
+        {
+            return value++; //利用synchronized保证复合操作的原子性
+               }
+    }
+}
+```
+
+##### 6.6.4 DCL双锁案例
+
+```java
+public class SafeDoubleCheckSingleton
+{
+    private static SafeDoubleCheckSingleton singleton; //-----这里没加volatile
+    //私有化构造方法
+    private SafeDoubleCheckSingleton(){
+    }
+    //双重锁设计
+    public static SafeDoubleCheckSingleton getInstance(){
+        if (singleton == null){
+            //1.多线程并发创建对象时，会通过加锁保证只有一个线程能创建对象
+            synchronized (SafeDoubleCheckSingleton.class){
+                if (singleton == null){
+                    //隐患：多线程环境下，由于重排序，该对象可能还未完成初始化就被其他线程读取
+                    singleton = new SafeDoubleCheckSingleton();
+                    //实例化分为三步
+                    //1.分配对象的内存空间
+                    //2.初始化对象
+                    //3.设置对象指向分配的内存地址
+                }
+            }
+        }
+        //2.对象创建完毕，执行getInstance()将不需要获取锁，直接返回创建对象
+        return singleton;
+    }
+}
+
+```
+
+##### 6.6.5 单线程情况下
+
+单线程环境下(或者说正常情况下)，在"问题代码处"，会执行如下操作，保证能获取到已完成初始化的实例
+
+```java
+//三步
+memory = allocate(); //1.分配对象的内存空间
+ctorInstance(memory); //2.初始化对象
+instance = memory; //3.设置对象指向分配的内存地址
+```
+
+##### 6.6.6 多线程情况下（由于指令重排序）
+
+隐患：多线程环境下，在"问题代码处"，会执行如下操作，由于重排序导致2,3乱序，后果就是其他线程得到的是null而不是完成初始化的对象 *。（没初始化完的就是null）*
+
+正常情况
+
+```java
+//三步
+memory = allocate(); //1.分配对象的内存空间
+ctorInstance(memory); //2.初始化对象
+instance = memory; //3.设置对象指向分配的内存地址
+```
+
+- 解决
+
+加volatile修饰
+
+```java
+public class SafeDoubleCheckSingleton
+{
+    //通过volatile声明，实现线程安全的延迟初始化。
+    private volatile static SafeDoubleCheckSingleton singleton;
+    //私有化构造方法
+    private SafeDoubleCheckSingleton(){
+    }
+    //双重锁设计
+    public static SafeDoubleCheckSingleton getInstance(){
+        if (singleton == null){
+            //1.多线程并发创建对象时，会通过加锁保证只有一个线程能创建对象
+            synchronized (SafeDoubleCheckSingleton.class){
+                if (singleton == null){
+                    //隐患：多线程环境下，由于重排序，该对象可能还未完成初始化就被其他线程读取
+                                      //原理:利用volatile，禁止 "初始化对象"(2) 和 "设置singleton指向内存空间"(3) 的重排序
+                    singleton = new SafeDoubleCheckSingleton();
+                }
+            }
+        }
+        //2.对象创建完毕，执行getInstance()将不需要获取锁，直接返回创建对象
+        return singleton;
+    }
+}
+```
+
+实例化singleton分多步执行（分配内存空间、初始化对象、将对象指向分配的内存空间），某些编译器为了性能原因，会将第二步和第三步进行重排序（分配内存空间、将对象指向分配的内存空间、初始化对象）。这样，某个线程可能会获得一个未完全初始化的实例。
+
+# 最后的小总结
+
+- volatile可见性
+
+![25](./images/25.png)
+
+- volatile没有原子性
+
+- volatile禁重排
+
+内存屏障能干嘛？
+
+1. 阻止**屏障两边的**指令重排序
+
+2. 写数据时假如屏障，强制将线程私有工作内存的数据刷回主物理内存
+
+3. 读数据时加入屏障，线程私有工作内存的数据失效，重新到主物理内存中获取最新数据
+
+3、句话总结：
+
+- volatile写之前的的操作，都禁止重排到volatile之后
+
+- volatile读之后的操作，都禁止重排到volatile之前
+
+- volatile写之后volatile读，禁止重排序
