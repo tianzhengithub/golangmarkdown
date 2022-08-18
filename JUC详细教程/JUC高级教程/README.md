@@ -2081,11 +2081,292 @@ ThreadLocal本身并不存储值，它只是自己作为一个key来让线程从
 ##### 3.6.9 小总结
 
 ThreadLocal 并不解决线程间共享数据的问题
+
 ThreadLocal 适用于变量在线程间隔离且在方法间共享的场景
+
 ThreadLocal 通过隐式的在不同线程内创建独立实例副本避免了实例线程安全的问题
 每个线程持有一个只属于自己的专属Map并维护了ThreadLocal对象与具体实例的映射，
 该Map由于只被持有它的线程访问，故不存在线程安全以及锁的问题
 ThreadLocalMap的Entry对ThreadLocal的引用为弱引用，避免了ThreadLocal对象无法被回收的问题
 都会通过expungeStaleEntry, cleanSome Slots,replaceStaleEntry这三个方法回收键为 null 的 Entry
 对家的值（即为具体实例）以及 Entry 对象本身从而防止内存证漏，属手安全加固的方法
-群雄逐鹿起纷争，人各一份天下安
+群雄逐鹿起纷争，人各一份天下安。
+
+### 四、Java对象内存布局和对象头
+
+![53](./images/53.png)
+
+- Object object = new Object()
+
+> 谈谈你对这句话的理解？一般而言JDK8按照默认情况下，new一个对象占多少内存空间
+
+#### 4.1 位置所在
+
+在JVM堆里的新生区的伊甸园(这些都是之前的基础知识了)
+
+#### 4.2 构成布局
+
+可以联想一下我们的HTML报文。
+
+![54](./images/54.png)
+
+#### 4.3 对象在内存中布局
+
+- 对象头
+- 实例数据
+- 对齐填充
+
+![55](./images/55.png)
+
+#### 4.4 对象在堆内存中的存储布局
+
+下面分别是 **java对象** 和**数组**（数组对象会多一个length），原理其实类似
+
+![56](./images/56.png)
+
+#### 4.4 对象头
+
+- 对象头分为对象标记(markOpp)、类元信息(kclassOop)。
+
+- 类元信息村粗的是指向该对象类元数据(klass)的首地址。
+
+> 先提出几个问题来引出下面的概念
+
+```java
+public class Demo01 {
+    public static void main(String[] args) {
+        Object o = new Object();//?new 一个对象，内存占多少，记录在哪里？
+
+        System.out.println(o.hashCode());//356573597，这个hashCode又是记录在哪里的
+
+        synchronized (o){//加锁信息又是记录在哪里的
+
+        }
+        System.gc();//手动垃圾收集中，15次可以从新生代到养老区，那这个次数又是记录在哪里的
+    }
+}
+```
+
+> 先回复一下问题
+
+- 刚刚几个问题都保存在**对象标记**里
+
+![57](./images/57.png)
+
+
+
+**对象头**
+
+- 对象标记
+  1. 哈希地址
+  2. GC标志
+  3. GC次数
+  4. 同步锁标记
+  5. 偏向锁持有者。
+
+![58](./images/58.png)
+
+- 在64位系统中，MarkWord占了8个字节，类型指针占了8个字节，一共是16个字节
+
+![59](./images/59.png)
+
+默认存储对象的HashCode、分代年龄和锁标志位等信息。这些信息都是与对象自身定这无关的数据，所以MarkWord被设计成一个非固定的数据结构以便在极小的空间内存存储尽量多的数据。它会根据对象的状态复用自己的存储空间，也就是说在运行期间MarkWord上存储的数据会随着锁标志位的变化而变化。
+
+#### 4.5 类元信息（又叫类型指针）Class Pointer
+
+> 所谓的类元信息（类型指针）其实就可以说是**模板**
+
+![60](./images/60.png)
+
+
+
+![61](./images/61.png)
+
+- 对象指向它的类元数据的指针，虚拟机通过这个指针来确定这个对象是哪个类的示例。
+
+**对象头多大**
+
+- 在64位系统中，MarkWord占了8个字节，类型指针占了8个字节，一共是16个字节。
+
+#### 4.6 实例数据
+
+**实例数据**：存放类的属性（Field）信息，包括父类的属性信息
+
+![62](./images/62.png)
+
+
+
+#### 4.7 对齐填充
+
+用来保证8字节的倍数
+
+**对齐填充**：虚拟机要求对象起始地址必须是8字节的整数倍。填充数据不是必须存在的，仅仅是为了字节对齐这部分内存按8字节补充对齐。
+
+有个案例，对象头16+实例数据5+对齐填充3=24字节
+
+![63](./images/63.png)
+
+#### 4.8 官网理论
+
+- Hotspor术语表官网
+
+http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html
+
+![64](./images/64.png)
+
+#### 4.9 再说对象头的MarkWord
+
+![65](./images/65.png)
+
+![66](./images/66.png)
+
+
+
+- 看看C中的源码
+- oop.hpp
+
+#### 4.10 聊聊Object obj = new Object()【用代码演示】
+
+**JOL证明**
+
+JOL工具（Java Object Layout工具）-可以帮助分析对象在Java虚拟机中的大小和布局
+
+`http://openjdk.java.net/projects/code-tools/joll`(网站已经失效了)
+
+但我们可以直接用**依赖**来实现这个功能
+
+```xml
+<dependency>
+    <groupId>org.openjdk.jol</groupId>
+    <artifactId>jol-core</artifactId>
+    <version>0.9</version>
+</dependency>
+```
+
+```java
+//简单测试
+    public static void main(String[] args) {
+        //Vm的细节详细情况
+        System.out.println(VM.current().details());
+//# WARNING: Unable to attach Serviceability Agent. You can try again with escalated privileges. Two options: a) use -Djol.tryWithSudo=true to try with sudo; b) echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+//# Running 64-bit HotSpot VM.
+//# Using compressed oop with 3-bit shift.
+//# Using compressed klass with 3-bit shift.
+//# WARNING | Compressed references base/shifts are guessed by the experiment!
+//# WARNING | Therefore, computed addresses are just guesses, and ARE NOT RELIABLE.
+//# WARNING | Make sure to attach Serviceability Agent to get the reliable addresses.
+//# Objects are 8 bytes aligned.
+//# Field sizes by type: 4, 1, 1, 2, 2, 4, 4, 8, 8 [bytes]
+//# Array element sizes: 4, 1, 1, 2, 2, 4, 4, 8, 8 [bytes]
+        
+        //所有的对象分配的字节都是8的整数倍
+        System.out.println(VM.current().objectAlignment());
+//8
+    }
+```
+
+##### 4.10.1 代码
+
+用自带的类
+
+```java
+//第一个演示，16bytes演示
+public class Demo01 {
+    public static void main(String[] args) {
+        Object o = new Object();//----------新建一个Object对象就是  16bytes
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+//java.lang.Object object internals:
+// OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+//      0     4        (object header)                           01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+//      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+//      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+//     12     4        (loss due to the next object alignment)
+//Instance size: 16 bytes
+//Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+    }
+}
+```
+
+![67](./images/67.png)
+
+![68](./images/68.png)
+
+> 这里丢下一个疑问，为什么类型指针是4字节？之前不都是说是8字节的吗？（因为压缩指针默认开启了，后面有讲）
+
+##### 4.10.2 用自己的类
+
+```java
+//只有对象头，没有实例数据,依然是16byte
+public class Demo01 {
+    public static void main(String[] args) {
+        Customer c1 = new Customer();
+        System.out.println(ClassLayout.parseInstance(c1).toPrintable());
+//com.zhang.java.Customer object internals:
+// OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+//      0     4        (object header)                           01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+//      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+//      8     4        (object header)                           43 c1 00 f8 (01000011 11000001 00000000 11111000) (-134168253)
+//     12     4        (loss due to the next object alignment)
+//Instance size: 16 bytes
+//Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+    }
+
+
+}
+class Customer{
+
+}
+```
+
+#### 4.11 GC年龄采用4位bit存储，最大位15，例如MaxTenuringThreshold参数默认值就是15
+
+- 对象分代年龄最大就是15
+
+
+
+![69](./images/69.png)
+
+##### 4.11.1 如果想证明一下
+
+- 我们假如想直接把分代最大年龄修改为16会直接报错。
+
+`-XX:MaxTenurningThreshold=16`
+
+![70](./images/70.png)
+
+##### 4.11.2 尾巴参数说明（压缩指针相关）
+
+**压缩指针相关的命令**（压缩指针是否开启对我们new一个对象是不是16字节的影响）
+
+`java -XX:+PrintCommandLineFlags -version`
+
+**压缩指针默认是开启的**
+
+(这也就解释了为什么前面的类型指针是4个字节，节约了内存空间）
+
+![71](./images/71.png)
+
+##### 4.11.3 假如不压缩的情况？我们手动关闭压缩指针看看？
+
+＋是开启，-就是关闭，所以指令是`-XX:-UseCompressedClassPointers`
+
+![72](./images/72.png)
+
+![73](./images/73.png)
+
+> 也要注意，不管是否开启压缩指针，创建一个对象就是16字节的。（开启压缩指针后缺失的会由对齐填充补充）
+
+#### 4.12 换成其他对象试试
+
+- 同样的道理
+
+![74](./images/74.png)
+
+
+
+
+
+
+
+
+
