@@ -4,14 +4,27 @@
 
 - Synchronized相关问题
   1. Synchronized用过吗， 其原理是什么?
+  
   2. 你刚才提到获取对象的锁，这个锁到底是什么?如何确定对象的锁?
+  
+     锁”的本质其实是 monitorenter 和 monitorexit 字节码指令的一个 Reference 类型的参数，即要锁定和解锁的对象。我们知道，使用 Synchronized 可以修饰不同的对象，因此，对应的对象锁可以这么确定。
+  
+     - 如果 Synchronized 明确指定了锁对象，比如 Synchronized（变量名）、Synchronized(this) 等，说明加解锁对象为该对象。
+  
+     - 如果没有明确指定： 若 Synchronized 修饰的方法为非静态方法，表示此方法对应的对象为锁对象； 若 Synchronized 修饰的方法为静态方法，则表示此方法对应的类对象为锁对象。 注意，当一个对象被锁住时，对象里面所有用 Synchronized 修饰的方法都将产生堵塞，而对象里非 Synchronized 修饰的方法可正常被调用，不受锁影响。
+  
   3. 什么是可重入性，为什么说Synchronized是可重入锁?
+  
   4. JVM对Java的原生锁做了哪些优化?
+  
   5. 为什么说Synchronized是非公平锁?
+  
   6. 什么是锁消除和锁粗化?
+  
   7. 为什么说Synchronized是个悲观锁?乐观锁的实现原理又是什么?什么是CAS， 它有
+  
   8. 乐观锁一定就是好的吗
-
+  
 - 可重入锁Reentrant Lock及其他显式锁相关问题
   1. 跟Synchronized相比，可重入锁Reentrant Lock其实现原理有什么不同?
   2. 那么请谈谈AQS框架是怎么回事儿?
