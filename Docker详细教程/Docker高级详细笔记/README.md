@@ -746,7 +746,7 @@ DockerFile是用来构建Docker镜像的文本文件，是有一条条构建镜�
 >
 >       ```shell
 >       命令格式：ENTRYPOINT["<executeable>","<param1>","<param2>",...]
->                   
+>                         
 >       ENTRYPOINT 可以和CMD一起用，一般是 变参 才会使用 CMD ，这里的CMD等于是在给 ENTRYPOINT 传参。当制定了 ENTRYPOINT 后，CMD的含义就发生了变化，不再是直接运行其命令而是将 CMD 的内容作为参数传递给 ENTRYPOINT 指定，他两个组合会变成<ENTRYPOINT> "<CMD>"
 >       案例如下：假设已通过 Dockerfile 构建了 nginx:test 镜像
 >       ```
@@ -2326,6 +2326,9 @@ docker build -t zzyy_docker:1.6 .
 
 ```shell
 4. 执行 docker-compose up 或者 执行 docker-compose up -d
+
+# 若不使用默认的docker-compose.yml 文件名：
+$ docker-compose -f server.yml up -d 
 ```
 
 ```shell
