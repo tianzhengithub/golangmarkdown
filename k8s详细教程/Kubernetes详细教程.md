@@ -1224,8 +1224,8 @@ nginx-pod   1/1     Running   0          17m   version=2.0
 No resources found in dev namespace.
 
 #删除标签
-[root@master ~]# kubectl label pod nginx-pod version- -n dev
-pod/nginx-pod labeled
+[root@master ~]# kubectl label pod nginx-pod -n dev tier-
+pod/nginx unlabeled
 ```
 
 ##### 4.3.2 配置方式
