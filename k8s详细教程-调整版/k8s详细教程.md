@@ -3729,7 +3729,7 @@ spec:
   maxReplicas: 10 #最大pod数量
   targetCPUUtilizationPercentage: 3 # CPU使用率指标
   scaleTargetRef:   # 指定要控制的nginx信息
-    apiVersion:  /v1
+    apiVersion:  apps/v1
     kind: Deployment
     name: nginx
 ```
