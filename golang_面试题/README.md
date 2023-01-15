@@ -450,6 +450,369 @@ select 结构组成主要是由 case 语句和执行的函数组成 ，select �
 
 反引号，表示字符串字面量，但不支持任何转义序列。字面量 raw literal string 的意思是，你定时写的啥样，它就啥样，你有换行，它就换行。你写转义字符，他也就砖石转义字符。
 
+#### 2.14 go出现panic的场景
+
+https://www.cnblogs.com/paulwhw/p/15585467.html
+
+- 数组/切片越界
+- 空指针调用。比如访问一个 nil 结构体指针的成员
+- 过早关闭 HTTP 响应体
+- 除以 0
+- 向已经关闭的 channel 发送消息
+- 重复关闭 channel
+- 关闭未初始化的 channel
+- 未初始化 map。注意访问 map 不存在的 key 不会 panic，而是返回 map 类型对应的零值，但是不能直接赋值
+- 跨协程的 panic 处理
+- sync 计数为负数。
+- 类型断言不匹配。`var a interface{} = 1; fmt.Println(a.(string))` 会 panic，建议用 `s,ok := a.(string)`
+
+#### 2.15 go是否支持while循环，如何实现这种机制
+
+Go 语言没有 while 和 do...while 语法，这一点和其他语言不同，需要格外注意一下，如果需要使用类似其它语言(比如 java / c 的 while 和 do...while )，可以通过 for 循环来实现其使用效果。
+
+```go
+package main
+ 
+import "fmt"
+ 
+func main() {
+   // 使用while方式输出10句 "hello,world"
+   // 循环变量初始化
+   var i int = 1
+   for {
+      if i > 10 { // 循环条件
+         break // 跳出for循环,结束for循环
+      }
+      fmt.Println("hello,world", i)
+      i++ // 循环变量的迭代
+   }
+ 
+   fmt.Println("i=", i)
+}
+```
+
+#### 2.15 go 里面如何实现set？
+
+Go 中是不提供Set 类型的，Set是一个集合，其本质就是一个List，只是List里的元素不能重复。
+
+Go 提供了 map 类型，但是我们知道，map类型的key是不能重复的，因此，我们可以利用这一点，来实现一个set。那 value 呢？value我们可以用一个常量来代替，比如一个空结构体，实际上空结构体不占任何内存，使用空结构体，能够帮我们节省内存空间，提高性能。
+
+#### 2.16 go 如何实现类似于java当中的继承机制？
+
+说到继承我们都知道，在Go中没有extends关键字，也就意味着Go并没有原生级别的继承支持。这也是为什么我在文章开头用了**伪继承**这个词。本质上，Go使用interface实现的功能叫组合，Go是使用组合来实现的继承，说的更精确一点，是使用组合来代替的继承，举个很简单的例子:
+
+**通过组合实现了继承：**
+
+```go
+type Animal struct {
+    Name string
+}
+
+func (a *Animal) Eat() {
+    fmt.Printf("%v is eating", a.Name)
+    fmt.Println()
+}
+
+type Cat struct {
+    *Animal
+}
+
+cat := &Cat{
+    Animal: &Animal{
+        Name: "cat",
+    },
+}
+cat.Eat() // cat is eating
+```
+
+**首先**，我们实现了一个Animal的结构体，代表动物类。并声明了Name字段，用于描述动物的名字。
+
+**然后**，实现了一个以Animal为receiver的Eat方法，来描述动物进食的行为。
+
+**最后**，声明了一个Cat结构体，组合了Cat字段。再实例化一个猫，调用Eat方法，可以看到会正常的输出。
+
+可以看到，Cat结构体本身没有Name字段，也没有去实现Eat方法。唯一有的就是组合了Animal父类，至此，我们就证明了已经通过组合实现了继承。
+
+**总结：**
+
+- 如果一个 struct 嵌套了另一个匿名结构体，那么这个结构可以直接访问匿名结构体的属性和方法，从而实现继承。
+- 如果一个 struct 嵌套了另一个有名的结构体，那么这个模式叫做组合。
+- 如果一个 struct 嵌套了多个匿名结构体，那么这个结构可以直接访问多个匿名结构体的属性和方法，从而实现多重继承。
+
+#### 2.17 怎么去复用一个接口的方法？
+
+```go
+package main
+
+import "fmt"
+
+type USB interface {
+	Stop()
+	Start()
+}
+type IPhone struct {
+	name string
+}
+
+func (i IPhone) Start() {
+	fmt.Println("IPhone Start name = ", i.name)
+}
+func (i IPhone) Stop() {
+	fmt.Println("IPhone Stop name = ", i.name)
+}
+
+type Camera struct {
+	name string
+}
+
+func (c Camera) Start() {
+	fmt.Println("camera name = ", c.name)
+}
+func (c Camera) Stop() {
+	fmt.Println("camera stop name = ", c.name)
+}
+
+type Computer struct {
+	name string
+}
+
+func (cp Computer) Working(usb USB) {
+	usb.Start()
+	usb.Stop()
+}
+func main() {
+	phone := IPhone{
+		name: "苹果",
+	}
+	camera := Camera{
+		name: "佳能",
+	}
+	computer := Computer{
+		name: "Mac",
+	}
+	computer.Working(phone)
+	computer.Working(camera)
+}
+```
+
+#### 2.19 go里面的 _
+
+1. **忽略返回值**
+2. 比如某个函数返回三个参数，但是我们只需要其中的两个，另外一个参数可以忽略，这样的话代码可以这样写：
+
+```go
+v1, v2, _ := function(...)
+v1, _, _ := function(...)
+```
+
+3. **用在变量(特别是接口断言)**
+
+```go
+type T struct{}
+var _ X = T{}
+//其中 I为interface
+```
+
+上面用来判断 type T是否实现了X,用作类型断言，如果T没有实现接口X，则编译错误.
+
+4. **用在import package**
+
+```go
+import _ "test/food"
+```
+
+引入包时，会先调用包中的初始化函数，这种使用方式仅让导入的包做初始化，而不使用包中其他功能
+
+#### 2.20 goroutine 创建的时候如果要传入一个参数进去有什么要注意的点？
+
+```go
+// 3. 正确示范
+for _, i := range a {
+    fmt.Printf("-----%s---\n", i)
+    go func(a string) {
+        //time.Sleep(time.Second * 4)
+        testDomain(a)
+    }(i)
+}
+// 这种操作会先将i的值传递给形参a，i的变化不会对testDomain方法的执行产生影响
+```
+
+#### 2.21 写go单元测试的规范？
+
+1. **单元测试文件命名规则 ：**
+
+单元测试需要创建单独的测试文件，不能在原有文件中书写，名字规则为 xxx_test.go。这个规则很好理解。
+
+2. **单元测试包命令规则**
+
+单元测试文件的包名为原文件的包名添加下划线接test，举例如下：
+
+```go
+// 原文件包名：
+package xxx
+// 单元测试文件包名：
+package xxx_test
+```
+
+3. **单元测试方法命名规则**
+
+单元测试文件中的测试方法和原文件中的待测试的方法名相对应，以Test开头，举例如下：
+
+```go
+// 原文件方法：
+func Xxx(name string) error 
+// 单元测试文件方法：
+func TestXxx()
+```
+
+4. **单元测试方法参数**
+
+单元测试方法的参数必须是t *testing.T，举例如下：
+
+```go
+func TestZipFiles(t *testing.T) { ...
+```
+
+#### 2.22 单步调试？
+
+https://www.jianshu.com/p/21ed30859d80
+
+#### 2.23 导入一个go的工程，有些依赖找不到，改怎么办？
+
+https://www.cnblogs.com/niuben/p/16182001.html
+
+#### 2.24 [值拷贝 与 引用拷贝，深拷贝 与 浅拷贝](https://www.cnblogs.com/yizhixiaowenzi/p/14664222.html)
+
+map，slice，chan 是引用拷贝；引用拷贝 是 浅拷贝
+
+其余的，都是 值拷贝；值拷贝 是 深拷贝
+
+**深浅拷贝的本质区别**：
+
+是否真正获取对象实体，而不是引用
+
+**深拷贝：**
+
+拷贝的是数据本身，创造一个新的对象，并在内存中开辟一个新的内存地址，与原对象是完全独立的，不共享内存，修改新对象时不会影响原对象的值。释放内存时，也没有任何关联。
+
+**值拷贝：**
+
+接收的是 整个array的值拷贝，所以方法对array中元素的重新赋值不起作用。
+
+```go
+package main  
+
+import "fmt"  
+
+func modify(a [3]int) {  
+    a[0] = 4  
+    fmt.Println("modify",a)             // modify [4 2 3]
+}  
+
+func main() {  
+    a := [3]int{1, 2, 3}  
+    modify(a)  
+    fmt.Println("main",a)                  // main [1 2 3]
+}  
+```
+
+**浅拷贝：**
+
+拷贝的是数据地址，只复制指向的对象的指针，新旧对象的内存地址是一样的，修改一个另一个也会变。释放内存时，同时释放。
+
+**引用拷贝：**
+
+函数的引用拷贝与原始的引用指向同一个数组，所以对数组中元素的修改，是有效的
+
+```go
+package main  
+  
+import "fmt"  
+  
+func modify(s []int) {  
+    s[0] = 4  
+    fmt.Println("modify",s)          // modify [4 2 3]
+}  
+  
+func main() {  
+    s := []int{1, 2, 3}  
+    modify(s)  
+    fmt.Println("main",s)              // main [4 2 3]
+}
+```
+
+### 三、slice 切片
+
+#### **3.1 数组和切片的区别 （基本必问）**
+
+1. **相同点：**
+
+- 只能存储一组相同类型的数据结构
+
+- 都是通过下标来访问，并且有容量长度，长度通过 len 获取，容量通过 cap 获取
+
+2. **区别：**
+
+- 数组是定长，访问和复制不能超过数组定义的长度，否则就会下标越界，切片长度和容量可以自动扩容
+
+- 数组是值类型，切片是引用类型，每个切片都引用了一个底层数组，切片本身不能存储任何数据，都是这底层数组存储数据，所以修改切片的时候修改的是底层数组中的数据。切片一旦扩容，指向一个新的底层数组，内存地址也就随之改变
+
+3. **简洁的回答：**
+
+- 定义方式不一样 2）初始化方式不一样，数组需要指定大小，大小不改变 3）在函数传递中，数组切片都是值传递。
+
+4. **数组的定义**
+
+```go
+var a1 [3]int
+
+var a2 [...]int{1,2,3}
+```
+
+5. **切片的定义**
+
+```go
+var a1 []int
+
+var a2 := make([]int,3,5)
+```
+
+6. **数组的初始化**
+
+```go
+a1 := [...]int{1,2,3}
+
+a2 := [5]int{1,2,3}
+```
+
+7. **切片的初始化**
+
+```go
+b := make([]int,3,5)
+```
+
+#### **3.2 讲讲 Go 的 slice 底层数据结构和一些特性？**
+
+答：Go 的 slice 底层数据结构是由一个 array 指针指向底层数组，len 表示切片长度，cap 表示切片容量。slice 的主要实现是扩容。对于 append 向 slice 添加元素时，假如 slice 容量够用，则追加新元素进去，slice.len++，返回原来的 slice。当原容量不够，则 slice 先扩容，扩容之后 slice 得到新的 slice，将元素追加进新的 slice，slice.len++，返回新的 slice。对于切片的扩容规则：当切片比较小时（容量小于 1024），则采用较大的扩容倍速进行扩容（新的扩容会是原来的 2 倍），避免频繁扩容，从而减少内存分配的次数和数据拷贝的代价。当切片较大的时（原来的 slice 的容量大于或者等于 1024），采用较小的扩容倍速（新的扩容将扩大大于或者等于原来 1.25 倍），主要避免空间浪费，网上其实很多总结的是 1.25 倍，那是在不考虑内存对齐的情况下，实际上还要考虑内存对齐，扩容是大于或者等于 1.25 倍。
+
+（关于刚才问的 slice 为什么传到函数内可能被修改，如果 slice 在函数内没有出现扩容，函数外和函数内 slice 变量指向是同一个数组，则函数内复制的 slice 变量值出现更改，函数外这个 slice 变量值也会被修改。如果 slice 在函数内出现扩容，则函数内变量的值会新生成一个数组（也就是新的 slice，而函数外的 slice 指向的还是原来的 slice，则函数内的修改不会影响函数外的 slice。）
+
+#### 3.3 golang中数组和slice作为参数的区别？slice作为参数传递有什么问题？
+
+https://blog.csdn.net/weixin_44387482/article/details/119763558
+
+1. 当使用数组作为参数和返回值的时候，传进去的是值，在函数内部对数组进行修改并不会影响原数据
+2. 当切片作为参数的时候穿进去的是值，也就是值传递，但是当我在函数里面修改切片的时候，我们发现源数据也会被修改，这是因为我们在切片的底层维护这一个匿名的数组，当我们把切片当成参数的时候，会重现创建一个切片，但是创建的这个切片和我们原来的数据是共享数据源的，所以在函数内被修改，源数据也会被修改
+3. 数组还是切片，在函数中传递的时候如果没有指定为指针传递的话，都是值传递，但是切片在传递的过程中，有着共享底层数组的风险，所以如果在函数内部进行了更改的时候，会修改到源数据，所以我们需要根据不同的需求来处理，如果我们不希望源数据被修改话的我们可以使用copy函数复制切片后再传入，如果希望源数据被修改的话我们应该使用指针传递的方式
+
+
+
+
+
+
+
+
+
 
 
 
