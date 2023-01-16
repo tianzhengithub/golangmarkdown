@@ -805,6 +805,532 @@ https://blog.csdn.net/weixin_44387482/article/details/119763558
 2. 当切片作为参数的时候穿进去的是值，也就是值传递，但是当我在函数里面修改切片的时候，我们发现源数据也会被修改，这是因为我们在切片的底层维护这一个匿名的数组，当我们把切片当成参数的时候，会重现创建一个切片，但是创建的这个切片和我们原来的数据是共享数据源的，所以在函数内被修改，源数据也会被修改
 3. 数组还是切片，在函数中传递的时候如果没有指定为指针传递的话，都是值传递，但是切片在传递的过程中，有着共享底层数组的风险，所以如果在函数内部进行了更改的时候，会修改到源数据，所以我们需要根据不同的需求来处理，如果我们不希望源数据被修改话的我们可以使用copy函数复制切片后再传入，如果希望源数据被修改的话我们应该使用指针传递的方式
 
+### **四、map相关**
+
+#### 4.1 map 使用注意的点，是否并发安全？
+
+map的类型是map[key]，key类型的ke必须是可比较的，通常情况，会选择内建的基本类型，比如整数、字符串做key的类型。如果要使用struct作为key，要保证struct对象在逻辑上是不可变的。在Go语言中，map[key]函数返回结果可以是一个值，也可以是两个值。map是无序的，如果我们想要保证遍历map时元素有序，可以使用辅助的数据结构，例如orderedmap。
+
+**第一**、 一定要先初始化，否则panic
+
+**第二** 、map类型是容易发生并发访问问题的。不注意就容易发生程序运行时并发读写导致的panic。 Go语言内建的map对象不是线程安全的，并发读写的时候运行时会有检查，遇到并发问题就会导致panic。
+
+#### 4.2 map 循环是有序的还是无序的？
+
+无序的, map 因扩张⽽重新哈希时，各键值项存储位置都可能会发生改变，顺序自然也没法保证了，所以官方避免大家依赖顺序，直接打乱处理。就是 for range map 在开始处理循环逻辑的时候，就做了随机播种
+
+#### 4.3 map 中删除一个 key，它的内存会释放么？（常问）
+
+如果删除的元素是值类型，如int，float，bool，string以及数组和struct，map的内存不会自动释放
+
+如果删除的元素是引用类型，如指针，slice，map，chan等，map的内存会自动释放，但释放的内存是子元素应用类型的内存占用
+
+将map设置为nil后，内存被回收。
+
+**这个问题还需要大家去搜索下答案，我记得有不一样的说法，谨慎采用本题答案。**
+
+#### 4.4 怎么处理对 map 进行并发访问？有没有其他方案？ 区别是什么？
+
+##### 4.4.1 map 是什么
+
+map 是 Go 中用于存储key-value关系数据的数据结构，类似 C++ 中的 map。Go 中 map 的使用很简单，但是对于初学者，经常会犯两个错误：没有初始化，并发读写。
+
+1. 未初始化的 map 都是 nil，直接赋值 panic。map 作为结构体成员的时候，很容易忘记对它的初始化。
+2. 并发读写使我们使用 map 中很常见的一个错误。多个协程读写同一个 key 的时候，会出现冲突，导致 panic。
+
+Go 内置的 map 类型并没有对并发场景进行优化，但是并发场景又很常见，如何实现线程安全（并发安全）的 map 就很重要。
+
+##### 4.4.2 三种线程安全的 map
+
+1. **加读写锁（RWMutex）**
+
+这是最容易想到的一种方式。常见的 map 的操作有增删改查和遍历，这里面查和遍历是读操作，增删改是写操作，因此对查和遍历需要加读锁，对增删改需要加写锁。
+
+以 map[int]int 为例，借助 RWMutex，具体的实现方式如下:
+
+```go
+type RWMap struct { // 一个读写锁保护的线程安全的map
+    sync.RWMutex // 读写锁保护下面的map字段
+    m map[int]int
+}
+// 新建一个RWMap
+func NewRWMap(n int) *RWMap {
+    return &RWMap{
+        m: make(map[int]int, n),
+    }
+}
+func (m *RWMap) Get(k int) (int, bool) { //从map中读取一个值
+    m.RLock()
+    defer m.RUnlock()
+    v, existed := m.m[k] // 在锁的保护下从map中读取
+    return v, existed
+}
+ 
+func (m *RWMap) Set(k int, v int) { // 设置一个键值对
+    m.Lock()              // 锁保护
+    defer m.Unlock()
+    m.m[k] = v
+}
+ 
+func (m *RWMap) Delete(k int) { //删除一个键
+    m.Lock()                   // 锁保护
+    defer m.Unlock()
+    delete(m.m, k)
+}
+ 
+func (m *RWMap) Len() int { // map的长度
+    m.RLock()   // 锁保护
+    defer m.RUnlock()
+    return len(m.m)
+}
+ 
+func (m *RWMap) Each(f func(k, v int) bool) { // 遍历map
+    m.RLock()             //遍历期间一直持有读锁
+    defer m.RUnlock()
+ 
+    for k, v := range m.m {
+        if !f(k, v) {
+            return
+        }
+    }
+}
+```
+
+2. **分片加锁**
+
+通过读写锁RWMutex 实现的线程安全的  map，功能上已经完全满足需求，但是要面对高并发的场景，仅仅功能满足可不行，性能也得跟上。锁是性能下降的万恶之源之一。所以并发编程的原则就是尽可能的减少锁的使用。当锁不得可用的时候，可以减小锁的力度和持有的时间。
+
+在第一种方法中，加锁的对象是整个map，协程A对 map 中的 key 进行修改操作，会导致其它协程无法对其它 key 进行读写操作。一种解决思路是将这个 map 分成 n 快，每个块之间的读写操作互不干扰，从而降低冲突的可能性。
+
+Go 比较知名的分配 map 的实现是 orcaman/concurrent-map，它的定义如下：
+
+```go
+var SHARD_COUNT = 32
+   
+// 分成SHARD_COUNT个分片的map
+type ConcurrentMap []*ConcurrentMapShared
+   
+// 通过RWMutex保护的线程安全的分片，包含一个map
+type ConcurrentMapShared struct {
+    items        map[string]interface{}
+    sync.RWMutex // Read Write mutex, guards access to internal map.
+}
+   
+// 创建并发map
+func New() ConcurrentMap {
+    m := make(ConcurrentMap, SHARD_COUNT)
+    for i := 0; i < SHARD_COUNT; i++ {
+        m[i] = &ConcurrentMapShared{items: make(map[string]interface{})}
+    }
+    return m
+}
+   
+ 
+// 根据key计算分片索引
+func (m ConcurrentMap) GetShard(key string) *ConcurrentMapShared {
+    return m[uint(fnv32(key))%uint(SHARD_COUNT)]
+}
+```
+
+ConcurrentMap 其实就是一个切片，切片的每个元素都是第一种方法中携带了读写锁的 map。
+
+这里面 GetShard 方法就是用来计算每一个 key 应该分配到哪个分片上。
+
+再来看一下 Set 和 Get 操作。
+
+```go
+func (m ConcurrentMap) Set(key string, value interface{}) {
+    // 根据key计算出对应的分片
+    shard := m.GetShard(key)
+    shard.Lock() //对这个分片加锁，执行业务操作
+    shard.items[key] = value
+    shard.Unlock()
+}
+ 
+func (m ConcurrentMap) Get(key string) (interface{}, bool) {
+    // 根据key计算出对应的分片
+    shard := m.GetShard(key)
+    shard.RLock()
+    // 从这个分片读取key的值
+    val, ok := shard.items[key]
+    shard.RUnlock()
+    return val, ok
+}
+```
+
+Get 和 Set 方法类似，都是根据 key 用 GetShard 计算出分片索引，找到对应的 map 块，执行读写操作。
+
+3. sync 中的 map
+
+分片加锁的思路是将大块的数据切分成小块的数据，从而减少冲突导致锁阻塞的可能性。如果在一些特殊的场景下，将读写数据分开，是不是能在进一步提升性能呢？
+
+在内置的 sync 包中（Go 1.9+）也有一个线程安全的 map，通过将读写分离的方式实现了某些特定场景下的性能提升。
+
+其实在生产环境中，sync.map 用的很少，官方文档推荐的两种使用场景是：
+
+> a) when the entry for a given key is only ever written once but read many times, as in caches that only grow.
+> b) when multiple goroutines read, write, and overwrite entries for disjoint sets of keys.
+
+两种场景都比较苛刻，要么是一写多读，要么是各个协程操作的 key 集合没有交集（或者交集很少）。所以官方建议先对自己的场景做性能测评，如果确实能显著提高性能，再使用 sync.map。
+
+sync.map 的整体思路就是用两个数据结构（只读的 read 和可写的 dirty）尽量将读写操作分开，来减少锁对性能的影响。
+
+下面详细看下 sync.map 的定义和增删改查实现。
+
+3. **sync.map 数据结构定义** 
+
+```go
+type Map struct {
+    mu Mutex
+    // 基本上你可以把它看成一个安全的只读的map
+    // 它包含的元素其实也是通过原子操作更新的，但是已删除的entry就需要加锁操作了
+    read atomic.Value // readOnly
+ 
+    // 包含需要加锁才能访问的元素
+    // 包括所有在read字段中但未被expunged（删除）的元素以及新加的元素
+    dirty map[interface{}]*entry
+ 
+    // 记录从read中读取miss的次数，一旦miss数和dirty长度一样了，就会把dirty提升为read，并把dirty置空
+    misses int
+}
+ 
+type readOnly struct {
+    m       map[interface{}]*entry
+    amended bool // 当dirty中包含read没有的数据时为true，比如新增一条数据
+}
+ 
+// expunged是用来标识此项已经删掉的指针
+// 当map中的一个项目被删除了，只是把它的值标记为expunged，以后才有机会真正删除此项
+var expunged = unsafe.Pointer(new(interface{}))
+ 
+// entry代表一个值
+type entry struct {
+    p unsafe.Pointer // *interface{}
+}
+```
+
+Map 的定义中，read 字段通过 atomic.Values 存储被高频读的 readOnly 类型的数据。dirty 存储
+
+4. **Store 方法**
+
+Store 方法用来设置一个键值对，或者更新一个键值对。
+
+```go
+func (m *Map) Store(key, value interface{}) {
+    read, _ := m.read.Load().(readOnly)
+    // 如果read字段包含这个项，说明是更新，cas更新项目的值即可
+    if e, ok := read.m[key]; ok && e.tryStore(&value) {
+        return
+    }
+ 
+    // read中不存在，或者cas更新失败，就需要加锁访问dirty了
+    m.mu.Lock()
+    read, _ = m.read.Load().(readOnly)
+    if e, ok := read.m[key]; ok { // 双检查，看看read是否已经存在了
+        if e.unexpungeLocked() {
+            // 此项目先前已经被删除了，需要添加到 dirty 中
+            m.dirty[key] = e
+        }
+        e.storeLocked(&value) // 更新
+    } else if e, ok := m.dirty[key]; ok { // 如果dirty中有此项
+        e.storeLocked(&value) // 直接更新
+    } else { // 否则就是一个新的key
+        if !read.amended { //如果dirty为nil
+            // 需要创建dirty对象，并且标记read的amended为true,
+            // 说明有元素它不包含而dirty包含
+            m.dirtyLocked()
+            m.read.Store(readOnly{m: read.m, amended: true})
+        }
+        m.dirty[key] = newEntry(value) //将新值增加到dirty对象中
+    }
+    m.mu.Unlock()
+}
+ 
+// tryStore利用 cas 操作来更新value。
+// 更新之前会判断这个键值对有没有被打上删除的标记
+func (e *entry) tryStore(i *interface{}) bool {
+    for {
+        p := atomic.LoadPointer(&e.p)
+        if p == expunged {
+            return false
+        }
+        if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
+            return true
+        }
+    }
+}
+ 
+// 将值设置成 nil，表示没有被删除
+func (e *entry) unexpungeLocked() (wasExpunged bool) {
+    return atomic.CompareAndSwapPointer(&e.p, expunged, nil)
+}
+ 
+// 通过复制 read 生成 dirty
+func (m *Map) dirtyLocked() {
+    if m.dirty != nil {
+        return
+    }
+ 
+    read, _ := m.read.Load().(readOnly)
+    m.dirty = make(map[interface{}]*entry, len(read.m))
+    for k, e := range read.m {
+        if !e.tryExpungeLocked() {
+            m.dirty[k] = e
+        }
+    }
+}
+ 
+// 标记删除
+func (e *entry) tryExpungeLocked() (isExpunged bool) {
+    p := atomic.LoadPointer(&e.p)
+    for p == nil {
+        if atomic.CompareAndSwapPointer(&e.p, nil, expunged) {
+            return true
+        }
+        p = atomic.LoadPointer(&e.p)
+    }
+    return p == expunged
+}
+```
+
+第2-6行，通过 cas 进行键值对更新，更新成功直接返回。
+
+第8-28行，通过互斥锁加锁来处理处理新增键值对和更新失败的场景（键值对被标记删除）。
+
+第11行，再次检查 read 中是否已经存在要 Store 的 key（双检查是因为之前检查的时候没有加锁，中途可能有协程修改了 read）。
+
+如果该键值对之前被标记删除，先将这个键值对写到 dirty 中，同时更新 read。
+
+如果 dirty 中已经有这一项了，直接更新 read。
+
+如果是一个新的 key。dirty 为空的情况下通过复制 read 创建 dirty，不为空的情况下直接更新 dirty。
+
+5. **Load 方法**
+
+Load 方法比较简单，先是从 read 中读数据，读不到，再通过互斥锁锁从 dirty 中读数据。
+
+```go
+func (m *Map) Load(key interface{}) (value interface{}, ok bool) {
+    // 首先从read处理
+    read, _ := m.read.Load().(readOnly)
+    e, ok := read.m[key]
+    if !ok && read.amended { // 如果不存在并且dirty不为nil(有新的元素)
+        m.mu.Lock()
+        // 双检查，看看read中现在是否存在此key
+        read, _ = m.read.Load().(readOnly)
+        e, ok = read.m[key]
+        if !ok && read.amended {//依然不存在，并且dirty不为nil
+            e, ok = m.dirty[key]// 从dirty中读取
+            // 不管dirty中存不存在，miss数都加1
+            m.missLocked()
+        }
+        m.mu.Unlock()
+    }
+    if !ok {
+        return nil, false
+    }
+    return e.load() //返回读取的对象，e既可能是从read中获得的，也可能是从dirty中获得的
+}
+ 
+func (m *Map) missLocked() {
+    m.misses++ // misses计数加一
+    if m.misses < len(m.dirty) { // 如果没达到阈值(dirty字段的长度),返回
+        return
+    }
+    m.read.Store(readOnly{m: m.dirty}) //把dirty字段的内存提升为read字段
+    m.dirty = nil // 清空dirty
+    m.misses = 0  // misses数重置为0
+}
+```
+
+这里需要注意的是，如果出现多次从 read 中读不到数据，得到 dirty 中读取的情况，就直接把 dirty 升级成 read，以提高 read 效率。
+
+6. **Delete 方法**
+
+下面是 Go1.13 中 Delete 的实现方式，如果 key 在 read 中，就将值置成 nil；如果在 dirty 中，直接删除 key。
+
+```go
+func (m *Map) Delete(key interface{}) {
+    read, _ := m.read.Load().(readOnly)
+    e, ok := read.m[key]
+    if !ok && read.amended {
+        m.mu.Lock()
+        read, _ = m.read.Load().(readOnly)
+        e, ok = read.m[key]
+        if !ok && read.amended { // 说明可能在
+            delete(m.dirty, key)
+        }
+        m.mu.Unlock()
+    }
+    if ok {
+        e.delete()
+    }
+}
+ 
+func (e *entry) delete() (hadValue bool) {
+    for {
+        p := atomic.LoadPointer(&e.p)
+        if p == nil || p == expunged {
+            return false
+        }
+        if atomic.CompareAndSwapPointer(&e.p, p, nil) {
+            return true
+        }
+    }
+}
+```
+
+补充说明一下，delete() 执行完之后，e.p 变成 nil，下次 Store 的时候，执行到 dirtyLocked() 这一步的时候，会被标记成 enpunged。因此在 read 中 nil 和 enpunged 都表示删除状态。
+
+7. **sync.map 总结**
+
+上面对源码粗略的梳理了一遍，最后在总结一下 sync.map 的实现思路：
+
+- 读写分离。读（更新）相关的操作尽量通过不加锁的 read 实现，写（新增）相关的操作通过 dirty 加锁实现。
+- 动态调整。新写入的 key 都只存在 dirty 中，如果 dirty 中的 key 被多次读取，dirty 就会上升成不需要加锁的 read。
+- 延迟删除。Delete 只是把被删除的 key 标记成 nil，新增 key-value 的时候，标记成 enpunged；dirty 上升成 read 的时候，标记删除的 key 被批量移出 map。这样的好处是 dirty 变成 read 之前，这些 key 都会命中 read，而 read 不需要加锁，无论是读还是更新，性能都很高。
+
+总结了 sync.map 的设计思路后，我们就能理解官方文档推荐的 sync.map 的两种应用场景了。
+
+8. **总结**
+
+Go 内置的 map 使用起来很方便，但是在并发频繁的 Go 程序中很容易出现并发读写冲突导致的问题。本文介绍了三种常见的线程安全 map 的实现方式，分别是读写锁、分片锁和 sync.map。
+
+较常使用的是前两种，而在特定的场景下，sync.map 的性能会有更优的表现。
+
+##### 4.4.3 nil map和空 map 有何不同？
+
+1. 可以对未初始化的 map 进行取值，但取出来的东西是空：
+
+```go
+var m map[string]string
+fmt.println(m["1"])
+```
+
+2. 不能对为初始化的 map 进行复制，这样将会抛出一个异常：
+
+未初始化的 map 是 nil，它与一个空 map 基本等价，只是 nil 的map 不允许往里面添加值。
+
+```go
+var m1 map[string]string
+m1["1"] = "1"
+panic: assignment to entry in nil map
+
+//因此，map是nil时，取值是不会报错的（取不到而已），但增加值会报错。
+
+//其实，还有一个区别，delete一个nil map会panic，
+//但是delete 空map是一个空操作（并不会panic）
+//（这个区别在最新的Go tips中已经没有了，即：delete一个nil map也不会panic）
+```
+
+3. 通过 fmt 打印 map 时，空 map 和 nil  map 结果是一样的，都为 map[]。所以，这个时候别判定 map 是空还是 nil，而应该通过map == nil 来判断。
+
+   **nil map 未初始化，空 map 是长度为空**
+
+##### 4.4.4 map的数据结构是什么
+
+golang 中 map 是一个  kv 对集合。底层使用 hash table，用链表来解决冲突，出现冲突时，不是每一个 key 都申请一个结构通过链表串起来，而是以 bmap 为最小粒度挂载，一个bmap 可以放 8 个 kv。在哈希函数的选择上，会在程序启动时，检测 cpu 是否支持 aes，如果支持，则使用 aes hash，否则使用 memhash。每个 map 的底层结构是 hmap，是有若干个结构为 bmap的 bucket 组成的数组。每个 bucket 底层都采用链表结构。
+
+**hmap 的结构如下**：
+
+```go
+type hmap struct {     
+    count     int                  // 元素个数     
+    flags     uint8     
+    B         uint8                // 扩容常量相关字段B是buckets数组的长度的对数 2^B     
+    noverflow uint16               // 溢出的bucket个数     
+    hash0     uint32               // hash seed     
+    buckets    unsafe.Pointer      // buckets 数组指针     
+    oldbuckets unsafe.Pointer      // 结构扩容的时候用于赋值的buckets数组     
+    nevacuate  uintptr             // 搬迁进度     
+    extra *mapextra                // 用于扩容的指针 
+}
+```
+
+**下图展示一个拥有4个bucket的map：**
+
+![4](images/4.png)
+
+本例中, hmap.B=2， 而hmap.buckets长度是2^B为4. 元素经过哈希运算后会落到某个bucket中进行存储。查找过程类似。
+
+bucket很多时候被翻译为桶，所谓的哈希桶实际上就是bucket。
+
+**bucket数据结构**
+
+bucket数据结构由runtime/map.go:bmap定义：
+
+```go
+type bmap struct {
+    tophash [8]uint8 //存储哈希值的高8位
+    data    byte[1]  //key value数据:key/key/key/.../value/value/value...
+    overflow *bmap   //溢出bucket的地址
+}
+```
+
+每个bucket可以存储8个键值对。
+
+- tophash是个长度为8的数组，哈希值相同的键（准确的说是哈希值低位相同的键）存入当前bucket时会将哈希值的高位存储在该数组中，以方便后续匹配。
+- data区存放的是key-value数据，存放顺序是key/key/key/…value/value/value，如此存放是为了节省字节对齐带来的空间浪费。
+- overflow 指针指向的是下一个bucket，据此将所有冲突的键连接起来。
+
+注意：上述中data和overflow并不是在结构体中显示定义的，而是直接通过指针运算进行访问的。
+
+下图展示bucket存放8个key-value对：
+
+![5](images/5.png)
+
+**解决哈希冲突（四种方法）**
+
+1. **了解哈希表及哈希冲突**
+
+> 哈希表：是一种实现关联数组抽象数据类型的数据结构，这种结构可以将关键码映射到给定值。简单来说哈希表（key-value）之间存在一个映射关系，是键值对的关系，一个键对应一个值。
+>
+> 哈希冲突：当两个不同的数经过哈希函数计算后得到了同一个结果，即他们会被映射到哈希表的同一个位置时，即称为发生了哈希冲突。简单来说就是哈希函数算出来的地址被别的元素占用了。
+
+2. **解决哈希冲突办法**
+
+> ①：开放地址法：我们在遇到哈希冲突时，去寻找一个新的空闲的哈希地址。
+>
+> 举例：就是当我们去教室上课，发现该位置已经存在人了，所以我们应该寻找新的位子坐下，这就是开放定址法的思路。如何寻找新的位置就通过以下几种方法实现
+>
+> - 线性探测法
+>
+>   当我们所需要存放值的位置被占用了，我们就往后面一直加 1 并对 m 取模直到存在一个空余的地址供我们存放值，取模是为了保证找到的位置 0~m-1 的有效空间之中。
+>
+>   ![6](images/6.png)
+>
+>   存在问题：出现非同义词冲突（两个不想同的哈希值，抢占同一个后续的哈希地址）被称为堆积或聚集现象。
+>
+> - 平方探测法（二次探测）
+>
+>   当我们的所需要存放值的位置被占了，会前后寻找而不是单独方向的寻找。
+>
+>           公式：h(x)=(Hash(x) +i)mod (Hashtable.length);（i依次为+(i^2)和-(i^2)）
+>       
+>           举例：
+>
+>   ![7](images/7.png)
+
+​	
+
+> ②：再哈希法：同时构造多个不同的哈希函数，等发生哈希冲突时就使用第二个、第三个……等其他的哈希函数计算地址，直到不发生冲突为止。虽然不易发生聚集，但是增加了计算时间。
+>
+> ③：链地址法：将所有哈希地址相同的记录都链接在同一链表中。
+>
+> 公式：h(x)=xmod(Hashtable.length);
+>
+> ![8](images/8.png)
+>
+> ④：建立公共溢出区：将哈希表分为基本表和溢出表，将发生冲突的都存放在溢出表中。
+
+
+
+
+
+
+
+
+
 
 
 
