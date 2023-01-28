@@ -1391,17 +1391,454 @@ hmap 数据结构中 oldbuckets成员值身bucket，而buckets指向了新申请
 
 上图课件，overflow的bucket中大部分是空的，访问效率会很差。此时进行一次等量扩容，即buckets数量不变，经过重新组织后overflow的bucket数量会减少，即节省了空间又提高访问效率。
 
+##### 4.4.6 查找过程
+
+查找过程如下：
+
+1. 根据key值算出哈希值。
+2. 取哈希值低位与hmap.B取模确定bucket位置。
+3. 取哈希值高位在tophash数组中查询。
+4. 如果tophash[i] 中存储值也哈希值相等，则去找到改 bucket 中的key值进行比较。
+5. 如果bucket没有找到，则继续从下一个overflow的bucket中查找。
+6. 如果当前处于搬迁过程，则优先从 oldbuckets 查找。
+
+注：如果查找不到，也不会返回空值，而是返回相应类型的 0 值。
+
+##### 4.4.7 插入过程
+
+新元素插入过程如下：
+
+1. 根据key值计算哈希值。
+2. 取哈希值低位与 hmap.B取模确定 bucket 位置。
+3. 查找该 key 是否已经存在，如果存在则直接更新值。
+4. 如果没有找到将key，将key插入。
+
+##### 4.4.8 slices能作为 map 类型的 key 嘛？
+
+当时被问的一脸懵逼，其实是这个问题的变种：golang那些类型可以作为 map key ？
+
+答案是：在 golang规范中，可以比较的类型都可以作为 map key；这个问题又衍生到：golang规范中，那些数据类型可以比较？
+
+**不能作为 map key 的类型包括：**
+
+- slices
+- maps
+- functions
+
+### 五、接口
+
+#### 5.1 Go 语言与鸭子类型的关系
+
+总结一下，鸭子类型是一种动态语言的风格，在这种风格中，一个对象有效的语义，不是由继承自特定的类或实现特定的接口，而是由它"当前方法和属性的集合"决定。Go 作为一种静态语言，通过接口实现了 `鸭子类型`，实际上是 Go 的编译器在其中作了隐匿的转换工作。
+
+#### 5.2 值接收者和指针接收者的区别
+
+方法能给用户自定义的类型添加新的行为。它和函数的区别在于方法有一个接收者，给一个函数添加一个接收者，那么它就变成了方法。接收者可以是`值接收者`，也可以是`指针接收者`。
+
+在调用方法的时候，值类型既可以调用`值接收者`的方法，也可以调用`指针接收者`的方法；指针类型既可以调用`指针接收者`的方法，也可以调用`值接收者`的方法。
+
+也就是说，不管方法的接收者是什么类型，该类型的值和指针都可以调用，不必严格符合接收者的类型。
+
+实际上，当类型和方法的接收者类型不同时，其实是编译器在背后做了一些工作，用一个表格来呈现：
+
+| -              | 值接收者                                                     | 指针接收者                                                   |
+| -------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 值类型调用者   | 方法会使用调用者的一个副本，类似于“传值”                     | 使用值的引用来调用方法，上例中，`qcrao.growUp()` 实际上是 `(&qcrao).growUp()` |
+| 指针类型调用者 | 指针被解引用为值，上例中，`stefno.howOld()` 实际上是 `(*stefno).howOld()` | 实际上也是“传值”，方法里的操作会影响到调用者，类似于指针传参，拷贝了一份指针 |
+
+#### 值接收者和指针接收者
+
+前面说过，不管接收者类型是值类型还是指针类型，都可以通过值类型或指针类型调用，这里面实际上通过语法糖起作用的。
+
+先说结论：实现了接收者是值类型的方法，相当于自动实现了接收者是指针类型的方法；而实现了接收者是指针类型的方法，不会自动生成对应接收者是值类型的方法。
+
+所以，当实现了一个接收者是值类型的方法，就可以自动生成一个接收者是对应指针类型的方法，因为两者都不会影响接收者。但是，当实现了一个接收者是指针类型的方法，如果此时自动生成一个接收者是值类型的方法，原本期望对接收者的改变（通过指针实现），现在无法实现，因为值类型会产生一个拷贝，不会真正影响调用者。
+
+最后，只要记住下面这点就可以了：
+
+> 如果实现了接收者是值类型的方法，会隐含地也实现了接收者是指针类型的方法。
+
+#### 两者分别在何时使用
+
+如果方法的接收者是值类型，无论调用者是对象还是对象指针，修改的都是对象的副本，不影响调用者；如果方法的接收者是指针类型，则调用者修改的是指针指向的对象本身。
+
+使用指针作为方法的接收者的理由：
+
+- 方法能够修改接收者指向的值。
+- 避免在每次调用方法时复制该值，在值的类型为大型结构体时，这样做会更加高效。
+
+是使用值接收者还是指针接收者，不是由该方法是否修改了调用者（也就是接收者）来决定，而是应该基于该类型的`本质`。
+
+如果类型具备“原始的本质”，也就是说它的成员都是由 Go 语言里内置的原始类型，如字符串，整型值等，那就定义值接收者类型的方法。像内置的引用类型，如 slice，map，interface，channel，这些类型比较特殊，声明他们的时候，实际上是创建了一个 `header`， 对于他们也是直接定义值接收者类型的方法。这样，调用函数时，是直接 copy 了这些类型的 `header`，而 `header` 本身就是为复制设计的。
+
+如果类型具备非原始的本质，不能被安全地复制，这种类型总是应该被共享，那就定义指针接收者的方法。比如 go 源码里的文件结构体（struct File）就不应该被复制，应该只有一份`实体`。
+
+#### 5.3 iface 和 eface 的区别是什么
+
+iface 和 eface 都是go中描述接口的底层结构体，区别在于iface 描述的结构包含方法，而 eface 则是不包含任何方法的空接口：interface{}。
+
+从源码层面看一下：
+
+```go
+type iface struct {
+	tab  *itab
+	data unsafe.Pointer
+}
+
+type itab struct {
+	inter  *interfacetype
+	_type  *_type
+	link   *itab
+	hash   uint32 // copy of _type.hash. Used for type switches.
+	bad    bool   // type does not implement interface
+	inhash bool   // has this itab been added to hash?
+	unused [2]byte
+	fun    [1]uintptr // variable sized
+}
+```
+
+iface 内部维护两个指针，tab 指向一个 itab 实体，它表示接口的类型以及赋给这个接口的实体类型。data 则指向接口具体的值，一般而言是一个指向堆内存的指针。
+
+在来仔细看一下 itab 结构体：_type字段描述了实体的类型，包括内存对齐的方式，大小等； inter 字段则描述了接口的类型。fun 字段放置和接口方法对应的具体数据类型的方法地址，实现接口调用方法的动态分派，一般在每次给接口赋值发生转换时会更新此表，或者直接拿缓存的 itab。
+
+这里只会列出实体类型和接口相关的方法，实体类型的其他方法并不会出现在这里。
+
+另外，你可能会觉得奇怪，为什么 fun 数组的大小为 1，要是接口定义了多个方法可怎么办？实际上，这里存储的是第一个方法的函数指针，如果有更多的方法，在它之后的内存空间里继续存储。从汇编角度来看，通过增加地址就能获取到这些函数指针，没什么影响。顺便提一句，这再看一下 interfacetype 类型，它描述的是接口的类型：
+
+```go
+type interfacetype struct {
+	typ     _type
+	pkgpath name
+	mhdr    []imethod
+}
+```
+
+可以看到，它包装了 _type 类型，`_type` 实际上是描述 Go 语言各种数据类型的结构体。我们注意到，这里还包含一个  mhdr 字段，表示接口所定义的函数列表， `pkgpath` 记录定义了接口的包名。
+
+![12](images/12.png)
 
 
 
+接着来看一下eface的源码：
+
+```go
+type eface struct {
+    _type *_type
+    data  unsafe.Pointer
+}
+```
+
+相比 `iface`，`eface` 就比较简单了。只维护了一个 `_type` 字段，表示空接口所承载的具体的实体类型。`data` 描述了具体的值。
+
+![13](images/13.png)
+
+#### 5.4 接口的动态类型和动态值
+
+从源码里可以看到： `iface` 包含两个字段：tab 是接口表指针，指向类型信息； data 是数据指针，则指向具体的数据。它们分别被称为 动态类型 和 动态值。而 接口值包括 动态类型 和 动态值。
+
+【引申1】接口类型和 nil 作比较
+
+接口值的零值是值指`动态类型` 和 `动态值` 都为 nil。当且仅当这两部分的值都为 nil 的情况下，这个接口值就才回被认为 ，`接口值 == nil`
+
+#### 5.5 [编译器自动检测类型是否实现接口](http://golang.design/go-questions/interface/detect-impl/)
+
+#### 5.6 [接口的构造过程是怎样的](http://golang.design/go-questions/interface/construct/)
+
+#### 5.7 [类型转换和断言的区别](http://golang.design/go-questions/interface/assert/)
+
+我们知道，Go语言中不允许隐式类型转换，也就是说 `=` 两边，不允许出现类型不同的变量。
+
+`类型转换` 、`类型断言` 本质都是把一个类型转换成另外一个类型。不同之处在于，类型断言是对接口变量进行的操作。
+
+**类型转换**
+
+对于类型转换而言，转换前后的两个类型要互相兼容才行。类型转换的语法为：
+
+> <结果类型> := <目标类型> ( <表达式> )
+
+```go
+func main() {
+	var i int = 9
+
+	var f float64
+	f = float64(i)
+	fmt.Printf("%T, %v\n", f, f)
+
+	f = 10.8
+	a := int(f)
+	fmt.Printf("%T, %v\n", a, a)
+}
+```
+
+**断言**
+
+前面说过，因为空接口， interface{} 没有任何定义任何函数，因此Go中所有类型都实现了空接口。当一个函数的形参是 interface{}，那么在函数中，需要对形参进行断言，从而得到它的真实类型。
+
+**断言的语法为：**
+
+> <目标类型的值>，<布尔参数> := <表达式>.( 目标类型 ) // 安全类型断言
+>
+> <目标类型的值> := <表达式>.( 目标类型 )　　//非安全类型断言
+
+```go
+type Student struct {
+	Name string
+	Age int
+}
+
+func main() {
+	var i interface{} = new(Student)
+	s, ok := i.(Student)
+	if ok {
+		fmt.Println(s)
+	}
+}
+```
+
+断言其实还有另外一种形式，就是用在利用switch语句判断接口的类型。每一个case会被顺序地考虑。当命中一个 case 时，就会执行 case 中的语句，因此 case 语句的顺序很重要的，因为很有可能会有多个 case 匹配的情况。
+
+#### 5.8 [接口转换的原理](http://golang.design/go-questions/interface/convert/)
+
+通过前面提到的 `iface` 的源码可以看到，实际上它包含接口的类型 `interfacetype` 和 实体类型的类型 `_type`，这两者都是 `iface` 的字段 `itab` 的成员。也就是说生成一个 `itab` 同时需要接口的类型和实体的类型。
+
+```case
+<interface 类型， 实体类型> ->itable
+```
+
+当判定一种类型是否满足某个接口时，Go 使用类型的方法集和接口所需要的方法集进行匹配，如果类型的方法集完全包含接口的方法集则可认为该类型实现了该接口。
+
+例如某类型  m  个方法，某个接口有 n 个方法，则很容易知道这种判定的时间复杂度为 0(mn)，Go会对方法集的函数按照函数名的字典顺序进行排序，所以实际的时间复杂度为 0（m+n)。
+
+这里我们来探索将一个接口转换给另外一个接口背后的原理，当然，能转换的原因必然是类型兼容。
+
+> 1. 具体类型转空接口时，_type 字段直接复制源类型的 _type；调用 mallocgc 获得一块新内存，把值复制进去，data 再指向这块新内存。
+> 2. 具体类型转非空接口时，入参 tab 是编译器在编译阶段预先生成好的，新接口 tab 字段直接指向入参 tab 指向的 itab；调用 mallocgc 获得一块新内存，把值复制进去，data 再指向这块新内存。
+> 3. 而对于接口转接口，itab 调用 getitab 函数获取。只用生成一次，之后直接从 hash 表中获取。
+
+#### 5.9 如何用 interface 实现多态
+
+Go 语言并没有设计注入函数，纯虚函数，继承，多重继承等概念，但它通过接口却非常优雅的支持了面向对象的特征。
+
+多态是一种运行期的行为，它有以下几个特点：
+
+```go
+1. 一种类型具有多种类型的能力。
+2. 允许不同的对象对同一消息做出灵活的反应。
+3. 以一种通用的方式对待个使用的对象。
+4. 非动态语言必须通过继承和接口的方式来实现。
+```
+
+main 函数里先生成 student 和 programmer 的对象，再将他们分别传入到函数 whatJob 和 growUp。函数中，直接调用接口函数，实际执行的时候看最终传入的实体类型是什么，调用的是实例类型实现的函数。于是，不同对象针对同一消息就有多种表现，多态就实现了。
+
+#### 5.10 Go接口与 C++ 接口有何异同
+
+接口定义了一种规范，描述了类的行为和功能，而不坐具体实现。
+
+C++的接口是使用抽象类来实现的，如果类中至少有一个函数被声明为纯虚函数，则这个类就是抽象类。纯虚函数是通过在声明中使用 “= 0”来指定的。例如：
+
+```go
+class Shape
+{
+   public:
+      // 纯虚函数
+      virtual double getArea() = 0;
+   private:
+      string name;      // 名称
+};
+```
+
+设计抽象类的目的，是为了给其他类提供一个可以继承的适当的基类。抽象不能被用于实例化对象，它只能作为接口使用。
+
+派生类需要明确地声明它继承自基类，并且需要实现基类中所有的纯虚函数。
+
+C++定义接口的方式称为 "侵入式" ，而 go 采用的是 "非侵入式"，不需要显示声明，只需要实现接口定义的函数，编译器自动会识别。
+
+C++和go 在定义接口方式上的不同，也导致了底层实现上的不同。C++ 通过虚函数表来实现基类调用派生类的函数；而 Go 通过 itab 中的 fun 字段来实现接口变量调用实体类型的函数。C++ 中的虚函数表是在编译期生成的；而 Go 的 itab中的 fun字段是在运行期间动态生成的。原因在于，Go 中实体类型可能会无意中实现 N 多接口，很多接口并不是本来需要的，所以不能为类型实现的所以接口都生成一个 itab，这也是 非侵入式 带来的影响；这在 C++ 中是不存在的，因为派生需要声明它继承自那个基类。
+
+### 六、Context 相关
+
+Context通常被称为上下文，在go中，理解为goroutine的运行状态、现场，存在上下层goroutine context的传递，上层goroutine会把context传递给下层goroutine。
+
+每个goroutine在运行前，都要事先知道程序当前的执行状态，通常将这些状态封装在一个 context变量，传递给要执行的goroutine中。
+
+在网络编程中，当接收到一个网络请求的request，处理request时，可能会在多个goroutine中处理。而这些goroutine可能需要共享Request的一些信息；当request被取消或者超时时，所有从这个request创建的goroutine也要被结束。
+
+go context包不仅实现了在程序单元之间共享状态变量的方法，同时能通过简单的方法，在被调用程序单元外部，通过设置ctx变量的值，将过期或撤销等信号传递给被调用的程序单元。在网络编程中，如果存在A调用B的API，B调用C的 API，如果A调用B取消，那么B调用C也应该被取消，通过在A、B、C调用之间传递context，以及判断其状态，就能解决此问题。
+
+通过context包，可以非常方便地在请求goroutine之间传递请求数据、取消信号和超时信息。
+
+context包的核心时Context接口
+
+```go
+type Context interface {
+	// Deadline returns the time when work done on behalf of this context
+	// should be canceled. Deadline returns ok==false when no deadline is
+	// set. Successive calls to Deadline return the same results.
+	Deadline() (deadline time.Time, ok bool)
+
+	// Done returns a channel that's closed when work done on behalf of this
+	// context should be canceled. Done may return nil if this context can
+	// never be canceled. Successive calls to Done return the same value.
+	// The close of the Done channel may happen asynchronously,
+	// after the cancel function returns.
+	//
+	// WithCancel arranges for Done to be closed when cancel is called;
+	// WithDeadline arranges for Done to be closed when the deadline
+	// expires; WithTimeout arranges for Done to be closed when the timeout
+	// elapses.
+	//
+	// Done is provided for use in select statements:
+	//
+	//  // Stream generates values with DoSomething and sends them to out
+	//  // until DoSomething returns an error or ctx.Done is closed.
+	//  func Stream(ctx context.Context, out chan<- Value) error {
+	//  	for {
+	//  		v, err := DoSomething(ctx)
+	//  		if err != nil {
+	//  			return err
+	//  		}
+	//  		select {
+	//  		case <-ctx.Done():
+	//  			return ctx.Err()
+	//  		case out <- v:
+	//  		}
+	//  	}
+	//  }
+	//
+	// See https://blog.golang.org/pipelines for more examples of how to use
+	// a Done channel for cancellation.
+	Done() <-chan struct{}
+
+	// If Done is not yet closed, Err returns nil.
+	// If Done is closed, Err returns a non-nil error explaining why:
+	// Canceled if the context was canceled
+	// or DeadlineExceeded if the context's deadline passed.
+	// After Err returns a non-nil error, successive calls to Err return the same error.
+	Err() error
+
+	// Value returns the value associated with this context for key, or nil
+	// if no value is associated with key. Successive calls to Value with
+	// the same key returns the same result.
+	//
+	// Use context values only for request-scoped data that transits
+	// processes and API boundaries, not for passing optional parameters to
+	// functions.
+	//
+	// A key identifies a specific value in a Context. Functions that wish
+	// to store values in Context typically allocate a key in a global
+	// variable then use that key as the argument to context.WithValue and
+	// Context.Value. A key can be any type that supports equality;
+	// packages should define keys as an unexported type to avoid
+	// collisions.
+	//
+	// Packages that define a Context key should provide type-safe accessors
+	// for the values stored using that key:
+	//
+	// 	// Package user defines a User type that's stored in Contexts.
+	// 	package user
+	//
+	// 	import "context"
+	//
+	// 	// User is the type of value stored in the Contexts.
+	// 	type User struct {...}
+	//
+	// 	// key is an unexported type for keys defined in this package.
+	// 	// This prevents collisions with keys defined in other packages.
+	// 	type key int
+	//
+	// 	// userKey is the key for user.User values in Contexts. It is
+	// 	// unexported; clients use user.NewContext and user.FromContext
+	// 	// instead of using this key directly.
+	// 	var userKey key
+	//
+	// 	// NewContext returns a new Context that carries value u.
+	// 	func NewContext(ctx context.Context, u *User) context.Context {
+	// 		return context.WithValue(ctx, userKey, u)
+	// 	}
+	//
+	// 	// FromContext returns the User value stored in ctx, if any.
+	// 	func FromContext(ctx context.Context) (*User, bool) {
+	// 		u, ok := ctx.Value(userKey).(*User)
+	// 		return u, ok
+	// 	}
+	Value(key interface{}) interface{}
+}
+```
+
+context的使用:
+
+对于goroutine，他们的创建和调用关系总是像层层调用进行的，就像一个树状结构，而更靠顶部的context应该有办法主动关闭下属的goroutine的执行。为了实现这种关系，context也是一个树状结构，叶子节点总是由根节点衍生出来的。
+
+要创建context树，第一步应该得到根节点，context.Backupgroup函数的返回值就是根节点。
+
+```go
+// Background returns a non-nil, empty Context. It is never canceled, has no
+// values, and has no deadline. It is typically used by the main function,
+// initialization, and tests, and as the top-level Context for incoming
+// requests.
+func Background() Context {
+    return background
+}
+```
+
+该函数返回空的context，该context一般由接收请求的第一个goroutine创建，是与进入请求对应的context根节点，他不能被取消，也没有值，也没有过期时间。他常常作为处理request的顶层的context存在。
+
+有了根节点，就可以创建子孙节点了，context包提供了一系列方法来创建他们：
+
+```go
+func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {}
+func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {}
+func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {}
+func WithValue(parent Context, key, val interface{}) Context {}
+```
+
+函数都接收一个Context类型的parent，并返回一个context类型的值，这样就蹭蹭创建爱你除不同的context，子节点是从复制父节点得到，并且根据接受参数设定子节点的一些状态值，接着就可以将子节点传递给下层的 goroutine 了。
+
+怎么样通过context传递改变后的状态呢？
+
+在父goroutine中可以通过Withxxx方法获取一个cancel方法，从而获得了操作子 context 的权力。
+
+WithCancel 函数，是讲父节点复制到子节点，并且返回一个额外的CancelFunc 函数类型变量，该函数类型的定义为 type CancelFunc func() 
 
 
 
+调用 CancelFunc 将撤销对应的子context对象。在父goroutine中，通过 WithCancel 可以创建子节点的 Context, 还获得了子goroutine的控制权，一旦执行了 CancelFunc函数，子节点Context就结束了，子节点需要如下代码来判断是否已经结束，并退出goroutine：
 
+```go
+select {
+case <- ctx.Done():
+    fmt.Println("do some clean work ...... ")
+}
+```
 
+WithDeadline函数作用和WithCancel差不多，也是将父节点复制到子节点，但是其过期时间是由deadline和parent的过期时间共同决定。当parent的过期时间早于deadline时，返回的过期时间与parent的过期时间相同。父节点过期时，所有的子孙节点必须同时关闭。
 
+ 
 
+WithTimeout函数和WithDeadline类似，只不过，他传入的是从现在开始Context剩余的生命时长。他们都同样也都返回了所创建的子Context的控制权，一个CancelFunc类型的函数变量。
 
+当顶层的Request请求函数结束时，我们可以cancel掉某个context，而子孙的goroutine根据select ctx.Done()来判断结束。
 
+**小结：**
 
+1. context包通过构建树形关系的context，来达到上一层goroutine对下一层goroutine的控制。对于处理一个request请求操作，需要通过goroutine来层层控制goroutine，以及传递一些变量来共享。
 
+2. context变量的请求周期一般为一个请求的处理周期。即针对一个请求创建context对象；在请求处理结束后，撤销此ctx变量，释放资源。
+
+3. 每创建一个goroutine，要不将原有context传递给子goroutine，要么创建一个子context传递给goroutine.
+
+4. Context能灵活地存储不同类型、不同数目的值，并且使多个Goroutine安全地读写其中的值。
+
+5. 当通过父 Context对象创建子Context时，可以同时获得子Context的撤销函数，这样父goroutine就获得了子goroutine的撤销权。
+
+**原则：**
+
+1. 不要把context放到一个结构体中，应该作为第一个参数显式地传入函数
+
+2. 即使方法允许，也不要传入一个nil的context，如果不确定需要什么context的时候，传入一个context.TODO
+
+3. 使用context的Value相关方法应该传递和请求相关的元数据，不要用它来传递一些可选参数
+
+4. 同样的context可以传递到多个goroutine中，Context在多个goroutine中是安全的
+
+5. 在子context传入goroutine中后，应该在子goroutine中对该子context的Done channel进行监控，一旦该channel被关闭，应立即终止对当前请求的处理，并释放资源。
