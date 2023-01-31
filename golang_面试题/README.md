@@ -2483,7 +2483,7 @@ Mutex 对外提供两个方法，实际上也只有这两个方法：
 
 由于没有其他协程阻塞等待加锁，所以此时解锁时只需要把Locked位置设置为0即可，不需要释放信号量。
 
-##### 9.3.4 解锁病唤醒协程
+##### 9.3.4 解锁并唤醒协程
 
 假定解锁时，有1个或多个协程阻塞，此时解锁过程如下图所示：
 
@@ -2567,6 +2567,1094 @@ Woken状态用于加锁和解锁过程的通信，举个例子，同一时刻，
 加锁和解锁最好出现在同一个层次的代码块中，比如同一个函数。
 
 重复解锁会引起panic，应避免这种操作的可能性。
+
+#### 9.7 除了 mutex 以外还有哪些方式安全读写共享变量
+
+- 将共享变量的读写放到一个 goroutine 中，其它 goroutine 通过 channel 进行读写操作。
+- 可以用个数为 1 的信号量（semaphore）实现互斥。
+- 通过 Mutex 锁实现。
+
+##### 9.7.1 Go 如何实现原子操作
+
+原子操作就是不可中断的操作，外界是看不到原子操作的中间状态，要么看到原子操作已经完成，要么看到原子操作已经结束。在某个值的原子操作执行的过程中，CPU 绝对不会再去执行其他针对该值的操作，那么其他操作也是原子操作。
+
+Go 语言的标准库代码包 sync/atomic 提供了原子的读取（Load 为前缀的函数）或写入（Store 为前缀的函数）某个值（这里细节还要多去查查资料）。
+
+**原子操作与互斥锁的区别**
+
+1）、互斥锁是一种数据结构，用来让一个线程执行程序的关键部分，完成互斥的多个操作。
+
+2）、原子操作是针对某个值的单个互斥操作。
+
+##### 9.7.2 Mutex 是悲观锁还是乐观锁？悲观锁、乐观锁是什么？
+
+**Mutex是** **悲观锁**
+
+**悲观锁**：当要对数据库中的一条数据进行修改的时候，为了避免同时被其他人修改，最好的办法就是直接对该数据进行加锁以防止并发。这种借助数据库锁机制，在修改数据之前先锁定，再修改的方式被称之为悲观并发控制【Pessimistic Concurrency Control，缩写“PCC”，又名“悲观锁”】。
+
+**乐观锁**
+
+乐观锁是相对悲观锁而言的，乐观锁假设数据一般情况不会造成冲突，所以在数据进行提交更新的时候，才会正式对数据的冲突与否进行检测，如果冲突，则返回给用户异常信息，让用户决定如何去做。乐观锁适用于读多写少的场景，这样可以提高程序的吞吐量
+
+##### 9.7.3 Mutex 有几种模式？
+
+1. 正常模式
+
+- 当前的mutex只有一个goroutine来获取，那么没有竞争，直接返回。
+- 新的 goroutine 进来，如果当前 mutex 已经被获取率，则该 goroutine 进入一个先入先出的 waiter 队列，在mutex被释放后，waiter按照先进先出的方式获取锁。该goroutine会处于自旋状态（不挂起，继续占用 cpu）
+- 新的goroutine 进来，mutex 处于空闲状态，将参与竞争。新来的 goroutine 有先天的优势，它们正在 CPU 中运行，可能他们的数量还不少，所以，在高并发情况下，被唤醒的waiter可能比较悲剧地获取不到锁，这时，它会被插入到队列的前面。如果waiter获取不到锁的时间超过域值 1 毫秒，那么，这个 Mutex 就进入到了饥饿模式。
+
+2. 饥饿模式
+
+在饥饿模式下，Mutex 的拥有者将直接把锁交给队列最前面的 waiter 。新来的 goroutine 不会尝试获取锁，即时看起来锁没有被持有，它也不会去抢，也不会 spin （自旋），它会乖乖地加入等待队列的尾部。如果拥有 Mutex 的 waiter 发现下面两种情况的其中之一，它就会把这个Mutex转换成正常模式：
+
+1. 此waiter 已经是队列中的最后一个 waiter 了，没有其它的等待锁的 goroutine 了；
+2. 此 waiter 的等待时间小于1 毫秒；
+
+##### 9.7.4 goroutine 的自旋占用资源如何解决
+
+自旋锁是值当一个线程在获取锁的时候，如果锁已经被其他线程获取，那么该线程将循环等待，然后不断地判断是否能够被成功获取，直到获取到锁才会退出循环。
+
+**自旋锁的条件如下：**
+
+1. 还没自旋超过 4 次。
+2. 多核处理器。
+3. GORMAXPROCS > 1。
+4. p 上本地 goroutine 队列为空。
+
+mutex 会让当前的 goroutine 去空转 CPU，在空转完后再次调用 CAS 方法去尝试性的占有锁资源，直到不满足自旋条件，则最终会加入等待队列里。
+
+### 十、并发相关
+
+#### 10.1 怎么控制并发数？
+
+1. 有缓冲通道
+
+根据通道中没有数据时读取操作陷入阻塞和通道已满时继续写入操作陷入阻塞的特征，正好实现控制并发数量。
+
+```go
+func main() {
+    count := 10                     // 最大支持并发
+    sum := 100                      // 任务总数
+    wg := sync.WaitGroup{}          //控制主协程等待所有子协程执行完之后再退出。
+    c := make(chan struct{}, count) // 控制任务并发的chan
+    defer close(c)
+    for i := 0; i < sum; i++ {
+        wg.Add(1)
+        c <- struct{}{} // 作用类似于waitgroup.Add(1)
+        go func(j int) {
+            defer wg.Done()
+            fmt.Println(j)
+            <-c // 执行完毕，释放资源
+        }(i)
+    }
+    wg.Wait()
+}
+```
+
+2. 三方库实现的协程池
+
+```go
+import (
+    "github.com/Jeffail/tunny"
+    "log"
+    "time"
+)
+func main() {
+    pool := tunny.NewFunc(10, func(i interface{}) interface{} {
+        log.Println(i)
+        time.Sleep(time.Second)
+        return nil
+    })
+    defer pool.Close()
+    for i := 0; i < 500; i++ {
+        go pool.Process(i)
+    }
+    time.Sleep(time.Second * 4)
+}
+```
+
+#### 10.2 多个 goroutine对同一个 map 写会 panic ，异常是否可以用 defer 捕获？
+
+可以捕获异常，但是只能捕获一次，Go 语言，可以使用多值返回来返回错误。不要用异常代替错误，更不要用来控制流程。在极个别的情况下，才使用 Go 中引入的 Exception 处理：defer，panic，recover Go 中，对异常处理的原则是：多用 error 包，少用panic
+
+```go
+defer func() {
+    if err := recover(); err != nil {
+        // 打印异常，关闭资源，退出此函数
+        fmt.Println(err)
+    }
+}()
+```
+
+#### 10.3 如何优雅的实现一个 goroutine 池
+
+##### 10.3.1 为什么需要协程池
+
+​	虽然 go 语言自带 ” 高并发 “ 的标签，其并发编程就是由  goroutine 实现的，因其消耗资源低（大约2KB左右，线程通常2M左右），性能高效，开发成本低的特征被广泛应用到各种场景，例如服务端开发中使用的 HTTP 服务，在golang net/http 包中每一个被监听到的tcp链接都是由一个 Goroutine 去完成处理其上下的，由此是的其拥有极其优秀的并发吞吐量。
+
+​	但是，如果无休止的开辟 goroutine 依然会出现高频率的调度 goroutine，那么依然会浪费很多上下文切换的资源，导致做无用功。所以设计一个 goroutine 池限制 goroutine 的开辟个数在大型并发场景还是必要的。
+
+##### 10.3.2 简单的协程池
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+/* 有关Task任务相关定义及操作 */
+//定义任务Task类型,每一个任务Task都可以抽象成一个函数
+type Task struct {
+	f func() error //一个无参的函数类型
+}
+
+//通过NewTask来创建一个Task
+func NewTask(f func() error) *Task {
+	t := Task{
+		f: f,
+	}
+	return &t
+}
+
+//执行Task任务的方法
+func (t *Task) Execute() {
+	t.f() //调用任务所绑定的函数
+}
+
+/* 有关协程池的定义及操作 */
+//定义池类型
+type Pool struct {
+	EntryChannel chan *Task //对外接收Task的入口
+	worker_num   int        //协程池最大worker数量,限定Goroutine的个数
+	JobsChannel  chan *Task //协程池内部的任务就绪队列
+}
+
+//创建一个协程池
+func NewPool(cap int) *Pool {
+	p := Pool{
+		EntryChannel: make(chan *Task),
+		worker_num:   cap,
+		JobsChannel:  make(chan *Task),
+	}
+	return &p
+}
+
+//协程池创建一个worker并且开始工作
+func (p *Pool) worker(work_ID int) {
+	//worker不断的从JobsChannel内部任务队列中拿任务
+	for task := range p.JobsChannel {
+		//如果拿到任务,则执行task任务
+		task.Execute()
+		fmt.Println("worker ID ", work_ID, " 执行完毕任务")
+	}
+}
+
+//让协程池Pool开始工作
+func (p *Pool) Run() {
+	//1,首先根据协程池的worker数量限定,开启固定数量的Worker,
+	//  每一个Worker用一个Goroutine承载
+	for i := 0; i < p.worker_num; i++ {
+		fmt.Println("开启固定数量的Worker:", i)
+		go p.worker(i)
+	}
+
+	//2, 从EntryChannel协程池入口取外界传递过来的任务
+	//   并且将任务送进JobsChannel中
+	for task := range p.EntryChannel {
+		p.JobsChannel <- task
+	}
+
+	//3, 执行完毕需要关闭JobsChannel
+	close(p.JobsChannel)
+	fmt.Println("执行完毕需要关闭JobsChannel")
+
+	//4, 执行完毕需要关闭EntryChannel
+	close(p.EntryChannel)
+	fmt.Println("执行完毕需要关闭EntryChannel")
+}
+
+//主函数
+func main() {
+	//创建一个Task
+	t := NewTask(func() error {
+		fmt.Println("创建一个Task:", time.Now().Format("2006-01-02 15:04:05"))
+		return nil
+	})
+
+	//创建一个协程池,最大开启3个协程worker
+	p := NewPool(3)
+
+	//开一个协程 不断的向 Pool 输送打印一条时间的task任务
+	go func() {
+		for {
+			p.EntryChannel <- t
+		}
+	}()
+
+	//启动协程池p
+	p.Run()
+}
+
+```
+
+##### 10.3.3  go-playground/pool
+
+上面的协程池虽然简单，但是对于每一个并发任务的状态，pool的状态缺少控制，我们可以看看go-playground/pool的源码实现，“源码面前，如同裸奔”。先从每一个需要执行的任务入手，该库中对并发单元做了如下的结构体，可以看到除工作单元的值，错误，执行函数等，还用了三个分别表示，取消，取消中，写 的三个并发安全的原子操作值来标识其运行状态。
+
+依赖包下载： go get "gopkg.in/go-playground/pool.v3"
+
+
+```go
+package main
+ 
+import (
+	"fmt"
+	"gopkg.in/go-playground/pool.v3"
+	"time"
+)
+ 
+func SendMail(int int) pool.WorkFunc {
+	fn := func(wu pool.WorkUnit) (interface{}, error) {
+		// sleep 1s 模拟发邮件过程
+		time.Sleep(time.Second * 1)
+		// 模拟异常任务需要取消
+		if int == 17 {
+			wu.Cancel()
+		}
+		if wu.IsCancelled() {
+			return false, nil
+		}
+		fmt.Println("send to", int)
+		return true, nil
+	}
+	return fn
+}
+ 
+func main() {
+	// 初始化groutine数量为20的pool
+	p := pool.NewLimited(20)
+	defer p.Close()
+	batch := p.Batch()
+	// 设置一个批量任务的过期超时时间
+	t := time.After(10 * time.Second)
+	go func() {
+		for i := 0; i < 100; i++ {
+			batch.Queue(SendMail(i)) // 往批量任务中添加workFunc任务
+		}
+		// 通知批量任务不再接受新的workFunc, 如果添加完workFunc不执行改方法的话将导致取结果集时done channel一直阻塞
+		batch.QueueComplete()
+	}()
+	// // 获取批量任务结果集, 因为 batch.Results 中要close results channel 所以不能将其放在LOOP中执行
+	r := batch.Results()
+LOOP:
+	for {
+		select {
+		case <-t:
+			// 超时通知
+			fmt.Println("超时通知")
+			break LOOP
+		case email, ok := <-r:
+			// 读取结果集
+			if ok {
+				if err := email.Error(); err != nil {
+					fmt.Println("读取结果集错误，error info:", err.Error())
+				}
+				fmt.Println("错误结果集:", email.Value())
+			} else {
+				fmt.Println("finish")
+				break LOOP
+			}
+		}
+	}
+}
+```
+
+ go-playground/pool相比简单的协程池， 对pool, worker的状态有了很好的管理。但是在第一个实现的简单groutine池和go-playground/pool中，都是先启动预定好的groutine来完成任务执行，在并发量远小于任务量的情况下确实能够做到groutine的复用，如果任务量不多则会导致任务分配到每个groutine不均匀，甚至可能出现启动的groutine根本不会执行任务从而导致浪费，而且对于协程池也没有动态的扩容和缩小。接下来了解下ants的设计和实现。
+
+##### 10.3.4 ants（推荐）
+
+ants是一个受fasthttp启发的高性能协程池，fasthttp号称是比go原生的net/http快10倍，其原因之一就是采用了各种池化技术， ants相比之前两种协程池，其模型更像是之前接触到的数据库连接池，需要从空余的worker中取出一个来执行任务, 当无可用空余worker的时候再去创建，而当pool的容量达到上线之后，剩余的任务阻塞等待当前进行中的worker执行完毕将worker放回pool, 直至pool中有空闲worker。 ants在内存的管理上做得很好，除了定期清除过期worker(一定时间内没有分配到任务的worker)，ants还实现了一种适用于大批量相同任务的pool, 这种pool与一个需要大批量重复执行的函数锁绑定，避免了调用方不停的创建，更加节省内存。
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/panjf2000/ants/v2"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+var sum int32
+
+func myFunc(i interface{}) {
+	n := i.(int32)
+	atomic.AddInt32(&sum, n)
+	fmt.Printf("run with %d\n", n)
+}
+
+func demoFunc() {
+	time.Sleep(10 * time.Millisecond)
+	fmt.Println("Hello World!")
+}
+
+func main() {
+	defer ants.Release()
+
+	runTimes := 1000
+
+	// Use the common pool.
+	var wg sync.WaitGroup
+	syncCalculateSum := func() {
+		demoFunc()
+		wg.Done()
+	}
+	for i := 0; i < runTimes; i++ {
+		wg.Add(1)
+		_ = ants.Submit(syncCalculateSum)
+	}
+	wg.Wait()
+	fmt.Printf("running goroutines: %d\n", ants.Running())
+	fmt.Printf("finish all tasks.\n")
+
+	// Use the pool with a function,
+	// set 10 to the capacity of goroutine pool and 1 second for expired duration.
+	p, _ := ants.NewPoolWithFunc(10, func(i interface{}) {
+		myFunc(i)
+		wg.Done()
+	})
+	defer p.Release()
+	// Submit tasks one by one.
+	for i := 0; i < runTimes; i++ {
+		wg.Add(1)
+		_ = p.Invoke(int32(i))
+	}
+	wg.Wait()
+	fmt.Printf("running goroutines: %d\n", p.Running())
+	fmt.Printf("finish all tasks, result is %d\n", sum)
+}
+
+```
+
+源码中提到， ants的吞吐量能够比原生groutine高出N倍，内存节省10到20倍。
+
+### 十一、GC相关
+
+#### 11.1 前言
+
+​	所谓垃圾就是不再需要的内存块，这些垃圾如果不清理就没办法再次被分配使用，在不支持垃圾回收的编程语言里，这些垃圾内存就是泄露的内存。
+
+​	Golang的垃圾回收（GC）也是内存管理的一部分，了解垃圾回收最好先了解前面介绍的内存分配原理。
+
+#### 11.2 垃圾回收算法
+
+业界常见的垃圾回收算法有以下几种：
+
+- 引用计数：对每个对象维护一个引用计数，当引用该对象的对象被销毁时，引用计数减1，当引用计数器为0时回收该对象。
+  - 优点：对象可以很快地被回收，不会出现内存耗尽或达到某个阀值时才回收。
+  - 缺点：不能很好地处理循环引用，而且实时维护引用计数，也有一定的代价。
+  - 代表语言：Python、PHP、Swift
+- 标记-清除：从根变量开始遍历所有引用的对象，引用的对象标记为”被引用”，没有被标记的进行回收。
+  - 优点：解决了引用计数的缺点。
+  - 缺点：需要STW，即要暂时停掉程序运行。
+  - 代表语言：Golang（其采用三色标记法）
+- 分代收集：按照对象生命周期长短划分不同的代空间，生命周期长的放入老年代，而短的放入新生代，不同代有不同的回收算法和回收频率。
+  - 优点：回收性能好
+  - 缺点：算法复杂
+  - 代表语言： JAVA
+
+#### 11.3 Golang垃圾回收
+
+##### 11.3.1 垃圾回收原理
+
+​	简单的说，垃圾回收的核心就是标记出那些内存还在使用中（即被引用到），哪些内存不再使用了（即未被引用），把未被引用的内存回收掉，以供手续内存分配时使用。
+
+下图展示了一段内存，内存中既有以分配掉的内存，也有为分配的内存，垃圾回收的目标就是把那些已经分配的但没有对象引用的内存找出来并回收掉：
+
+![48](images/48.png)
+
+上图中，内存块1、2、4号位上的内存块已被分配（数字1代表已被分配，0 未分配）。变量a, b为一指针，指向内存的1、2号位。内存块的4号位曾经被使用过，但现在没有任何对象引用了，就需要被回收掉。
+
+垃圾回收开始时从root对象开始扫描，把root对象引用的内存标记为”被引用”，考虑到内存块中存放的可能是指针，所以还需要递归的进行标记，全部标记完成后，只保留被标记的内存，未被标记的全部标识为未分配即完成了回收。
+
+##### 11.3.2 内存标记（Mark）
+
+前面介绍内存分配时，介绍过span数据结构，span中维护了一个个内存快，并由一个位图 allocBits 表示每个内存的分配情况。在Span数据结构中还有另一位图 gcmarkBits 用于标记内存快被引用的情况。
+
+![49](images/49.png)
+
+如上图所示，allocBits记录了每块内存分配情况，而gcmarkBits记录了每块内存标记情况。标记阶段对每块内存进行标记，有对象引用的的内存标记为1(如图中灰色所示)，没有引用到的保持默认为0.
+
+allocBits和gcmarkBits数据结构是完全一样的，标记结束就是内存回收，回收时将allocBits指向gcmarkBits，则代表标记过的才是存活的，gcmarkBits则会在下次标记时重新分配内存，非常的巧妙。
+
+#### 11.3.3 三色标记法
+
+前面介绍了对象标记状态的存储方式，还需要有一个标记队列来存放待标记的对象，可以简单详细成把对象从标记队列中取出，将对象的引用状态标记在span的gcmarkBits，把对象引用到的其他对象再放入队列中。
+
+三色只是为了叙述上方便抽象出来的一种说法，实际上对象并没有颜色之分。这里的三色，对应了垃圾回收过程中对象的三种状态；
+
+- 灰色：对象还在标记队列中等待。
+- 黑色：对象已经被标记，gcmarkBits对应的位为 1 （该对象不会再本次GC中被清理）
+- 白色：对象未被标记，gcmarkBits 对应的位为 0 （该对象将会在本次 GC 中被清理）
+
+
+
+例如：当前内存中 A~F 一共 6 个对象，跟对象a，b 本身为栈上分配的局部变量，跟对象a，b分别引用了对象 A、B，而B对象又引用了对象D，则GC 开始前各对象的状态如下所示：
+
+![50](images/50.png)
+
+初始状态下所有对象都是白色的。
+
+接着开始扫描跟对象a、b：
+
+![51](images/51.png)
+
+由于根对象引用了对象A，B，那么A，B变为灰色对象，接下来就开始分析灰色对象，分析A时，A没有引用其他对象很快就装入黑色，B引用了D，则B转入褐色的同时还需要将D转为灰色，进行接下来的分析。如下图所示：
+
+![52](images/52.png)
+
+上图中灰色对象只有D，由于D没有引用其他对象，所以D转入褐色。标记过程结束。
+
+最终，黑色的对象会被保留下来，白色对象会被回收掉
+
+##### 11.3.4 Stop The World
+
+对于垃圾回收来说，回收过程中也需要控制住内存的变化，否则回收过程中指针传递会引起内存引用关系变化，如果错误的回收了还在使用的内存，结果将是灾难性的。Golang中STW（Stop The World）就是停掉所有的 goroutine ，专心做垃圾回收，待垃圾回收结束后再恢复 goroutine。 STW 时间的长短直接影响了应用的执行，时间过长对于一些 web 应用来说是不可接受的，这也是广收诟病的原因之一。为了缩短STW的时间，Golang不断优化垃圾回收算法，这种情况得到了很大的改善。
+
+#### 11.4 垃圾回收优化
+
+##### 11.4.1 写屏障（Write Barrier）
+
+前面说过 STW 的目的是防止 GC 扫描时内存变化而停掉 goroutine，而写屏障就是让 goroutine 同时运行的手段。虽然写屏障不能完全消除 STW ，但是可以打打减少 STW 的时间。写屏障类似一种开关，在GC的特定时机开启，开启后指针传递时会把指针标记，即本轮不会回收，下次GC时再确定。
+
+GC过程中新分配的内存会被立即标记，用的并不是写屏障技术，也即 GC 过程中分配的内存不会再本轮GC中回收。
+
+##### 11.4.2 辅助GC（Mutator Assist）
+
+为了防止内存分配过快，在GC执行过程中，如果goroutine需要分配内存，那么这个 goroutine 会参与一部分 GC 的工作，即帮助 GC 做一部分工作，这个机制叫作 Mutator Assist。
+
+#### 11.5 垃圾回收触发时机
+
+##### 11.5.1 内存分配量达到阈值触发 GC
+
+每次内存分配时都会检查当前内存分配量是否已达到阈值，如果达到阈值则立即启动GC。
+
+> 阀值 = 上次GC内存分配量 * 内存增长率
+
+内存增长率由环境变量 `GOGC` 控制，默认为 100，即每当内存扩大一倍时启动 GC
+
+##### 11.5.2 定期触发 GC
+
+默认情况下，最长2分钟触发一次GC，这个间隔在 `src/runtime/proc.go:forcegcperiod` 变量中被声明：
+
+```go
+// forcegcperiod is the maximum time in nanoseconds between garbage
+// collections. If we go this long without a garbage collection, one
+// is forced to run.
+//
+// This is a variable for testing purposes. It normally doesn't change.
+var forcegcperiod int64 = 2 * 60 * 1e9
+```
+
+##### 11.5.3 手动触发
+
+程序代码中也可以使用 runtime.GC() 来手动触发 GC。这主要用于 GC 性能测试和统计。
+
+#### 11.6 GC性能优化
+
+GC性能与对象数量负相关，对象越多GC性能越差，对程序影响越大。
+
+所以GC性能优化的思路之一就是减少对象分配个数，比如对象复用或使用大对象组合多个小对象等等。
+
+另外，由于内存逃逸现象，有些隐式的内存分配也会产生，也有可能成为GC的负担。
+
+关于GC性能优化的具体方法，后面单独介绍。
+
+#### 11.7 go gc 是怎么实现的？（必问）
+
+##### 11.7.1 go gc 是怎么实现的？
+
+**细分常见的三个问题：1、GC机制随着golang版本变化如何变化的？2、三色标记法的流程？3、插入屏障、删除屏障，混合写屏障（具体的实现比较难描述，但你要知道屏障的作用：避免程序运行过程中，变量被误回收；减少STW的时间）4、虾皮还问了个开放性的题目：你觉得以后GC机制会怎么优化？**
+
+Go 的 GC 回收有三次演进过程，Go V1.3 之前普通标记清除（mark and sweep）方法，整体过程需要启动 STW，效率极低。GoV1.5 三色标记法，堆空间启动写屏障，栈空间不启动，全部扫描之后，需要重新扫描一次栈(需要 STW)，效率普通。GoV1.8 三色标记法，混合写屏障机制：栈空间不启动（全部标记成黑色），堆空间启用写屏障，整个过程不要 STW，效率高。
+
+Go1.3 之前的版本所谓**标记清除**是先启动 STW 暂停，然后执行标记，再执行数据回收，最后停止 STW。Go1.3 版本标记清除做了点优化，流程是：先启动 STW 暂停，然后执行标记，停止 STW，最后再执行数据回收。
+
+Go1.5 **三色标记**主要是插入屏障和删除屏障，写入屏障的流程：程序开始，全部标记为白色，1）所有的对象放到白色集合，2）遍历一次根节点，得到灰色节点，3）遍历灰色节点，将可达的对象，从白色标记灰色，遍历之后的灰色标记成黑色，4）由于并发特性，此刻外界向在堆中的对象发生添加对象，以及在栈中的对象添加对象，在堆中的对象会触发插入屏障机制，栈中的对象不触发，5）由于堆中对象插入屏障，则会把堆中黑色对象添加的白色对象改成灰色，栈中的黑色对象添加的白色对象依然是白色，6）循环第 5 步，直到没有灰色节点，7）在准备回收白色前，重新遍历扫描一次栈空间，加上 STW 暂停保护栈，防止外界干扰（有新的白色会被添加成黑色）在 STW 中，将栈中的对象一次三色标记，直到没有灰色，8）停止 STW，清除白色。至于删除写屏障，则是遍历灰色节点的时候出现可达的节点被删除，这个时候触发删除写屏障，这个可达的被删除的节点也是灰色，等循环三色标记之后，直到没有灰色节点，然后清理白色，删除写屏障会造成一个对象即使被删除了最后一个指向它的指针也依旧可以活过这一轮，在下一轮 GC 中被清理掉。
+
+GoV1.8 **混合写屏障**规则是：
+
+1）GC 开始将栈上的对象全部扫描并标记为黑色(之后不再进行第二次重复扫描，无需 STW)，2）GC 期间，任何在栈上创建的新对象，均为黑色。3）被删除的对象标记为灰色。4）被添加的对象标记为灰色。
+
+##### 11.7.2 go 是 gc 算法是则呢么实现的？
+
+```go
+func GC() {
+    n := atomic.Load(&work.cycles)
+    gcWaitOnMark(n)
+    gcStart(gcTrigger{kind: gcTriggerCycle, n: n + 1})
+    gcWaitOnMark(n + 1)
+    for atomic.Load(&work.cycles) == n+1 && sweepone() != ^uintptr(0) {
+        sweep.nbgsweep++
+        Gosched()
+    }
+    for atomic.Load(&work.cycles) == n+1 && atomic.Load(&mheap_.sweepers) != 0 {
+        Gosched()
+    }
+    mp := acquirem()
+    cycle := atomic.Load(&work.cycles)
+    if cycle == n+1 || (gcphase == _GCmark && cycle == n+2) {
+        mProf_PostSweep()
+    }
+    releasem(mp)
+}
+```
+
+##### 11.7.3 Golang GC 算法解读
+
+1. **概括**
+
+Go 的垃圾回收官方形容为 非分代  非紧缩  写屏障  三色并发标记清理算法。
+
+**非分代**： 不像Java那样分为年轻代和老年代，自然也没有 minor gc 和 major gc 的区别。
+
+**非紧缩**：在垃圾回收之后不会进行内存整理以清除内存碎片。
+
+**写屏障**：在并发标记的过程中，如果应用程序（mutator）修改了对象图，就可能出现标记遗漏的可能，写屏障就是为了处理标记遗漏的问题。
+
+**三色**：将GC中的对象按照搜索的情况分成三种：
+
+- 黑色：对象再这次 GC 中已标记，且这个对象包含的子对象也已标记。
+
+- 灰色：对象再这次 GC 中已标记，但这个对象包含的子对象未标记。
+
+- 白色：对象再这次 GC 中未标记
+
+  **并发**：可以和应用程序（mutator）在一定程度上并发执行。
+
+  **标记清理**：GC算法分为两个大步骤：标记阶段找出要回收的对象，清理阶段则回收未被标记的对象（要被回收的对象）。
+
+2. **触发时机**
+
+- gc TraggerAlways：强制触发 GC ，没找到什么情况下使用这个。
+- gcTriggerHeap：当前分配的内存达到一定值（动态计算）就触发GC。
+- gcTriggerTime：当一定时间（2分钟）没有执行过 GC 就触发GC。
+- gcTriggerCycle：要求启动新一轮的 GC，已启动则跳过，手动触发 GC 的 runtime.GC() 会使用这个条件。
+
+```go
+func gcStart(trigger gcTrigger) {
+	// Since this is called from malloc and malloc is called in
+	// the guts of a number of libraries that might be holding
+	// locks, don't attempt to start GC in non-preemptible or
+	// potentially unstable situations.
+	mp := acquirem()
+	if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" {
+		releasem(mp)
+		return
+	}
+	releasem(mp)
+	mp = nil
+
+	// Pick up the remaining unswept/not being swept spans concurrently
+	//
+	// This shouldn't happen if we're being invoked in background
+	// mode since proportional sweep should have just finished
+	// sweeping everything, but rounding errors, etc, may leave a
+	// few spans unswept. In forced mode, this is necessary since
+	// GC can be forced at any point in the sweeping cycle.
+	//
+	// We check the transition condition continuously here in case
+	// this G gets delayed in to the next GC cycle.
+	for trigger.test() && sweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
+	}
+
+	// Perform GC initialization and the sweep termination
+	// transition.
+	semacquire(&work.startSema)
+	// Re-check transition condition under transition lock.
+	if !trigger.test() {
+		semrelease(&work.startSema)
+		return
+	}
+
+	// For stats, check if this GC was forced by the user.
+	work.userForced = trigger.kind == gcTriggerCycle
+
+	// In gcstoptheworld debug mode, upgrade the mode accordingly.
+	// We do this after re-checking the transition condition so
+	// that multiple goroutines that detect the heap trigger don't
+	// start multiple STW GCs.
+	mode := gcBackgroundMode
+	if debug.gcstoptheworld == 1 {
+		mode = gcForceMode
+	} else if debug.gcstoptheworld == 2 {
+		mode = gcForceBlockMode
+	}
+
+	// Ok, we're doing it! Stop everybody else
+	semacquire(&gcsema)
+	semacquire(&worldsema)
+
+	if trace.enabled {
+		traceGCStart()
+	}
+
+	// Check that all Ps have finished deferred mcache flushes.
+	for _, p := range allp {
+		if fg := atomic.Load(&p.mcache.flushGen); fg != mheap_.sweepgen {
+			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
+			throw("p mcache not flushed")
+		}
+	}
+
+	gcBgMarkStartWorkers()
+
+	systemstack(gcResetMarkState)
+
+	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
+	if work.stwprocs > ncpu {
+		// This is used to compute CPU time of the STW phases,
+		// so it can't be more than ncpu, even if GOMAXPROCS is.
+		work.stwprocs = ncpu
+	}
+	work.heap0 = atomic.Load64(&gcController.heapLive)
+	work.pauseNS = 0
+	work.mode = mode
+
+	now := nanotime()
+	work.tSweepTerm = now
+	work.pauseStart = now
+	if trace.enabled {
+		traceGCSTWStart(1)
+	}
+	systemstack(stopTheWorldWithSema)
+	// Finish sweep before we start concurrent scan.
+	systemstack(func() {
+		finishsweep_m()
+	})
+
+	// clearpools before we start the GC. If we wait they memory will not be
+	// reclaimed until the next GC cycle.
+	clearpools()
+
+	work.cycles++
+
+	gcController.startCycle()
+	work.heapGoal = gcController.heapGoal
+
+	// In STW mode, disable scheduling of user Gs. This may also
+	// disable scheduling of this goroutine, so it may block as
+	// soon as we start the world again.
+	if mode != gcBackgroundMode {
+		schedEnableUser(false)
+	}
+
+	// Enter concurrent mark phase and enable
+	// write barriers.
+	//
+	// Because the world is stopped, all Ps will
+	// observe that write barriers are enabled by
+	// the time we start the world and begin
+	// scanning.
+	//
+	// Write barriers must be enabled before assists are
+	// enabled because they must be enabled before
+	// any non-leaf heap objects are marked. Since
+	// allocations are blocked until assists can
+	// happen, we want enable assists as early as
+	// possible.
+	setGCPhase(_GCmark)
+
+	gcBgMarkPrepare() // Must happen before assist enable.
+	gcMarkRootPrepare()
+
+	// Mark all active tinyalloc blocks. Since we're
+	// allocating from these, they need to be black like
+	// other allocations. The alternative is to blacken
+	// the tiny block on every allocation from it, which
+	// would slow down the tiny allocator.
+	gcMarkTinyAllocs()
+
+	// At this point all Ps have enabled the write
+	// barrier, thus maintaining the no white to
+	// black invariant. Enable mutator assists to
+	// put back-pressure on fast allocating
+	// mutators.
+	atomic.Store(&gcBlackenEnabled, 1)
+
+	// Assists and workers can start the moment we start
+	// the world.
+	gcController.markStartTime = now
+
+	// In STW mode, we could block the instant systemstack
+	// returns, so make sure we're not preemptible.
+	mp = acquirem()
+
+	// Concurrent mark.
+	systemstack(func() {
+		now = startTheWorldWithSema(trace.enabled)
+		work.pauseNS += now - work.pauseStart
+		work.tMark = now
+		memstats.gcPauseDist.record(now - work.pauseStart)
+	})
+
+	// Release the world sema before Gosched() in STW mode
+	// because we will need to reacquire it later but before
+	// this goroutine becomes runnable again, and we could
+	// self-deadlock otherwise.
+	semrelease(&worldsema)
+	releasem(mp)
+
+	// Make sure we block instead of returning to user code
+	// in STW mode.
+	if mode != gcBackgroundMode {
+		Gosched()
+	}
+
+	semrelease(&work.startSema)
+}
+```
+
+在trigger.test()函数中，检查是否满足 GC 触发的条件
+
+```go
+func (t gcTrigger) test() bool {
+    if !memstats.enablegc || panicking != 0 {
+        return false
+    }
+    if t.kind == gcTriggerAlways {
+        return true
+    }
+    if gcphase != _GCoff {
+        return false
+    }
+    switch t.kind {
+    case gcTriggerHeap:
+        // Non-atomic access to heap_live for performance. If
+        // we are going to trigger on this, this thread just
+        // atomically wrote heap_live anyway and we'll see our
+        // own write.
+        return memstats.heap_live >= memstats.gc_trigger
+    case gcTriggerTime:
+        if gcpercent < 0 {
+            return false
+        }
+        lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+        // forcegcperiod = 2分钟
+        return lastgc != 0 && t.now-lastgc > forcegcperiod
+    case gcTriggerCycle:
+        // t.n > work.cycles, but accounting for wraparound.
+        return int32(t.n-work.cycles) > 0
+    }
+    return true
+}
+const (
+    // gcTriggerAlways indicates that a cycle should be started
+    // unconditionally, even if GOGC is off or we're in a cycle
+    // right now. This cannot be consolidated with other cycles.
+    gcTriggerAlways gcTriggerKind = iota
+ 
+    // gcTriggerHeap indicates that a cycle should be started when
+    // the heap size reaches the trigger heap size computed by the
+    // controller.
+    gcTriggerHeap
+ 
+    // gcTriggerTime indicates that a cycle should be started when
+    // it's been more than forcegcperiod nanoseconds since the
+    // previous GC cycle.
+    gcTriggerTime
+    // gcTriggerCycle indicates that a cycle should be started if
+    // we have not yet started cycle number gcTrigger.n (relative
+    // to work.cycles).
+    gcTriggerCycle
+)
+```
+
+3. **算法过程**
+
+- Sweep Termination：对未清扫的 span 进行清扫，只有上一轮的 GC 的清扫工作完成才能可以开始新一轮的 GC 。
+- Mark：扫描所有根对象，和根对象可以达到的所有对象，标记他们不被回收。
+- Mark Termination：完成标记工作，重新扫描部分根对象（要求STW）。
+- Sweep：按标记结果清扫span。
+
+4. **关键函数及路径**：
+   1. gcBgMarkStartWorkers():准备后台标记工作goroutine（allp）， 启动后等待该任务通知信号量bgMarkReady再继续，notewakeup(&work.bgMarkReady)
+   2. gcResetMarkState():重置一些全局状态和所有gorontine的栈（一种根对象）扫描状态
+   3. **systemstack(stopTheWorldWithSema):启动stop the world**
+   4. systemstack(func(){finishsweep_m()}): 不断去除要清理的span进行清理，然后重置gcmark位
+   5. clearpools(): 清扫sched.sudogcache和sched.deferpool，不知道在干嘛......
+   6. gcController.startCycle():启动新一轮GC，设置gc controller的状态位和计算一些估计值
+   7. setGCPhase(_GCmark):设置GC阶段，启用写屏障
+   8. gcBgMarkPrepare():设置后台标记任务计数；work.nproc = ^uint32(0)，work.nwait = ^uint32(0)
+   9. gcMarkRootPrepare(): 计算扫描根对象的任务数量
+   10. gcMarkTinyAllocs(): 标记所有tiny alloc等待合并的对象
+   11. atomic.Store(&gcBlackenEnabled, 1): 启用辅助GC
+   12. **systemstack(func(){now=startTheWorldWithSema(trace.enable)}): 停止stop the world**
+
+5. **STW分析：web程序中，我们关注最大停顿时间**
+
+​	STW 出现在两个位置，分别是在初始标记阶段 Mark 和并发标记完成后重标记 Mark Termination：
+
+**初始标记阶段：**
+
+- **systemstack(stopTheWorldWithSema):启动stop the world**
+- systemstack(func(){finishsweep_m()}): 不断去除要清理的span进行清理，然后重置gcmark位
+- clearpools(): 清扫sched.sudogcache和sched.deferpool，不知道在干嘛......
+- gcController.startCycle():启动新一轮GC，设置gc controller的状态位和计算一些估计值
+- gcMarkRootPrepare(): 计算扫描根对象的任务数量
+- gcMarkTinyAllocs(): 涂灰所有tiny alloc等待合并的对象
+- **systemstack(func(){now=startTheWorldWithSema(trace.enable)}): 停止stop the world**
+
+找出其中比较耗时的阶段：
+
+- finishsweep_m():如果上一次GC清扫阶段没有完成，那么在新的一轮GC阶段中就会在阻塞在这里，使得原本可以和应用程序并行的清扫阶段被放进STW。所以，如果频繁的执行GC，就可能会使得GC的最大停顿时间变长。
+- clearpools():时间复杂度大概为：O(5*L),L为_defer中链表的长度。
+- gcController.startCycle():O(P)，P为go的P的数量，和cpu数有关，时间复杂度可以忽略
+- gcMarkRootPrepare(): O(全局变量区)，包括bss段和data段
+- gcMarkTinyAllocs(): O(P)
+
+个人觉得，对STW影响最大的是finishsweep_m()阶段，所有我们应该尽量避免让go在清扫期执行新一轮的GC。
+
+**重新标记阶段**
+
+- **systemstack(stopTheWorldWithSema)：启动STW**
+- gcWakeAllAssists()：唤醒所有因辅助gc而休眠的G
+- nextTriggerRatio:=gcController.endCycle()：计算下一次触发gc需要的heap大小
+- setGCPhase(_GCmarktermination)：启用写屏障
+- systemstack(func() {gcMark(startTime)})： 再次执行标记
+- systemstack(func(){setGCPhase(_GCoff)；gcSweep(work.mode)})：关闭写屏障，唤醒后台清扫任务，将在STW结束后开始运行
+- gcSetTriggerRatio(nextTriggerRatio)：更新下次触发gc时的heap大小
+- **systemstack(func() { startTheWorldWithSema(true) }): 停止STW**
+
+找出其中比较耗时的阶段：
+
+- gcWakeAllAssists()：O(G)，将所有可运行的G插入到调度链表
+- systemstack(func() {gcMark(startTime)})：
+
+### 十二、内存相关
+
+#### 12.1 内存分配原理
+
+##### 12.1.1 前言
+
+Golang中也实现了内存分配器，原理与tcmalloc类似，简单的说就是维护一块大的全局内存，每个线程(Golang中为P)维护一块小的私有内存，私有内存不足再从全局申请。
+
+另外，内存分配与GC（垃圾回收）关系密切，所以了解GC前有必要了解内存分配的原理。
+
+##### 12.1.2 基础概念
+
+为了方便自主管理内存，做法便是向系统申请一块内存，然后在讲内存切割成小块，通过一定的内存分配算法管理内存。
+
+以64 为系统为例：Golang 程序启动时会向系统申请的内存如下图所示：
+
+![53](images/53.png)
+
+预申请的内存划分为 spans，bitmap，arena 三部分。其中arena 即为所谓的堆区，应用中需要的内存欧诺个这里分配。其中 spans 和 bitmap 是为了管理 arena 区而存在的。
+
+arena的大小为 512 G ，为了方便管理把arean区域划分成一个个的 page，每个 page 为 8 kb，一共有 512 GB/8KB 个页；
+
+spans 区域存放 span 的指针，每个指针对应一个或多个 page，所以 span 区域的大小为 （512GB/8KB）* 指针大小 8 byte = 512M
+
+bitmap 区域大小也是通过 arena 计算出来，不过主要用于 GC。
+
+#### 12.2 span
+
+span是用于管理arena页的关键数据结构，每个span中包含1个或多个连续页，为了满足小对象分配，span中的一页会划分更小的粒度，而对于大对象比如超过页大小，则通过多页实现。
+
+##### 12.2.1 class
+
+根据对象大小，划分了一系列class，每个class 都代表一个固定大小的对象，以及每个span 的大小。如下表所示：
+
+```go
+// class  bytes/obj  bytes/span  objects  waste bytes
+//     1          8        8192     1024            0
+//     2         16        8192      512            0
+//     3         32        8192      256            0
+//     4         48        8192      170           32
+```
+
+上表中每列含义如下：
+
+- class：class ID ，每个 span 结构中都有一个 class ID，表示该 span 可处理的对象类型。
+- bytes/obj：该class代表队形的字节数。
+- bytes/span：每个span占用堆的字节数，也即页数 * 页大小。
+- objects：每个span可分配的对象个数，也即（bytes/spans)/(bytes/obj)
+- waste bytes：每个 span 产生的内存碎片，也即（bytes/spans) % (bytes/obj)
+
+上表可见最大的对象是 32 K 大小，超过 32 K 大小的由特殊的 class 表示，该class ID 为 0，每个 class 只包含一个对象。
+
+##### 12.2.2 span 数据结构
+
+span 是内存管理的基本单位，每个span用于管理特定的 class 对象，根据对象大小，span将一个或多个页拆分成多个块进行管理。
+
+`src/runtime/mheap.go:mspan`定义了其数据结构：
+
+```go
+type mspan struct {
+    next *mspan            //链表前向指针，用于将span链接起来
+    prev *mspan            //链表前向指针，用于将span链接起来
+    startAddr uintptr 		 // 起始地址，也即所管理页的地址
+    npages    uintptr 		 // 管理的页数
+
+    nelems uintptr 				 // 块个数，也即有多少个块可供分配
+
+    allocBits  *gcBits     //分配位图，每一位代表一个块是否已分配
+
+    allocCount  uint16     // 已分配块的个数
+    spanclass   spanClass  // class表中的class ID
+
+    elemsize    uintptr    // class表中的对象大小，也即块大小
+}
+```
+
+以 class 10 为例，span和管理的内存如下图所示：
+
+![54](images/54.png)
+
+spanclass为10，参照 class 表可得出 npages=1，nelems=56，elemsize为144。其中startAddr是在span初始化时就指定了某个也得地址。allocBits 指向一个地图，每位代表一个块是否被分配，本例中有两个块已经被分配，其allocCount也为2 。
+
+next 和 prev 用于将多个 span 连接起来，这有利于管理 多个 span，接下来会进行说明。
+
+#### 12.3 cache
+
+有了管理内存的基本单位span，还要有个数据结构来管理span，这个数据结构叫mcentral，各线程需要内存时从mcentral管理的span中申请内存，为了避免多线程申请内存时不断地加锁，Golang为每个线程分配了span的缓存，这个缓存即是cache。
+
+`src/runtime/mcache.go:mcache`定义了cache的数据结构：
+
+```go
+type mcache struct {
+    alloc [67*2]*mspan // 按class分组的mspan列表
+}
+```
+
+alloc为mspan的指针数组，数组大小为class总数的2倍。数组中每个元素代表了一种class类型的span列表，每种class类型都有两组span列表，第一组列表中所表示的对象中包含了指针，第二组列表中所表示的对象不含有指针，这么做是为了提高GC扫描性能，对于不包含指针的span列表，没必要去扫描。
+
+根据对象是否包含指针，将对象分为noscan和scan两类，其中noscan代表没有指针，而scan则代表有指针，需要GC进行扫描。
+
+mcache和span的对应关系如下图所示：
+
+![55](images/55.png)
+
+mcache在初始化时是没有任何span的，在使用过程中会动态地从central中获取并缓存下来，根据使用情况，每种class的span个数也不相同。上图所示，class 0的span数比class1的要多，说明本线程中分配的小对象要多一些。
+
+#### 12.4 central
+
+cache作为线程的私有资源为单个线程服务，而central则是全局资源，为多个线程服务，当某个线程内存不足时会向central申请，当某个线程释放内存时又会回收进central。
+
+`src/runtime/mcentral.go:mcentral`定义了central数据结构：
+
+```go
+type mcentral struct {
+    lock      mutex     //互斥锁
+    spanclass spanClass // span class ID
+    nonempty  mSpanList // non-empty 指还有空闲块的span列表
+    empty     mSpanList // 指没有空闲块的span列表
+
+    nmalloc uint64      // 已累计分配的对象个数
+}
+```
+
+- lock: 线程间互斥锁，防止多线程读写冲突
+- spanclass : 每个mcentral管理着一组有相同class的span列表
+- nonempty: 指还有内存可用的span列表
+- empty: 指没有内存可用的span列表
+- nmalloc: 指累计分配的对象个数
+
+**线程从central获取span步骤如下**：
+
+1. 加锁
+2. 从nonempty列表获取一个可用span，并将其从链表中删除
+3. 将取出的span放入empty链表
+4. 将span返回给线程
+5. 解锁
+6. 线程将该span缓存进cache
+
+**线程将span归还步骤如下**：
+
+1. 加锁
+2. 将span从empty列表删除
+3. 将span加入noneempty列表
+4. 解锁
+
+上述线程从central中获取span和归还span只是简单流程，为简单起见，并未对具体细节展开。
+
+#### 12.5 heap
+
+从mcentral数据结构可见，每个mcentral对象只管理特定的class规格的span。事实上每种class都会对应一个mcentral,这个mcentral的集合存放于mheap数据结构中。
+
+`src/runtime/mheap.go:mheap`定义了heap的数据结构：
+
+```go
+type mheap struct {
+    lock      mutex
+
+    spans []*mspan
+
+    bitmap        uintptr     //指向bitmap首地址，bitmap是从高地址向低地址增长的
+
+    arena_start uintptr        //指示arena区首地址
+    arena_used  uintptr        //指示arena区已使用地址位置
+
+    central [67*2]struct {
+        mcentral mcentral
+        pad      [sys.CacheLineSize - unsafe.Sizeof(mcentral{})%sys.CacheLineSize]byte
+    }
+}
+```
+
+- lock： 互斥锁
+- spans: 指向spans区域，用于映射span和page的关系
+- bitmap：bitmap的起始地址
+- arena_start: arena区域首地址
+- arena_used: 当前arena已使用区域的最大地址
+- central: 每种class对应的两个mcentral
+
+从数据结构可见，mheap管理着全部的内存，事实上Golang就是通过一个mheap类型的全局变量进行内存管理的。
+
+mheap内存管理示意图如下：
+
+![56](images/56.png)
+
+系统预分配的内存分为spans、bitmap、arean三个区域，通过mheap管理起来。接下来看内存分配过程。
+
+#### 12.6 内存分配过程
+
+针对待分配对象的大小不同有不同的分配逻辑：
+
+- (0, 16B) 且不包含指针的对象： Tiny分配
+- (0, 16B) 包含指针的对象：正常分配
+- [16B, 32KB] : 正常分配
+- (32KB, -) : 大对象分配
+  其中Tiny分配和大对象分配都属于内存管理的优化范畴，这里暂时仅关注一般的分配方法。
+
+以申请size为n的内存为例，分配步骤如下：
+
+1. 获取当前线程的私有缓存mcache
+2. 根据size计算出适合的class的ID
+3. 从mcache的alloc[class]链表中查询可用的span
+4. 如果mcache没有可用的span则从mcentral申请一个新的span加入mcache中
+5. 如果mcentral中也没有可用的span则从mheap中申请一个新的span加入mcentral
+6. 从该span中获取到空闲对象地址并返回
+
+#### 12.7  总结
+
+Golang内存分配是个相当复杂的过程，其中还掺杂了GC的处理，这里仅仅对其关键数据结构进行了说明，了解其原理而又不至于深陷实现细节。
+
+1. Golang程序启动时申请一大块内存，并划分成spans、bitmap、arena区域
+2. arena区域按页划分成一个个小块
+3. span管理一个或多个页
+4. mcentral管理多个span供线程申请使用
+5. mcache作为线程私有资源，资源来源于mcentral
+
+
+
+
+
+
 
 
 
