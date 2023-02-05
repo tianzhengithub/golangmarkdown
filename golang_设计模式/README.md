@@ -1102,6 +1102,335 @@ func main() {
 
 ![21](images/21.png)
 
+```go
+package main
+
+import "fmt"
+
+// ======= 抽象层 =========
+type AbstractApple interface {
+	ShowApple()
+}
+
+type AbstractBanana interface {
+	ShowBanana()
+}
+
+type AbstractPear interface {
+	ShowPear()
+}
+
+//抽象工厂
+type AbstractFactory interface {
+	CreateApple() AbstractApple
+	CreateBanana() AbstractBanana
+	CreatePear() AbstractPear
+}
+
+// ======== 实现层 =========
+/*  中国产品族 */
+type ChinaApple struct {}
+
+func (ca *ChinaApple) ShowApple() {
+	fmt.Println("中国苹果")
+}
+
+type ChinaBanana struct {}
+
+func (cb *ChinaBanana) ShowBanana() {
+	fmt.Println("中国香蕉")
+}
+
+type ChinaPear struct {}
+
+func (cp *ChinaPear) ShowPear() {
+	fmt.Println("中国梨")
+}
+
+type ChinaFactory struct {}
+
+func (cf *ChinaFactory) CreateApple() AbstractApple {
+	var apple AbstractApple
+
+	apple = new(ChinaApple)
+
+	return apple
+}
+
+func (cf *ChinaFactory) CreateBanana() AbstractBanana {
+	var banana AbstractBanana
+
+	banana = new(ChinaBanana)
+
+	return banana
+}
+
+func (cf *ChinaFactory) CreatePear() AbstractPear {
+	var pear AbstractPear
+
+	pear = new(ChinaPear)
+
+	return pear
+}
+
+/*  日本产品族 */
+type JapanApple struct {}
+
+func (ja *JapanApple) ShowApple() {
+	fmt.Println("日本苹果")
+}
+
+type JapanBanana struct {}
+
+func (jb *JapanBanana) ShowBanana() {
+	fmt.Println("日本香蕉")
+}
+
+type JapanPear struct {}
+
+func (cp *JapanPear) ShowPear() {
+	fmt.Println("日本梨")
+}
+
+type JapanFactory struct {}
+
+func (jf *JapanFactory) CreateApple() AbstractApple {
+	var apple AbstractApple
+
+	apple = new(JapanApple)
+
+	return apple
+}
+
+func (jf *JapanFactory) CreateBanana() AbstractBanana {
+	var banana AbstractBanana
+
+	banana = new(JapanBanana)
+
+	return banana
+}
+
+func (cf *JapanFactory) CreatePear() AbstractPear {
+	var pear AbstractPear
+
+	pear = new(JapanPear)
+
+	return pear
+}
+
+/*  美国产品族 */
+type AmericanApple struct {}
+
+func (aa *AmericanApple) ShowApple() {
+	fmt.Println("美国苹果")
+}
+
+type AmericanBanana struct {}
+
+func (ab *AmericanBanana) ShowBanana() {
+	fmt.Println("美国香蕉")
+}
+
+type AmericanPear struct {}
+
+func (ap *AmericanPear) ShowPear() {
+	fmt.Println("美国梨")
+}
+
+type AmericanFactory struct {}
+
+func (af *AmericanFactory) CreateApple() AbstractApple {
+	var apple AbstractApple
+
+	apple = new(AmericanApple)
+
+	return apple
+}
+
+func (af *AmericanFactory) CreateBanana() AbstractBanana {
+	var banana AbstractBanana
+
+	banana = new(AmericanBanana)
+
+	return banana
+}
+
+func (af *AmericanFactory) CreatePear() AbstractPear {
+	var pear AbstractPear
+
+	pear = new(AmericanPear)
+
+	return pear
+}
+
+// ======== 业务逻辑层 =======
+func main() {
+	//需求1: 需要美国的苹果、香蕉、梨 等对象
+	//1-创建一个美国工厂
+	var aFac AbstractFactory
+	aFac = new(AmericanFactory)
+
+	//2-生产美国苹果
+	var aApple AbstractApple
+	aApple = aFac.CreateApple()
+	aApple.ShowApple()
+
+	//3-生产美国香蕉
+	var aBanana AbstractBanana
+	aBanana = aFac.CreateBanana()
+	aBanana.ShowBanana()
+
+	//4-生产美国梨
+	var aPear AbstractPear
+	aPear = aFac.CreatePear()
+	aPear.ShowPear()
+
+	//需求2: 需要中国的苹果、香蕉
+	//1-创建一个中国工厂
+	cFac := new(ChinaFactory)
+
+	//2-生产中国苹果
+	cApple := cFac.CreateApple()
+	cApple.ShowApple()
+
+	//3-生产中国香蕉
+	cBanana := cFac.CreateBanana()
+	cBanana.ShowBanana()
+}
+
+```
+
+##### 3.3.4 抽象工厂模式的优缺点
+
+优点：
+
+1. 拥有工厂方法模式的优点
+
+2. 当一个产品族中的多个对象被设计成一起工作时，它能够保证客户端始终只使用同一个产品族中的对象。
+3. 增加新的产品族很方便，无须修改已有系统，符合“开闭原则”。
+
+缺点：
+
+1. 增加新的产品等级结构麻烦，需要对原有系统进行较大的修改，甚至需要修改抽象层代码，这显然会带来较大的不便，违背了“开闭原则”。
+
+##### 3.3.5 适用场景
+
+(1) 系统中有多于一个的产品族。而每次只使用其中某一产品族。可以通过配置文件等方式来使得用户可以动态改变产品族，也可以很方便地增加新的产品族。
+
+(2) 产品等级结构稳定。设计完成之后，不会向系统中增加新的产品等级结构或者删除已有的产品等级结构。
+
+### 3.4 单例模式
+
+> 保证一个类，只有一个实例存在，同时提供能对该实例加以访问的全局访问方法。
+
+是GoF给出单例模式的定义。
+
+##### 3.4.1 单例模式中的角色和职责
+
+单例模式的标准类图如下：
+
+![22](images/22.png)
+
+**Singleton（单例）**：在单例类的内部实现只生成一个实例，同时它提供一个静态的getInstance()工厂方法，让客户可以访问它的唯一实例；为了防止在外部对其实例化，将其构造函数设计为私有；在单例类内部定义了一个Singleton类型的静态对象，作为外部共享的唯一实例。
+
+单例模式要解决的问题是：
+
+保证一个类永远只能有一个对象，且该对象的功能依然能被其他模块使用。
+
+##### 3.4.2 单例模式逻辑推演实现
+
+```go
+package main
+
+import "fmt"
+
+/*
+三个要点：
+		一是某个类只能有一个实例；
+		二是它必须自行创建这个实例；
+		三是它必须自行向整个系统提供这个实例。
+*/
+
+/*
+	保证一个类永远只能有一个对象
+*/
+
+
+//1、保证这个类非公有化，外界不能通过这个类直接创建一个对象
+//   那么这个类就应该变得非公有访问 类名称首字母要小写
+type singelton struct {}
+
+//2、但是还要有一个指针可以指向这个唯一对象，但是这个指针永远不能改变方向
+//   Golang中没有常指针概念，所以只能通过将这个指针私有化不让外部模块访问
+var instance *singelton = new(singelton)
+
+//3、如果全部为私有化，那么外部模块将永远无法访问到这个类和对象，
+//   所以需要对外提供一个方法来获取这个唯一实例对象
+//   注意：这个方法是否可以定义为singelton的一个成员方法呢？
+//       答案是不能，因为如果为成员方法就必须要先访问对象、再访问函数
+//        但是类和对象目前都已经私有化，外界无法访问，所以这个方法一定是一个全局普通函数
+func GetInstance() *singelton {
+	return instance
+}
+
+func (s *singelton) SomeThing() {
+	fmt.Println("单例对象的某方法")
+}
+
+func main() {
+	s := GetInstance()
+	s.SomeThing()
+}
+```
+
+上面代码推演了一个单例的创建和逻辑过程，上述是单例模式中的一种，属于“饿汉式”。含义是，在初始化单例唯一指针的时候，就已经提前开辟好了一个对象，申请了内存。饿汉式的好处是，不会出现线程并发创建，导致多个单例的出现，但是缺点是如果这个单例对象在业务逻辑没有被使用，也会客观的创建一块内存对象。那么与之对应的模式叫“懒汉式”，代码如下：
+
+```go
+package main
+
+import "fmt"
+
+type singelton struct {}
+
+var instance *singelton
+
+func GetInstance() *singelton {
+	//只有首次GetInstance()方法被调用，才会生成这个单例的实例
+	if instance == nil {
+		instance = new(singelton)
+		return instance
+	}
+
+	//接下来的GetInstance直接返回已经申请的实例即可
+	return instance
+}
+
+func (s *singelton) SomeThing() {
+	fmt.Println("单例对象的某方法")
+}
+
+func main() {
+	s := GetInstance()
+	s.SomeThing()
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
