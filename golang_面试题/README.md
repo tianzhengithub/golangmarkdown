@@ -1306,7 +1306,7 @@ type bmap struct {
 >   当我们的所需要存放值的位置被占了，会前后寻找而不是单独方向的寻找。
 >
 >           公式：h(x)=(Hash(x) +i)mod (Hashtable.length);（i依次为+(i^2)和-(i^2)）
->             
+>                   
 >           举例：
 >
 >   ![7](images/7.png)
@@ -1792,7 +1792,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {}
 func WithValue(parent Context, key, val interface{}) Context {}
 ```
 
-函数都接收一个Context类型的parent，并返回一个context类型的值，这样就蹭蹭创建爱你除不同的context，子节点是从复制父节点得到，并且根据接受参数设定子节点的一些状态值，接着就可以将子节点传递给下层的 goroutine 了。
+函数都接收一个Context类型的parent，并返回一个context类型的值，这样就蹭蹭创建除不同的context，子节点是从复制父节点得到，并且根据接受参数设定子节点的一些状态值，接着就可以将子节点传递给下层的 goroutine 了。
 
 怎么样通过context传递改变后的状态呢？
 
@@ -1896,7 +1896,7 @@ type hchan struct {
 总结hchan结构体的主要组成部分有四个：
 
 - 用来保存 goroutine 之间传递数据的循环链表。 ====> buf 。
-- 用来记录次循环链表当前发送或接收数据的下标值。 ====> sendx 和 recvx 。
+- 用来记录下次循环链表当前发送或接收数据的下标值。 ====> sendx 和 recvx 。
 - 用于保存向该chan发送和从改chan接受数据的 goroutine 的队列。 ====> sendq 和 recvq 。
 - 保证 channel 写入和读取数据时线程安全的锁。====> lock。
 
