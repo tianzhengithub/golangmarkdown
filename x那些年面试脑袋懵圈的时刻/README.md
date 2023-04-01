@@ -321,7 +321,7 @@ public class RoleService {
 }
 ```
 
-我们可以看到实物方法add中，调用了实物方法 doOtherThing ，但是实物方法 doOtherThing 是在另外一个线程中被调用的。
+我们可以看到实物方法add中，调用了实物方法 doOtherThing ，但是事务方法 doOtherThing 是在另外一个线程中被调用的。
 
 这样会导致两个方法不再同一个线程中，获取到的数据库连接不一样，从而使两个不同的事务。如果想 doOtherThing 方法中抛出异常， add 方法也回滚时不可能的。
 
