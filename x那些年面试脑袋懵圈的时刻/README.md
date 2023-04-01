@@ -205,7 +205,7 @@ if (allowPublicMethodsOnly() && !Modifier.isPublic(method.getModifiers())) {
 
 ##### 1.3.6 错误使用传播机制
 
-Spring 事务的传播机制是指在多个事务方法互相调用时，确定事务应该如何传播的策略。Spring 提供了 7  种食物传播机制：
+Spring 事务的传播机制是指在多个事务方法互相调用时，确定事务应该如何传播的策略。Spring 提供了 7  种事务传播机制：
 
 1. REQUIRED
 2. SUPPORT
