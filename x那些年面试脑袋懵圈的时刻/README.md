@@ -722,7 +722,7 @@ EXPIRE resource_name 30
 
 #### 3.4 集群分布式锁
 
-在redis集群模式下创建锁和解锁的方案，用到的 redis 命令依然和普通模式一样，唯一不用的在于集群模式下的数据清理方式，基本命令如下：
+在redis集群模式下创建锁和解锁的方案，用到的 redis 命令依然和普通模式一样，唯一不同的在于集群模式下的数据清理方式，基本命令如下：
 
 ```bash
 SET key value [EX seconds] [PX milliseconds] [NX|XX]
