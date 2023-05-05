@@ -3,6 +3,9 @@
 #### 1.1 安装docker及containerd容器
 
 ```bash
+#前提.设置每个机器自己的hostname
+hostnamectl set-hostname xxx
+
 # 1.移除docker
 sudo yum remove docker \
                   docker-client \
@@ -19,7 +22,10 @@ sudo yum-config-manager \
     https://download.docker.com/linux/centos/docker-ce.repo  
       
 # 3.安装 Docker 引擎、容器和 Docker 组合:
-sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo yum install -y docker-ce-20.10.23 docker-ce-cli-20.10.23 containerd.io-1.6.15 
+
+#以下是在安装k8s的时候使用
+# yum install -y docker-ce-20.10.7 docker-ce-cli-20.10.7  containerd.io-1.4.6
 
 #	4.启动&开机启动docker
 systemctl enable docker --now
@@ -93,13 +99,15 @@ gpgcheck=1
 gpgkey=http://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg
    http://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
 EOF
-
-#2.安装 kubelet，kubeadm，kubectl
-sudo yum install -y kubelet-1.27.1 kubeadm-1.27.1 kubectl-1.27.1
-
-#3.启动kubelet
+# 2.查看kubernetes版本
+# yum list kubelet kubeadm kubectl  --showduplicates | sort -r
+#3.安装 kubelet，kubeadm，kubectl
+# sudo yum install -y kubelet-1.27.1 kubeadm-1.27.1 kubectl-1.27.1
+# 3.1 为了安装kuberspher 安装1.24.6版本 
+sudo yum install -y kubeadm-1.24.6 kubectl-1.24.6 kubelet-1.24.6
+#4.启动kubelet
 sudo systemctl enable --now kubelet
-#4.所有机器配置master域名
+#5.所有机器配置master域名
 echo "172.31.0.2  master" >> /etc/hosts
 ```
 
@@ -111,6 +119,7 @@ echo "172.31.0.2  master" >> /etc/hosts
 # vim /etc/sysconfig/kubelet
 KUBELET_EXTRA_ARGS="--cgroup-driver=systemd"
 
+#sed -i 's#KUBELET_EXTRA_ARGS=""#KUBELET_EXTRA_ARGS="--cgroup-driver=systemd"#g' /etc/sysconfig/kubelet
 设置kubelet为开机自启动即可，由于没有生成配置文件，集群初始化后自动启动
 # systemctl enable kubelet
 
@@ -130,10 +139,13 @@ KUBELET_EXTRA_ARGS="--cgroup-driver=systemd"
 containerd config default > /etc/containerd/config.toml
 #2.编辑配置文件
 vim /etc/containerd/config.toml
-SystemdCgroup = false 改为 SystemdCgroup = true
+# SystemdCgroup = false 改为 SystemdCgroup = true
+sed -i 's#SystemdCgroup = false#SystemdCgroup = true#g' /etc/containerd/config.toml
 
 # 3.修改 sandbox_image = "k8s.gcr.io/pause:3.6"
-sandbox_image = "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6"
+#sandbox_image = "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9"
+
+sed -i 's#sandbox_image = "registry.k8s.io/pause:3.6"#sandbox_image = "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.9"#g' /etc/containerd/config.toml
 
 # 4.设置开机自启动
 systemctl enable containerd
@@ -148,11 +160,13 @@ ctr images ls
 #### 1.6、使用kubeadm进行初始化
 
 ```bash
+# 在master节点上执行
+
 kubeadm init \
 --apiserver-advertise-address=172.31.0.2 \
---control-plane-endpoint=master \ # 此处的 master 和修改主节点的 hostname 一致
+--control-plane-endpoint=master \
 --image-repository registry.cn-hangzhou.aliyuncs.com/google_containers \
---kubernetes-version v1.27.1 \
+--kubernetes-version v1.24.6 \
 --service-cidr=10.96.0.0/16 \
 --pod-network-cidr=192.168.0.0/16
 
@@ -186,18 +200,18 @@ Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
 You can now join any number of control-plane nodes by copying certificate authorities
 and service account keys on each node and then running the following as root:
 
-  kubeadm join master:6443 --token vpaktg.s51c1071536ufw2f \
-        --discovery-token-ca-cert-hash sha256:007086af6e8e68cf02ba69643e00bb1318e1e0fadf834dd332fb2ad80010966c \
+  kubeadm join master:6443 --token bgh00y.71sw9kf1ruk04m6l \
+        --discovery-token-ca-cert-hash sha256:4010d64b3c65acc29d0e41064f83126a797f19fbf621c843cf33fed6e0e8a276 \
         --control-plane 
 
 Then you can join any number of worker nodes by running the following on each as root:
 
-kubeadm join master:6443 --token vpaktg.s51c1071536ufw2f \
-        --discovery-token-ca-cert-hash sha256:007086af6e8e68cf02ba69643e00bb1318e1e0fadf834dd332fb2ad80010966c 
-[root@master containerd]# 
+kubeadm join master:6443 --token bgh00y.71sw9kf1ruk04m6l \
+        --discovery-token-ca-cert-hash sha256:4010d64b3c65acc29d0e41064f83126a797f19fbf621c843cf33fed6e0e8a276 
+[root@master sysconfig]# 
 ```
 
-#### 1.8、集群部署网络插件
+#### 1.8、集群部署calico网络插件
 
 ```bash
 网络组件有很多种，只需要部署其中一个即可，推荐Calico。
@@ -206,15 +220,54 @@ Calico 在每一个计算节点利用 Linux Kernel 实现了一个高效的虚�
 此外，Calico 项目还实现了 Kubernetes 网络策略，提供ACL功能。
 #1.下载Calico
 
-wget https://docs.tigera.io/archive/v3.24/manifests/calico.yaml
+curl https://docs.tigera.io/archive/v3.25/manifests/calico.yaml -O
 
-vim calico.yaml
 # 2.注意此处 CALICO_IPV4POOL_CIDR 的 value 要和 --pod-network-cidr 后面的值一致
+vim calico.yaml
+# 在calico.yaml文件中,找到此处value 修改和 --pod-network-cidr 后面的值一致
 - name: CALICO_IPV4POOL_CIDR
-  value: "10.244.0.0/16"
+  value: "192.168.0.0/16"
 ...
 #3.使用命令执行网络插件
 kubectl apply -f calico.yaml
+
+#4.安装时镜像拉取失败，配置镜像加速器
+[root@localhost ~]# cat /etc/docker/daemon.json <<EOF
+{
+  "registry-mirrors": [
+        "https://7mimmp7p.mirror.aliyuncs.com",
+        "https://registry.docker-cn.com",
+        "http://hub-mirror.c.163.com",
+        "https://docker.mirrors.ustc.edu.cn"
+        ],
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2",
+  "storage-opts": [
+    "overlay2.override_kernel_check=true"
+  ]
+}
+EOF
+#5.由于默认的Calico清单文件中所使用的镜像来源于docker.io国外镜像源，上面我们配置了Docker镜像加速，应删除docker.io前缀以使镜像从国内镜像加速站点下载。
+[root@master ~]# cat calico.yaml |grep 'image:'
+          image: docker.io/calico/cni:v3.25.0
+          image: docker.io/calico/cni:v3.25.0
+          image: docker.io/calico/node:v3.25.0
+          image: docker.io/calico/node:v3.25.0
+          image: docker.io/calico/kube-controllers:v3.25.0
+[root@master ~]# sed -i 's#docker.io/##g' calico.yaml
+[root@master ~]# cat calico.yaml |grep 'image:'
+          image: calico/cni:v3.25.0
+          image: calico/cni:v3.25.0
+          image: calico/node:v3.25.0
+          image: calico/node:v3.25.0
+          image: calico/kube-controllers:v3.25.0
+#6.如果镜像下载失败
+下载网站[https://github.com/projectcalico/calico/releases]
+下载完成后解压，image为docker镜像文件，使用docker load 命令进行镜像还原
 ```
 
 ### 二、containerd镜像加速
@@ -224,8 +277,14 @@ kubectl apply -f calico.yaml
 - 修改Config.toml文件
 
 ```toml
+#1.修改配置文件
+vim /etc/containerd/config.toml
+
 [plugins."io.containerd.grpc.v1.cri".registry]
       config_path = "/etc/containerd/certs.d"  # 镜像地址配置文件
+      
+#2.使用下面的命令进行替换      
+sed -i 's#config_path = ""#config_path = "/etc/containerd/certs.d"#g' /etc/containerd/config.toml
 
       [plugins."io.containerd.grpc.v1.cri".registry.auths]
 
@@ -242,13 +301,15 @@ kubectl apply -f calico.yaml
 mkdir /etc/containerd/certs.d/docker.io -pv
 ```
 
-- 配置加速
+- Containerd配置加速
 
 ```toml
 cat > /etc/containerd/certs.d/docker.io/hosts.toml << EOF
 server = "https://docker.io"
 [host."https://wkxfupsi.mirror.aliyuncs.com"]
   capabilities = ["pull", "resolve"]
+[host."https://registry-1.docker.io"]
+	capabilities = ["pull", "resolve"]
 EOF
 ```
 
@@ -366,13 +427,705 @@ CONTAINER      IMAGE                     RUNTIME
 ~]# kill -a -s 9 {id}
 ```
 
+#### 2.4 containerd 从jar包中导出镜像到指定的名称空间
+
+```bash
+#!/bin/bash
+#
+
+# https://github.com/kubernetes-sigs/metrics-server
+# wget https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+# sed '/args:/a\        - --kubelet-insecure-tls' components.yaml
+
+# download and change yaml
+# wget -O- https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml \
+#   | sed '/args:/a\        - --kubelet-insecure-tls' - > components.yaml
+
+# use ali registry to speed up
+repo=registry.aliyuncs.com/google_containers
+
+name=k8s.gcr.io/metrics-server/metrics-server:v0.6.1
+
+# remove prefix
+#src_name=${name#k8s.gcr.io/}
+#src_name=${name#metrics-server/}
+src_name=metrics-server:v0.6.1
+
+ctr -n=k8s.io image pull $repo/$src_name
+
+# rename to fit k8s
+ctr -n=k8s.io image tag $repo/$src_name $name
+ctr -n=k8s.io image rm $repo/$src_name
+ctr -n=k8s.io image load -i
+# add args: - --kubelet-insecure-tls
+kubectl apply -f components.yaml
+
+# docker 导出/导入命令
+docker save -o xxx.tar $imageList
+docker load -i  xxx.tar
+# containerd 容器导出/导入命令 
+ctr -n=k8s.io image export  xxx.tar  $imageList
+ctr -n=k8s.io images import  xxx.tar
+
+#containerd 容器从 tar 包中导出镜像命令
+ctr -n k8s.io images export calico-cni.tar docker.io/calico/cni:v3.25.0
+ctr -n k8s.io images export calico-node.tar docker.io/calico/node:v3.25.0
+ctr -n k8s.io images export calico-kube-controllers.tar docker.io/calico/kube-controllers:v3.25.0
+# docker 下载指定sha256 版本的镜像
+docker.io/calico/cni:v3.20.6@sha256:00e1c39c1d3d9e91e6c0abb37b2f7a436127a8c9f8ec1db76fade7d8099de0e2
+```
 
 
 
 
 
+#### 2.5 containerd 卸载命令
+
+```bash
+#一.创建脚本
+cat > remove.sh <<EOF
+#!/bin/bash
+# 删除contained命令及配置
+rm -rf /usr/local/bin/
+rm -rf /etc/containerd/
+# 删除containerd服务
+rm -rf /usr/local/lib/systemd/system/containerd.service
+# 删除runc
+rm -rf /usr/local/sbin/runc
+# 删除CNI插件
+rm -rf /opt/containerd/
+# 删除ctr命令
+rm -rf /usr/bin/ctr
+EOF
+
+#二.赋权限及执行脚本
+chmod +x remove.sh
+./remove.sh
+
+```
 
 
+
+### 三、安装KubeSphere前置环境
+
+#### 3.1 nfs文件系统
+
+##### 3.1.1 安装 nfs-server
+
+```bash
+# 在每个机器。
+yum install -y nfs-utils
+
+# 在master 执行以下命令 
+echo "/nfs/data/ *(insecure,rw,sync,no_root_squash)" > /etc/exports
+
+# 执行以下命令，启动 nfs 服务;创建共享目录
+mkdir -p /nfs/data
+
+# 在master执行
+systemctl enable rpcbind
+systemctl enable nfs-server
+systemctl start rpcbind
+systemctl start nfs-server
+
+# 使配置生效
+exportfs -r
+
+#检查配置是否生效
+exportfs
+```
+
+##### 3.1.2 配置nfs-client（选做）
+
+```bash
+showmount -e 172.31.0.2
+mkdir -p /nfs/data
+mount -t nfs 172.31.0.2:/nfs/data /nfs/data
+```
+
+##### 3.1.3 配置默认存储
+
+```yml
+## 创建了一个存储类
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storage
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
+parameters:
+  archiveOnDelete: "true"  ## 删除pv的时候，pv的内容是否要备份
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-client-provisioner
+  labels:
+    app: nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      serviceAccountName: nfs-client-provisioner
+      containers:
+        - name: nfs-client-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images/nfs-subdir-external-provisioner:v4.0.2
+          # resources:
+          #    limits:
+          #      cpu: 10m
+          #    requests:
+          #      cpu: 10m
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: k8s-sigs.io/nfs-subdir-external-provisioner
+            - name: NFS_SERVER
+              value: 172.31.0.2 ## 指定自己nfs服务器地址
+            - name: NFS_PATH  
+              value: /nfs/data  ## nfs服务器共享的目录
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: 172.31.0.2
+            path: /nfs/data
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: nfs-client-provisioner
+    # replace with namespace where provisioner is deployed
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: nfs-client-provisioner
+    # replace with namespace where provisioner is deployed
+    namespace: default
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+```
+
+### 四、Service Account
+
+#### 4.1 简介
+
+​	本页介绍了Kubernetes中的ServiceAccount对象，提供了有关服务帐户如何工作、用例、限制、替代方案以及资源链接的信息，以获得更多指导。
+
+#### 4.2 什么是服务帐户？
+
+​	服务帐户是一种非人类帐户，在Kubernetes中，它在Kubernet集群中提供不同的身份。集群内外的应用程序吊舱、系统组件和实体可以使用特定ServiceAccount的凭据来标识为该ServiceAccount。此身份在各种情况下都很有用，包括对API服务器进行身份验证或实现基于身份的安全策略。
+
+​	服务帐户作为ServiceAccount对象存在于API服务器中。服务帐户具有以下属性：
+
+- **Namespaced**：每个服务帐户都绑定到一个Kubernetes命名空间。每个命名空间在创建时都会获得一个默认的ServiceAccount。
+
+- **轻量级**：服务帐户存在于集群中，并在Kubernetes API中定义。您可以快速创建服务帐户以启用特定任务。
+
+- **可移植**：复杂容器化工作负载的配置包可能包括系统组件的服务帐户定义。服务帐户的轻量级特性和命名空间标识使配置具有可移植性。
+
+**服务帐户与用户帐户不同**，用户帐户是集群中经过身份验证的人工用户。默认情况下，用户帐户在Kubernetes API服务器中不存在；相反，API服务器将用户身份视为不透明数据。您可以使用多种方法作为用户帐户进行身份验证。一些Kubernetes发行版可能会添加自定义扩展API来表示API服务器中的用户帐户。
+
+| Description    | ServiceAccount                                               | User or group                                                |
+| -------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Location       | Kubernetes API (ServiceAccount object)                       | External                                                     |
+| Access control | Kubernetes RBAC or other [authorization mechanisms](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#authorization-modules) | Kubernetes RBAC or other identity and access management mechanisms |
+| Intended use   | Workloads, automation                                        | People                                                       |
+
+#### 4.3 默认服务帐户
+
+创建集群时，Kubernetes会自动为集群中的每个命名空间创建一个名为default的ServiceAccount对象。默认情况下，除了Kubernetes在启用基于角色的访问控制（RBAC）时授予所有经过身份验证的主体的默认API发现权限外，每个命名空间中的默认服务帐户没有其他权限。如果删除名称空间中的默认ServiceAccount对象，则控制平面会将其替换为新对象。
+
+如果您在一个命名空间中部署了一个Pod，并且没有手动为该Pod分配ServiceAccount，那么Kubernetes会将该命名空间的默认ServiceAccount分配给Pod。
+
+#### 4.4 Kubernetes服务帐户的用例
+
+作为一般准则，您可以在以下情况下使用服务帐户来提供身份：
+
+- 您的Pods需要与Kubernetes API服务器通信，例如在以下情况下：
+  - 提供对机密中存储的敏感信息的只读访问。
+  - 授予跨命名空间访问权限，例如允许Pod-in-namespace示例读取、列出和监视kube节点租赁命名空间中的Lease对象。
+
+- 您的Pods需要与外部服务进行通信。例如，工作负载Pod需要商用云API的身份，而商用提供商允许配置合适的信任关系。
+
+- 使用imagePullSecret对专用映像注册表进行身份验证。
+
+- 外部服务需要与Kubernetes API服务器通信。例如，作为CI/CD管道的一部分对集群进行身份验证。
+
+- 您在集群中使用第三方安全软件，该软件依赖于不同Pod的ServiceAccount标识，将这些Pod分组到不同的上下文中。
+
+#### 4.5 如何使用服务帐户
+
+要使用Kubernetes服务帐户，请执行以下操作：
+
+1. 使用Kubernetes客户端（如kubectl）或定义对象的清单创建ServiceAccount对象。
+
+2. 使用授权机制（如RBAC）向ServiceAccount对象授予权限。
+
+3. 在Pod创建过程中将ServiceAccount对象分配给Pod。
+
+4. 如果您正在使用来自外部服务的标识，请检索ServiceAccount令牌，然后从该服务使用它。
+
+有关说明，请参阅配置Pods的服务帐户。
+
+#### 4.6 向服务帐户授予权限
+
+您可以使用内置的Kubernetes基于角色的访问控制（RBAC）机制来授予每个服务帐户所需的最低权限。您创建一个授予访问权限的角色，然后将该角色绑定到您的ServiceAccount。RBAC允许您定义一组最小权限，以便服务帐户权限遵循最小权限原则。使用该服务帐户的Pod所获得的权限不会超过正常运行所需的权限。
+
+有关说明，请参阅ServiceAccount权限
+
+#### 4.7 使用ServiceAccount进行跨命名空间访问
+
+您可以使用RBAC来允许一个命名空间中的服务帐户对集群中不同命名空间中的资源执行操作。例如，考虑一个场景，其中您在dev命名空间中有一个服务帐户和Pod，并且您希望Pod看到Jobs在维护命名空间中运行。您可以创建一个角色对象，该对象授予列出作业对象的权限。然后，在维护命名空间中创建一个RoleBinding对象，将Role绑定到ServiceAccount对象。现在，dev命名空间中的Pods可以使用该服务帐户列出维护命名空间中的Job对象。
+
+#### 4.8 为Pod分配服务帐户
+
+要将ServiceAccount分配给Pod，请在Pod规范中设置spec.serviceAccountName字段。然后，Kubernetes会自动向Pod提供该ServiceAccount的凭据。在v1.22及更高版本中，Kubernetes使用TokenRequest API获得一个短期的、自动旋转的令牌，并将该令牌装载为投影卷。
+
+默认情况下，Kubernetes为Pod提供指定ServiceAccount的凭据，无论是默认的ServiceAccount还是您指定的自定义ServiceAccount。
+
+为了防止Kubernetes自动注入指定ServiceAccount或默认ServiceAccount的凭据，请将Pod规范中的automountServiceAccountToken字段设置为false。
+
+在1.22之前的版本中，Kubernetes为Pod提供了一个长期的静态令牌作为Secret。
+
+#### 4.9 手动检索ServiceAccount凭据
+
+如果需要ServiceAccount的凭据才能装入非标准位置，或者需要非API服务器的访问群体的凭据，请使用以下方法之一：
+
+- TokenRequest API（推荐）：从您自己的应用程序代码中请求短期服务帐户令牌。代币自动到期，到期后可以轮换。如果您有一个不知道Kubernetes的遗留应用程序，您可以在同一个pod中使用sidecar容器来获取这些令牌，并使其可用于应用程序工作负载。
+
+- [Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) （也推荐）：在Kubernetes v1.20及更高版本中，使用Pod规范告诉kubelet将服务帐户 token 作为投影数量添加到Pod中。预计的 tokens 会自动到期，kubelet会在代币到期前对其进行轮换。
+
+- [Service Account Token Secrets](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#manually-create-an-api-token-for-a-serviceaccount) （不推荐）：您可以在Pods中将服务帐户令牌作为Kubernetes机密挂载。这些 tokens 不会过期，也不会轮换。不建议使用此方法，尤其是在规模上，因为存在与静态、长期凭据相关的风险。在Kubernetes v1.24及更高版本中，LegacyServiceAccountTokenNoAutoGeneration功能门阻止Kubernete自动为ServiceAccounts创建这些令牌。LegacyServiceAccountTokenNoAutoGeneration默认启用；换句话说，Kubernetes不会创建这些令
+
+```tex
+注：
+对于在Kubernetes集群之外运行的应用程序，您可能会考虑创建一个存储在Secret中的长期ServiceAccount令牌。这允许身份验证，但Kubernetes项目建议您避免这种方法。长期持有的token代表着一种安全风险，因为一旦被披露，token可能会被滥用。相反，考虑使用替代方案。例如，您的外部应用程序可以使用受良好保护的私钥和证书进行身份验证，也可以使用自定义机制（如您自己实现的身份验证webhook）进行身份验证。
+
+您还可以使用TokenRequest为您的外部应用程序获取短期令牌。
+```
+
+#### 4.10 创建一个存储类
+
+```yaml
+## 创建了一个存储类
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storage
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
+parameters:
+  archiveOnDelete: "true"  ## 删除pv的时候，pv的内容是否要备份
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-client-provisioner
+  labels:
+    app: nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      serviceAccountName: nfs-client-provisioner
+      containers:
+        - name: nfs-client-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images/nfs-subdir-external-provisioner:v4.0.2
+          # resources:
+          #    limits:
+          #      cpu: 10m
+          #    requests:
+          #      cpu: 10m
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: k8s-sigs.io/nfs-subdir-external-provisioner
+            - name: NFS_SERVER
+              value: 172.31.0.2 ## 指定自己nfs服务器地址
+            - name: NFS_PATH  
+              value: /nfs/data  ## nfs服务器共享的目录
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: 172.31.0.2
+            path: /nfs/data
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: nfs-client-provisioner
+    # replace with namespace where provisioner is deployed
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: nfs-client-provisioner
+    # replace with namespace where provisioner is deployed
+    namespace: default
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+```
+
+#### 4.11 测试使用默认存储
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nginx-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 200Mi
+```
+
+### 五、metrics-server
+
+#### 5.1 创建集群指标监控组件
+
+```yml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: metrics-server
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  name: system:aggregated-metrics-reader
+rules:
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: system:metrics-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - nodes/stats
+  - namespaces
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server:system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: system:metrics-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:metrics-server
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: https
+  selector:
+    k8s-app: metrics-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      k8s-app: metrics-server
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        k8s-app: metrics-server
+    spec:
+      containers:
+      - args:
+        - --cert-dir=/tmp
+        - --kubelet-insecure-tls
+        - --secure-port=4443
+        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+        - --kubelet-use-node-status-port
+        image: registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images/metrics-server:v0.4.3
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /livez
+            port: https
+            scheme: HTTPS
+          periodSeconds: 10
+        name: metrics-server
+        ports:
+        - containerPort: 4443
+          name: https
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: https
+            scheme: HTTPS
+          periodSeconds: 10
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      serviceAccountName: metrics-server
+      volumes:
+      - emptyDir: {}
+        name: tmp-dir
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: v1beta1.metrics.k8s.io
+spec:
+  group: metrics.k8s.io
+  groupPriorityMinimum: 100
+  insecureSkipTLSVerify: true
+  service:
+    name: metrics-server
+    namespace: kube-system
+  version: v1beta1
+  versionPriority: 100
+```
+
+#### 5.2 文本内容替换命令
+
+```bash
+sed -i 's#calico/node/#docker.io/calico/node/#g' calico.yaml
+```
+
+#### 5.3 强制删除pod命令
+
+```bash
+# 强制删除pod命令
+# kubectl delete po <your-pod-name> -n <name-space> --force --grace-period=0
+kubectl delete po calico-kube-controllers-84c476996d-djgt8 -n kube-system --force --grace-period=0
+```
+
+#### 
 
 
 
