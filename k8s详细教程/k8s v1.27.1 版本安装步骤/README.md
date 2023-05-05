@@ -545,6 +545,12 @@ mount -t nfs 172.31.0.2:/nfs/data /nfs/data
 
 ##### 3.1.3 配置默认存储
 
+默认存储参考官网地址：https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/blob/master/deploy/kustomization.yaml
+
+- class.yaml
+- rbac.yaml
+- deploymnet.yaml
+
 ```yml
 ## 创建了一个存储类
 apiVersion: storage.k8s.io/v1
@@ -772,136 +778,6 @@ roleRef:
 您还可以使用TokenRequest为您的外部应用程序获取短期令牌。
 ```
 
-#### 4.10 创建一个存储类
-
-```yaml
-## 创建了一个存储类
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: nfs-storage
-  annotations:
-    storageclass.kubernetes.io/is-default-class: "true"
-provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
-parameters:
-  archiveOnDelete: "true"  ## 删除pv的时候，pv的内容是否要备份
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nfs-client-provisioner
-  labels:
-    app: nfs-client-provisioner
-  # replace with namespace where provisioner is deployed
-  namespace: default
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: nfs-client-provisioner
-  template:
-    metadata:
-      labels:
-        app: nfs-client-provisioner
-    spec:
-      serviceAccountName: nfs-client-provisioner
-      containers:
-        - name: nfs-client-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/lfy_k8s_images/nfs-subdir-external-provisioner:v4.0.2
-          # resources:
-          #    limits:
-          #      cpu: 10m
-          #    requests:
-          #      cpu: 10m
-          volumeMounts:
-            - name: nfs-client-root
-              mountPath: /persistentvolumes
-          env:
-            - name: PROVISIONER_NAME
-              value: k8s-sigs.io/nfs-subdir-external-provisioner
-            - name: NFS_SERVER
-              value: 172.31.0.2 ## 指定自己nfs服务器地址
-            - name: NFS_PATH  
-              value: /nfs/data  ## nfs服务器共享的目录
-      volumes:
-        - name: nfs-client-root
-          nfs:
-            server: 172.31.0.2
-            path: /nfs/data
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: nfs-client-provisioner
-  # replace with namespace where provisioner is deployed
-  namespace: default
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: nfs-client-provisioner-runner
-rules:
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["create", "update", "patch"]
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: run-nfs-client-provisioner
-subjects:
-  - kind: ServiceAccount
-    name: nfs-client-provisioner
-    # replace with namespace where provisioner is deployed
-    namespace: default
-roleRef:
-  kind: ClusterRole
-  name: nfs-client-provisioner-runner
-  apiGroup: rbac.authorization.k8s.io
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: leader-locking-nfs-client-provisioner
-  # replace with namespace where provisioner is deployed
-  namespace: default
-rules:
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: leader-locking-nfs-client-provisioner
-  # replace with namespace where provisioner is deployed
-  namespace: default
-subjects:
-  - kind: ServiceAccount
-    name: nfs-client-provisioner
-    # replace with namespace where provisioner is deployed
-    namespace: default
-roleRef:
-  kind: Role
-  name: leader-locking-nfs-client-provisioner
-  apiGroup: rbac.authorization.k8s.io
-```
-
 #### 4.11 测试使用默认存储
 
 ```yaml
@@ -918,6 +794,14 @@ spec:
 ```
 
 ### 五、metrics-server
+
+如何去写metrics-server.yaml文件，最好的答案还是去官网找。
+
+![3](images/3.png)
+
+
+
+汇总得到5.1 的metrics-server.yaml文件
 
 #### 5.1 创建集群指标监控组件
 
@@ -1125,7 +1009,349 @@ sed -i 's#calico/node/#docker.io/calico/node/#g' calico.yaml
 kubectl delete po calico-kube-controllers-84c476996d-djgt8 -n kube-system --force --grace-period=0
 ```
 
-#### 
+#### 5.4 Deployment yaml 参数详解-1
 
+```yaml
+apiVersion: apps/v1  # 指定api版本，此值必须在kubectl api-versions中  
+kind: Deployment  # 指定创建资源的角色/类型   
+metadata:  # 资源的元数据/属性 
+  name: demo  # 资源的名字，在同一个namespace中必须唯一
+  namespace: default # 部署在哪个namespace中
+  labels:  # 设定资源的标签
+    app: demo
+    version: stable
+spec: # 资源规范字段
+  replicas: 1 # 声明副本数目
+  revisionHistoryLimit: 3 # 保留历史版本
+  selector: # 选择器
+    matchLabels: # 匹配标签
+      app: demo
+      version: stable
+  strategy: # 策略
+    rollingUpdate: # 滚动更新
+      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
+      maxUnavailable: 30% # 示在更新过程中能够进入不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
+    type: RollingUpdate # 滚动更新策略
+  template: # 模版
+    metadata: # 资源的元数据/属性 
+      annotations: # 自定义注解列表
+        sidecar.istio.io/inject: "false" # 自定义注解名字
+      labels: # 设定资源的标签
+        app: demo
+        version: stable
+    spec: # 资源规范字段
+      containers:
+      - name: demo # 容器的名字   
+        image: demo:v1 # 容器使用的镜像地址   
+        imagePullPolicy: IfNotPresent # 每次Pod启动拉取镜像策略，三个选择 Always、Never、IfNotPresent
+                                      # Always，每次都检查；Never，每次都不检查（不管本地是否有）；IfNotPresent，如果本地有就不检查，如果没有就拉取 
+        resources: # 资源管理
+          limits: # 最大使用
+            cpu: 300m # CPU，1核心 = 1000m
+            memory: 500Mi # 内存，1G = 1024Mi
+          requests:  # 容器运行时，最低资源需求，也就是说最少需要多少资源容器才能正常运行
+            cpu: 100m
+            memory: 100Mi
+        livenessProbe: # pod 内部健康检查的设置
+          httpGet: # 通过httpget检查健康，返回200-399之间，则认为容器正常
+            path: /healthCheck # URI地址
+            port: 8080 # 端口
+            scheme: HTTP # 协议
+            # host: 127.0.0.1 # 主机地址
+          initialDelaySeconds: 30 # 表明第一次检测在容器启动后多长时间后开始
+          timeoutSeconds: 5 # 检测的超时时间
+          periodSeconds: 30 # 检查间隔时间
+          successThreshold: 1 # 成功门槛
+          failureThreshold: 5 # 失败门槛，连接失败5次，pod杀掉，重启一个新的pod
+        readinessProbe: # Pod 准备服务健康检查设置
+          httpGet:
+            path: /healthCheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 5
+        #也可以用这种方法   
+        #exec: 执行命令的方法进行监测，如果其退出码不为0，则认为容器正常   
+        #  command:   
+        #    - cat   
+        #    - /tmp/health   
+        #也可以用这种方法   
+        #tcpSocket: # 通过tcpSocket检查健康  
+        #  port: number 
+        ports:
+          - name: http # 名称
+            containerPort: 8080 # 容器开发对外的端口 
+            protocol: TCP # 协议
+      imagePullSecrets: # 镜像仓库拉取密钥
+        - name: harbor-certification
+      affinity: # 亲和性调试
+        nodeAffinity: # 节点亲和力
+          requiredDuringSchedulingIgnoredDuringExecution: # pod 必须部署到满足条件的节点上
+            nodeSelectorTerms: # 节点满足任何一个条件就可以
+            - matchExpressions: # 有多个选项，则只有同时满足这些逻辑选项的节点才能运行 pod
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+```
 
+#### 5.5 Deployment yaml 参数详解-2
+
+```yaml
+mkdir /opt/demo
+
+vim nginx-demo1.yaml
+apiversion: apps/v1    #指定api版本标签】
+kind: Deployment       
+#定义资源的类型/角色】，deployment为副本控制器，此处资源类型可以是Deployment、Job、Ingress、Service等
+metadata :          #定义资源的元数据信息，比如资源的名称、namespace、标签等信息
+  name: nginx-demo1 #定义资源的名称，在同一个namespace空间中必须是唯一的
+  labels:    #定义资源标签(Pod的标签)
+    app: nginx
+spec:  #定义deployment资源需要的参数属性，诸如是否在容器失败时重新启动容器的属性
+  replicas: 3       #定义副本数量
+  selector:         #定义标签选择器
+    matchLabels :   #定义匹配标签
+      app: nginx    #匹配上面的标签，需与上面的标签定义的app保持一致
+  template:         #【定义业务模板】，如果有多个副本，所有副本的属性会按照模板的相关配置进行匹配
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:       #定义容器属性
+        - name: nginx   #定义一个容器名，一个- name:定义一个容器
+        image: nginx:1.15.4   #定义容器使用的镜像以及版本
+        imagePullPolicy: IfNotPresent #镜像拉取策略
+        ports:
+        - containerPort: 80   #定义容器的对外的端口
+```
+
+#### 5.6例子：deployment.yaml 文件详解-3
+
+```yaml
+deployment.yaml文件详解
+
+apiVersion: extensions/v1beta1   #接口版本
+kind: Deployment                 #接口类型
+metadata:
+  name: cango-demo               #Deployment名称
+  namespace: cango-prd           #命名空间
+  labels:
+    app: cango-demo              #标签
+spec:
+  replicas: 3
+  strategy:
+    rollingUpdate:  ##由于replicas为3,则整个升级,pod个数在2-4个之间
+      maxSurge: 1      #滚动升级时会先启动1个pod
+      maxUnavailable: 1 #滚动升级时允许的最大Unavailable的pod个数
+  template:         
+    metadata:
+      labels:
+        app: cango-demo  #模板名称必填
+    sepc: #定义容器模板，该模板可以包含多个容器
+      containers:                                                                   
+        - name: cango-demo                                                           #镜像名称
+          image: swr.cn-east-2.myhuaweicloud.com/cango-prd/cango-demo:0.0.1-SNAPSHOT #镜像地址
+          command: [ "/bin/sh","-c","cat /etc/config/path/to/special-key" ]    #启动命令
+          args:                                                                #启动参数
+            - '-storage.local.retention=$(STORAGE_RETENTION)'
+            - '-storage.local.memory-chunks=$(STORAGE_MEMORY_CHUNKS)'
+            - '-config.file=/etc/prometheus/prometheus.yml'
+            - '-alertmanager.url=http://alertmanager:9093/alertmanager'
+            - '-web.external-url=$(EXTERNAL_URL)'
+    #如果command和args均没有写，那么用Docker默认的配置。
+    #如果command写了，但args没有写，那么Docker默认的配置会被忽略而且仅仅执行.yaml文件的command（不带任何参数的）。
+    #如果command没写，但args写了，那么Docker默认配置的ENTRYPOINT的命令行会被执行，但是调用的参数是.yaml中的args。
+    #如果如果command和args都写了，那么Docker默认的配置被忽略，使用.yaml的配置。
+          imagePullPolicy: IfNotPresent  #如果不存在则拉取
+          livenessProbe:       #表示container是否处于live状态。如果LivenessProbe失败，LivenessProbe将会通知kubelet对应的container不健康了。随后kubelet将kill掉container，并根据RestarPolicy进行进一步的操作。默认情况下LivenessProbe在第一次检测之前初始化值为Success，如果container没有提供LivenessProbe，则也认为是Success；
+            httpGet:
+              path: /health #如果没有心跳检测接口就为/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60 ##启动后延时多久开始运行检测
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /health #如果没有心跳检测接口就为/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30 ##启动后延时多久开始运行检测
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          resources:              ##CPU内存限制
+            requests:
+              cpu: 2
+              memory: 2048Mi
+            limits:
+              cpu: 2
+              memory: 2048Mi
+          env:                    ##通过环境变量的方式，直接传递pod=自定义Linux OS环境变量
+            - name: LOCAL_KEY     #本地Key
+              value: value
+            - name: CONFIG_MAP_KEY  #局策略可使用configMap的配置Key，
+              valueFrom:
+                configMapKeyRef:
+                  name: special-config   #configmap中找到name为special-config
+                  key: special.type      #找到name为special-config里data下的key
+          ports:
+            - name: http
+              containerPort: 8080 #对service暴露端口
+          volumeMounts:     #挂载volumes中定义的磁盘
+          - name: log-cache
+            mount: /tmp/log
+          - name: sdb       #普通用法，该卷跟随容器销毁，挂载一个目录
+            mountPath: /data/media    
+          - name: nfs-client-root    #直接挂载硬盘方法，如挂载下面的nfs目录到/mnt/nfs
+            mountPath: /mnt/nfs
+          - name: example-volume-config  #高级用法第1种，将ConfigMap的log-script,backup-script分别挂载到/etc/config目录下的一个相对路径path/to/...下，如果存在同名文件，直接覆盖。
+            mountPath: /etc/config       
+          - name: rbd-pvc                #高级用法第2中，挂载PVC(PresistentVolumeClaim)
+ 
+#使用volume将ConfigMap作为文件或目录直接挂载，其中每一个key-value键值对都会生成一个文件，key为文件名，value为内容，
+  volumes:  # 定义磁盘给上面volumeMounts挂载
+  - name: log-cache
+    emptyDir: {}
+  - name: sdb  #挂载宿主机上面的目录
+    hostPath:
+      path: /any/path/it/will/be/replaced
+  - name: example-volume-config  # 供ConfigMap文件内容到指定路径使用
+    configMap:
+      name: example-volume-config  #ConfigMap中名称
+      items:
+      - key: log-script           #ConfigMap中的Key
+        path: path/to/log-script  #指定目录下的一个相对路径path/to/log-script
+      - key: backup-script        #ConfigMap中的Key
+        path: path/to/backup-script  #指定目录下的一个相对路径path/to/backup-script
+  - name: nfs-client-root         #供挂载NFS存储类型
+    nfs:
+      server: 10.42.0.55          #NFS服务器地址
+      path: /opt/public           #showmount -e 看一下路径
+  - name: rbd-pvc                 #挂载PVC磁盘
+    persistentVolumeClaim:
+      claimName: rbd-pvc1         #挂载已经申请的pvc磁盘
+
+```
+
+#### 5.7 例子：Pod yaml 文件详解
+
+```yaml
+//Pod yaml文件详解
+
+apiVersion: v1			#必选，版本号，例如v1
+kind: Pod				#必选，Pod
+metadata:				#必选，元数据
+  name: string			  #必选，Pod名称
+  namespace: string		  #必选，Pod所属的命名空间
+  labels:				  #自定义标签
+    - name: string		    #自定义标签名字
+  annotations:			    #自定义注释列表
+    - name: string
+spec:					#必选，Pod中容器的详细定义
+  containers:			  #必选，Pod中容器列表
+  - name: string		    #必选，容器名称
+    image: string		    #必选，容器的镜像名称
+    imagePullPolicy: [Always | Never | IfNotPresent]	#获取镜像的策略：Alawys表示总是下载镜像，IfnotPresent表示优先使用本地镜像，否则下载镜像，Nerver表示仅使用本地镜像
+    command: [string]		#容器的启动命令列表，如不指定，使用打包时使用的启动命令
+    args: [string]			#容器的启动命令参数列表
+    workingDir: string		#容器的工作目录
+    volumeMounts:			#挂载到容器内部的存储卷配置
+    - name: string			  #引用pod定义的共享存储卷的名称，需用volumes[]部分定义的的卷名
+      mountPath: string		  #存储卷在容器内mount的绝对路径，应少于512字符
+      readOnly: boolean		  #是否为只读模式
+    ports:					#需要暴露的端口库号列表
+    - name: string			  #端口号名称
+      containerPort: int	  #容器需要监听的端口号
+      hostPort: int			  #容器所在主机需要监听的端口号，默认与Container相同
+      protocol: string		  #端口协议，支持TCP和UDP，默认TCP
+    env:					#容器运行前需设置的环境变量列表
+    - name: string			  #环境变量名称
+      value: string			  #环境变量的值
+    resources:				#资源限制和请求的设置
+      limits:				  #资源限制的设置
+        cpu: string			    #Cpu的限制，单位为core数，将用于docker run --cpu-shares参数
+        memory: string			#内存限制，单位可以为Mib/Gib，将用于docker run --memory参数
+      requests:				  #资源请求的设置
+        cpu: string			    #Cpu请求，容器启动的初始可用数量
+        memory: string		    #内存清楚，容器启动的初始可用数量
+    livenessProbe:     		#对Pod内个容器健康检查的设置，当探测无响应几次后将自动重启该容器，检查方法有exec、httpGet和tcpSocket，对一个容器只需设置其中一种方法即可
+      exec:					#对Pod容器内检查方式设置为exec方式
+        command: [string]	  #exec方式需要制定的命令或脚本
+      httpGet:				#对Pod内个容器健康检查方法设置为HttpGet，需要制定Path、port
+        path: string
+        port: number
+        host: string
+        scheme: string
+        HttpHeaders:
+        - name: string
+          value: string
+      tcpSocket:			#对Pod内个容器健康检查方式设置为tcpSocket方式
+         port: number
+       initialDelaySeconds: 0	#容器启动完成后首次探测的时间，单位为秒
+       timeoutSeconds: 0		#对容器健康检查探测等待响应的超时时间，单位秒，默认1秒
+       periodSeconds: 0			#对容器监控检查的定期探测时间设置，单位秒，默认10秒一次
+       successThreshold: 0
+       failureThreshold: 0
+       securityContext:
+         privileged:false
+    restartPolicy: [Always | Never | OnFailure]		#Pod的重启策略，Always表示一旦不管以何种方式终止运行，kubelet都将重启，OnFailure表示只有Pod以非0退出码退出才重启，Nerver表示不再重启该Pod
+    nodeSelector: obeject		#设置NodeSelector表示将该Pod调度到包含这个label的node上，以key：value的格式指定
+    imagePullSecrets:			#Pull镜像时使用的secret名称，以key：secretkey格式指定
+    - name: string
+    hostNetwork:false			#是否使用主机网络模式，默认为false，如果设置为true，表示使用宿主机网络
+    volumes:					#在该pod上定义共享存储卷列表
+    - name: string				  #共享存储卷名称 （volumes类型有很多种）
+      emptyDir: {}				  #类型为emtyDir的存储卷，与Pod同生命周期的一个临时目录。为空值
+      hostPath: string			  #类型为hostPath的存储卷，表示挂载Pod所在宿主机的目录
+        path: string			    #Pod所在宿主机的目录，将被用于同期中mount的目录
+      secret:					#类型为secret的存储卷，挂载集群与定义的secre对象到容器内部
+        scretname: string  
+        items:     
+        - key: string
+          path: string
+      configMap:				#类型为configMap的存储卷，挂载预定义的configMap对象到容器内部
+        name: string
+        items:
+        - key: string
+```
+
+#### 5.8 例子：Service yaml 文件详解
+
+```yaml
+Service yaml文件详解
+
+apiVersion: v1
+kind: Service
+matadata:                                #元数据
+  name: string                           #service的名称
+  namespace: string                      #命名空间  
+  labels:                                #自定义标签属性列表
+    - name: string
+  annotations:                           #自定义注解属性列表  
+    - name: string
+spec:                                    #详细描述
+  selector: []                           #label selector配置，将选择具有label标签的Pod作为管理 
+                                         #范围
+  type: string                           #service的类型，指定service的访问方式，默认为 
+                                         #clusterIp
+  clusterIP: string                      #虚拟服务地址      
+  sessionAffinity: string                #是否支持session
+  ports:                                 #service需要暴露的端口列表
+  - name: string                         #端口名称
+    protocol: string                     #端口协议，支持TCP和UDP，默认TCP
+    port: int                            #服务监听的端口号
+    targetPort: int                      #需要转发到后端Pod的端口号
+    nodePort: int                        #当type = NodePort时，指定映射到物理机的端口号
+  status:                                #当spce.type=LoadBalancer时，设置外部负载均衡器的地址
+    loadBalancer:                        #外部负载均衡器    
+      ingress:                           #外部负载均衡器 
+        ip: string                       #外部负载均衡器的Ip地址值
+        hostname: string                 #外部负载均衡器的主机名
+```
 
