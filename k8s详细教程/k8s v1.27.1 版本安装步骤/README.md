@@ -231,26 +231,21 @@ vim calico.yaml
 #3.使用命令执行网络插件
 kubectl apply -f calico.yaml
 
-#4.安装时镜像拉取失败，配置镜像加速器
-[root@localhost ~]# cat /etc/docker/daemon.json <<EOF
+sudo tee /etc/docker/daemon.json <<-'EOF'
 {
-  "registry-mirrors": [
-        "https://7mimmp7p.mirror.aliyuncs.com",
-        "https://registry.docker-cn.com",
-        "http://hub-mirror.c.163.com",
-        "https://docker.mirrors.ustc.edu.cn"
-        ],
+  "registry-mirrors": ["https://wkxfupsi.mirror.aliyuncs.com"],
   "exec-opts": ["native.cgroupdriver=systemd"],
   "log-driver": "json-file",
   "log-opts": {
     "max-size": "100m"
   },
-  "storage-driver": "overlay2",
-  "storage-opts": [
-    "overlay2.override_kernel_check=true"
-  ]
+  "storage-driver": "overlay2"
 }
 EOF
+
+#4.安装时镜像拉取失败，配置镜像加速器
+[root@localhost ~]# 
+s
 #5.由于默认的Calico清单文件中所使用的镜像来源于docker.io国外镜像源，上面我们配置了Docker镜像加速，应删除docker.io前缀以使镜像从国内镜像加速站点下载。
 [root@master ~]# cat calico.yaml |grep 'image:'
           image: docker.io/calico/cni:v3.25.0
@@ -476,6 +471,29 @@ docker.io/calico/cni:v3.20.6@sha256:00e1c39c1d3d9e91e6c0abb37b2f7a436127a8c9f8ec
 ```
 
 
+
+
+
+```bash
+ 14267/TCP, 14268/TCP, 14269/TCP, 14250/TCP
+
+16686/TCP, 16687/TCP
+ 
+ Limits:
+      cpu:     100m
+      memory:  128Mi
+    Requests:
+      cpu:      20m
+      memory:   50Mi
+    Liveness:   http-get http://:14269/ delay=5s timeout=1s period=15s #success=1 #failure=5
+    Readiness:  http-get http://:14269/ delay=1s timeout=1s period=10s #success=1 #failure=3
+    Environment:
+      SPAN_STORAGE_TYPE:           elasticsearch
+      COLLECTOR_ZIPKIN_HOST_PORT:  :9411
+    Mounts:
+      /etc/jaeger/sampling from jaeger-sampling-configuration-volume (ro)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-gl9cd (ro)
+```
 
 
 
@@ -1354,4 +1372,186 @@ spec:                                    #详细描述
         ip: string                       #外部负载均衡器的Ip地址值
         hostname: string                 #外部负载均衡器的主机名
 ```
+
+### 六、部署 KubeSphere
+
+#### 6.1 下载核心文件
+
+```bash
+# 下载 kubesphere 文件
+wget https://github.com/kubesphere/ks-installer/releases/download/v3.3.2/kubesphere-installer.yaml
+
+wget https://github.com/kubesphere/ks-installer/releases/download/v3.3.2/cluster-configuration.yaml
+
+```
+
+#### 6.2 修改cluster-configuration.yaml 中参数
+
+> 在 cluster-configuration.yaml中指定我们需要开启的功能
+>
+> 参照官网“启用可插拔组件” 
+>
+> https://kubesphere.io/zh/docs/v3.3/pluggable-components/
+
+#### 6.3 执行安装
+
+```bash
+kubectl apply -f kubesphere-installer.yaml
+
+kubectl apply -f cluster-configuration.yaml
+```
+
+
+
+#### 6.4 查看执行进度
+
+```bash
+kubectl logs -n kubesphere-system $(kubectl get pod -n kubesphere-system -l 'app in (ks-install, ks-installer)' -o jsonpath='{.items[0].metadata.name}') -f
+
+```
+
+#### 6.5 密码
+
+```bash
+Console: http://172.31.0.2:30880
+Account: admin
+Password: #Yooo85100736
+NOTES：
+  1. After you log into the console, please check the
+     monitoring status of service components in
+     "Cluster Management". If any service is not
+     ready, please wait patiently until all components 
+     are up and running.
+  2. Please change the default password after login.
+
+#####################################################
+https://kubesphere.io             2023-05-06 16:43:16
+####################################################
+```
+
+#### 6.6 k8s 查看log日志信息命令
+
+```bash
+#1.查看指定名称空间的pod详细信息
+kubectl get pods -n ${命名空间名} -o wide
+例：kubectl get pods -n kube-system -o wide
+#2.查看指定名称空间的服务执行的日志
+kubectl log -f ${podID} -n ${命名空间名}
+例：kubectl logs -f xxx-podId-xxx -n kube-system
+# 将k8s上的日志下载到本地。
+kubectl get pods -n ${命名空间名} -o wide
+
+# kubectl logs ${podID} -n ${命名空间名} > log.txt
+```
+
+
+
+```yaml
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  autoconfigure:
+    exclude: com.alibaba.druid.spring.boot.autoconfigure.DruidDataSourceAutoConfigure
+
+#请求处理的超时时间
+ribbon:
+  ReadTimeout: 10000
+  ConnectTimeout: 10000
+
+# feign 配置
+feign:
+  sentinel:
+    enabled: true
+  okhttp:
+    enabled: true
+  httpclient:
+    enabled: false
+  client:
+    config:
+      default:
+        connectTimeout: 10000
+        readTimeout: 10000
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+
+# 暴露监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+```
+
+
+
+encrypted_data_key LONG VARCHAR DEFAULT NULL,
+
+```bash
+docker tag 1916ac3a9846 registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-visual:v1
+docker tag 05932522cba1 registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-system:v1
+docker tag 3c4fcae27531 registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-job:v1
+docker tag 0fdb86e50e96 registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-gateway:v1
+docker tag 90f24fc1e88a registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-file:v1
+docker tag 0da34a8fdd98 registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-auth:v1
+
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-visual:v2
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-system:v2
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-job:v2
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-gateway:v2
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-file:v2
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-auth:v2
+docker push registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-ui:v2
+
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-visual:v2 -f Dockerfile .
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-system:v2 -f Dockerfile .
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-job:v2 -f Dockerfile .
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-gateway:v2 -f Dockerfile .
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-file:v2 -f Dockerfile .
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-auth:v2 -f Dockerfile .
+docker build -t registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-ui:v2 -f dockerfile .
+
+
+docker pull registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-visual:v1
+docker pull registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-system:v1
+docker pull registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-job:v1
+docker pull registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-gateway:v1
+docker pull registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-file:v1
+docker pull registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-auth:v1
+
+
+
+ctr -n k8s.io images rm registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-visual:v2
+ctr -n k8s.io images rm registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-system:v2
+ctr -n k8s.io images rm registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-job:v2
+ctr -n k8s.io images rm registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-file:v2
+ctr -n k8s.io images rm registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-gateway:v2
+ctr -n k8s.io images rm registry.cn-hangzhou.aliyuncs.com/yooome/ruoyi-auth:v2
+
+
+
+
+```
+
+### 七、商易通：
+
+#### 7.1 中间件
+
+| 中间件        | 集群内地址                       | 外部访问地址                                      |
+| ------------- | -------------------------------- | ------------------------------------------------- |
+| Nacos         | his-nacos.his:8848               | http://139.198.117.77:31644/nacos                 |
+| MySQL         | his-mysql.his:3306               | [139.198.117.77](http://139.198.117.77):30974     |
+| Redis         | his-redis.his:6379               | [139.198.117.77](http://139.198.117.77):31099     |
+| Sentinel      | his-sentinel.his:8080            | http://139.198.117.77:30011/                      |
+| MongoDB       | mongodb.his:**27017**            | [139.198.117.77](http://139.198.117.77):30869     |
+| RabbitMQ      | rabbitm-e0q9dy-rabbitmq.his:5672 | [139.198.117.77](http://139.198.117.77):**31289** |
+| ElasticSearch | his-es.his:9200                  | [139.198.117.77](http://139.198.117.77):31300     |
+
+
+
+
+
+
 
