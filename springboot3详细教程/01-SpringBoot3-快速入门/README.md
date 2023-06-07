@@ -299,7 +299,7 @@ linux服务器上有java环境。
 
 ***自动配置流程细节梳理：***
 
-**1、**导入`starter-web`：导入了web开发场景
+1、导入`starter-web`：导入了web开发场景
 
 - 1、场景启动器导入了相关场景的所有依赖：`starter-json`、`starter-tomcat`、`springmvc`
 - 2、每个场景启动器都引入了一个`spring-boot-starter`，核心场景启动器。
@@ -308,7 +308,7 @@ linux服务器上有java环境。
 - 5、只要这个包下的所有类都能生效，那么相当于SpringBoot官方写好的整合功能就生效了。
 - 6、SpringBoot默认却扫描不到 `spring-boot-autoconfigure`下写好的所有**配置类**。（这些**配置类**给我们做了整合操作），**默认只扫描主程序所在的包**。
 
-**2、**主程序：`@SpringBootApplication`
+2、主程序：`@SpringBootApplication`
 
 - 1、`@SpringBootApplication`由三个注解组成`@SpringBootConfiguration`、`@EnableAutoConfiguratio`、`@ComponentScan`
 - 2、SpringBoot默认只能扫描自己主程序所在的包及其下面的子包，扫描不到 `spring-boot-autoconfigure`包中官方写好的**配置类**
@@ -333,7 +333,7 @@ linux服务器上有java环境。
 - 4、给**容器**中放的所有**组件**的一些**核心参数**，都来自于`**xxxProperties**`**。**`**xxxProperties**`**都是和配置文件绑定。**
 - **只需要改配置文件的值，核心组件的底层参数都能修改**
 
-**4、**写业务，全程无需关心各种整合（底层这些整合写好了，而且也生效了）
+4、写业务，全程无需关心各种整合（底层这些整合写好了，而且也生效了）
 
 
 
@@ -349,7 +349,7 @@ linux服务器上有java环境。
 
 5、`xxxProperties`又是和**配置文件**进行了绑定
 
-**效果：**导入`starter`、修改配置文件，就能修改底层行为。
+**效果**：导入`starter`、修改配置文件，就能修改底层行为。
 
 
 
@@ -511,7 +511,7 @@ SpringBoot摒弃XML配置方式，改为**全注解驱动**
 
 **@EnableConfigurationProperties：快速注册注解：**
 
-- **场景：**SpringBoot默认只扫描自己主程序所在的包。如果导入第三方包，即使组件上标注了 @Component、@ConfigurationProperties 注解，也没用。因为组件都扫描不进来，此时使用这个注解就可以快速进行属性绑定并把组件注册进容器
+- **场景**：SpringBoot默认只扫描自己主程序所在的包。如果导入第三方包，即使组件上标注了 @Component、@ConfigurationProperties 注解，也没用。因为组件都扫描不进来，此时使用这个注解就可以快速进行属性绑定并把组件注册进容器
 
 将容器中任意**组件（Bean）的属性值**和**配置文件**的配置项的值**进行绑定**
 
