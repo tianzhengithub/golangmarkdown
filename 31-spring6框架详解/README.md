@@ -545,19 +545,71 @@ System.out.println(stuService);
 stuService.add();
 ```
 
-2.4.2 开启组件扫描
+##### 2.4.2 开启组件扫描的细节配置：
 
+1. use-default-fileters 设置为false表示不适用默认过滤器，通过include-filter来设置只扫描com.yooome包下的所有 @Controller修饰的类。
 
+```xml
+<context:component-scan base-package="com.yooome" use-default-filters="false">
+    <context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+</context:component-scan>
+```
 
+2. Exclude-filter设置那些注解不被扫描，例子中为@Controller修饰的类不被扫描
 
+```xml
+<context:component-scan base-package="com.yooome">
+    <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+</context:component-scan>
+```
 
+##### 2.4.3 基于注解进行属性注入：
 
+- @Autowird：根据属性类型自动装配
 
+创建 StuDao 接口和 StuDaoImpl 实现类，为 StuDaoImpl 添加创建对象注解
 
+```java
+public interface StuDao {
+    public void add();
+}
+```
 
+```java
+@Repository
+public class StuDaoImpl implements StuDao {
+    @Override
+    public void add() {
+        System.out.println("StuDaoImpl");
+    }
+}
+```
 
+StuService 类中添加StuDao属性，为其添加 @Autowire 注解，spring回地总为stuDao属性创建StuDaoImpl对象。
 
+```java
+@Component(value="stuService")
+public class StuService {
+    
+    @Autowired
+    public StuDao stuDao;
 
+    public void add(){
+        System.out.println("addService");
+        stuDao.add();
+    }
+}
+```
+
+```java
+@Test
+public void test1(){
+    ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("bean4.xml");
+    StuService stuService = context.getBean("stuService", StuService.class);
+    System.out.println(stuService);
+    stuService.add();
+}
+```
 
 
 
