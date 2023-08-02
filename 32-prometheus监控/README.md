@@ -13,7 +13,7 @@
 cat /etc/redhat-release
 ```
 
-![image-20230802141855624](images\image-20230802141855624.png)
+![image-20230802141855624](images/image-20230802141855624.png)
 
 #### 2.2 部署前的准备
 
@@ -83,7 +83,7 @@ ntpdate pool.ntp.org
 
 我的端口号是被 gitlab-prometeus 占用的
 
-![image-20230802173435694](images\image-20230802173435694.png)
+![image-20230802173435694](images/image-20230802173435694.png)
 
 第一种解决方案：kill -9 进程号
 
@@ -121,7 +121,7 @@ systemctl start node_exporter.service
 systemctl status node_export.service
 ```
 
-![image-20230802182202762](images\image-20230802182202762.png)
+![image-20230802182202762](images/image-20230802182202762.png)
 
 出现如上的结果表示 node_exporter.service 启动成功。
 
@@ -129,7 +129,7 @@ systemctl status node_export.service
 
 例如：http://192.168.xx.7:9111/metrics 
 
-![image-20230802182547571](images\image-20230802182547571.png)
+![image-20230802182547571](images/image-20230802182547571.png)
 
 出现如上的结果表示结果正常。
 
