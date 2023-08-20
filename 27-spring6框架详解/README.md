@@ -565,7 +565,40 @@ stuService.add();
 
 ##### 2.4.3 基于注解进行属性注入：
 
-- @Autowird：根据属性类型自动装配
+①场景一：Autowird属性注入
+
+- @Autowird：根据属性类型自动装配【默认是byType】
+
+查看源码：
+
+```java
+package org.springframework.beans.factory.annotation;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target({ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD, ElementType.ANNOTATION_TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Autowired {
+    boolean required() default true;
+}
+
+```
+
+源码中有两处需要注意：
+
+- 第一处：该注解可以标注在哪里？
+  1. 构造方法上。
+  2. 方法上。
+  3. 形参上。
+  4. 属性上。
+  5. 注解上。
+
+- 第二处：该注解有一个requirde属性，默认值是true，表示在注入的时候要求背注入的Bean必须是存在的，如果不存在则报错。如果required 属性设置为false，表示注入的Bean存在或者不存在都没关系，存在的话就注入，不存在的话，也不报错。
 
 创建 StuDao 接口和 StuDaoImpl 实现类，为 StuDaoImpl 添加创建对象注解
 
@@ -610,6 +643,127 @@ public void test1(){
     stuService.add();
 }
 ```
+
+②场景二：set注入
+
+UserServiceImpl 类
+
+```java
+@Service
+public class UserServiceImpl implements UserService {
+    private UserDao userDao;
+    @Autowired
+    public void setUserDao(UserDao userDao) {
+        this.userDao = userDao;
+    }
+
+    @Override
+    public void addUser() {
+        userDao.addUser();
+        System.out.println("完成添加user信息");
+    }
+}
+```
+
+UserDao类
+
+```java
+package com.yooome.bennet.dao;
+
+public interface UserDao {
+    void addUser();
+}
+
+```
+
+UserDaoImpl 类
+
+```java
+package com.yooome.bennet.dao.impl;
+
+import com.yooome.bennet.dao.UserDao;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class UserDaoImpl implements UserDao {
+
+    @Override
+    public void addUser() {
+        System.out.println("dao add user");
+    }
+}
+```
+
+![12](images/12.png)
+
+③场景三：构造方法注入
+
+修改UserServiceImpl类
+
+```java
+package com.yooome.bennet.service.impl;
+
+import com.yooome.bennet.dao.UserDao;
+import com.yooome.bennet.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserServiceImpl implements UserService {
+    private UserDao userDao;
+
+    @Autowired
+    public UserServiceImpl(UserDao userDao) {
+        this.userDao = userDao;
+    }
+
+    @Override
+    public void addUser() {
+        userDao.addUser();
+        System.out.println("完成添加user信息");
+    }
+}
+```
+
+```java
+package com.yooome.bennet.controller;
+
+import com.yooome.bennet.service.UserService;
+import com.yooome.bennet.spring6.User;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class UserController {
+    @Autowired
+    private UserService userService;
+    @PostMapping("/post/user")
+    public void addUser() {
+        userService.addUser();
+        System.out.println("post 添加用户信息");
+    }
+}
+```
+
+![13](images/13.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
