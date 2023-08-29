@@ -220,7 +220,7 @@ public class UserService{
 
 ```xml
 <!--内部 bean-->
-<bean id="emp" class="com.atguigu.spring5.bean.Emp">
+<bean id="emp" class="com.yooome.spring5.bean.Emp">
      <!--设置两个普通属性-->
      <property name="ename" value="lucy"></property>
      <property name="gender" value="女"></property>
@@ -816,6 +816,1013 @@ public class UserController {
 当有参数的构造方法只有一个时，@Autowired注解可以设略。
 
 ⑥场景六：@Autowired注解和@Qualifier注解联合
+
+```java
+package com.yooome.spring6.dao.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class UserDaoRedisImpl implements UserDao {
+
+    @Override
+    public void print() {
+        System.out.println("Redis Dao层执行结束");
+    }
+}
+```
+
+测试：测试异常。
+
+错误信息中说：不能装配，UserDao这个Bean的数量等于 2
+
+怎么解决这个问题呢？当然要byName，根据名称进行装配了。
+
+修改UserServiceImple 类
+
+```java
+package com.yooome.spring6.service.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import com.yooome.spring6.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserServiceImpl implements UserService {
+
+    @Autowired
+    @Qualifier("userDaoImpl") // 指定bean的名字
+    private UserDao userDao;
+
+    @Override
+    public void out() {
+        userDao.print();
+        System.out.println("Service层执行结束");
+    }
+}
+```
+
+**总结**：
+
+- @Autowired注解可以出现在：属性上，构造方法上，构造方法的参数上，setter方法上。
+- 当参数的构造方法只有一个，@Autowired注解可以省略。
+- @Autowired注解默认根据类型注入。如果要根据名称注入的话没需要配合@Qualifier注解一起使用。
+
+#### 2.5 实验二：@Resource注入
+
+@Resource 注解也可以完成属性注入。那他和@Autowired注解有什么区别呢？
+
+- @Resource 注解是JDK扩展包中的，也就是说属于JDK的一部分，所以该注解是标准注解，更加具有通用性。（JSR-250标准中制定的注解类型。JSR是Java规范提案。）
+- @Autowired 注解是Spring 框架自己的。
+- @Resource注解默认根据装配byName，为指定name时，使用属性名作为name。通过name找不到的话会自动启动通过类型 byType 装配。
+- @Resource 注解用在属性上，setter方法上。
+- @Autowired注解用在属性上，setter方法上，构造方法上，构造方法参数上。
+
+@Resource 注解属于JDK扩展包，所以不再JDK当中，需要额外引入一下依赖：【如果是JDK8的话不需要额外引入依赖。高于JDK11或低于JDK8需要引入以下依赖。】
+
+```xml
+<dependency>
+    <groupId>jakarta.annotation</groupId>
+    <artifactId>jakarta.annotation-api</artifactId>
+    <version>2.1.1</version>
+</dependency>
+```
+
+源码：
+
+```java
+package jakarta.annotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(Resources.class)
+public @interface Resource {
+    String name() default "";
+
+    String lookup() default "";
+
+    Class<?> type() default Object.class;
+
+    Resource.AuthenticationType authenticationType() default Resource.AuthenticationType.CONTAINER;
+
+    boolean shareable() default true;
+
+    String mappedName() default "";
+
+    String description() default "";
+
+    public static enum AuthenticationType {
+        CONTAINER,
+        APPLICATION;
+
+        private AuthenticationType() {
+        }
+    }
+}
+```
+
+①**场景一**：**根据name注入** 
+
+修改UserDaoImpl类
+
+```java
+package com.yooome.spring6.dao.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import org.springframework.stereotype.Repository;
+
+@Repository("myUserDao")
+public class UserDaoImpl implements UserDao {
+
+    @Override
+    public void print() {
+        System.out.println("Dao层执行结束");
+    }
+}
+```
+
+修改UserServiceImpl类
+
+```java
+package com.yooome.spring6.service.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import com.yooome.spring6.service.UserService;
+import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserServiceImpl implements UserService {
+
+    @Resource(name = "myUserDao")
+    private UserDao myUserDao;
+
+    @Override
+    public void out() {
+        myUserDao.print();
+        System.out.println("Service层执行结束");
+    }
+}
+```
+
+测试通过
+
+②**场景二**：**name位置注入**
+
+修改UserDaoImpl类
+
+```java
+package com.yooome.spring6.dao.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import org.springframework.stereotype.Repository;
+
+@Repository("myUserDao")
+public class UserDaoImpl implements UserDao {
+
+    @Override
+    public void print() {
+        System.out.println("Dao层执行结束");
+    }
+}
+```
+
+修改UserServiceImpl类
+
+```java
+package com.yooome.spring6.service.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import com.yooome.spring6.service.UserService;
+import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserServiceImpl implements UserService {
+
+    @Resource
+    private UserDao myUserDao;
+
+    @Override
+    public void out() {
+        myUserDao.print();
+        System.out.println("Service层执行结束");
+    }
+}
+```
+
+测试通过
+
+当@Resource 注解使用时没有指定name的时候，还是根据name进行查找，这个name是属性名称。
+
+③**场景三 其它情况**
+
+修改UserServiceImpl 类，userDao1 属性名不存在。
+
+```java
+package com.yooome.spring6.service.impl;
+
+import com.yooome.spring6.dao.UserDao;
+import com.yooome.spring6.service.UserService;
+import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserServiceImpl implements UserService {
+
+    @Resource
+    private UserDao userDao1;
+
+    @Override
+    public void out() {
+        userDao1.print();
+        System.out.println("Service层执行结束");
+    }
+}
+```
+
+测试异常
+
+根据异常信息得知：显然当通过name找不到的时候，自然会启动byType进行注入，以上的错误是因为UserDao接口下有两个实现类导致的。所以根据类型注入就会报错。
+
+@Resource的set注入可以自行测试。
+
+**总结**：
+
+**@Resource注解**：默认byName注入，**没有指定name时把属性名当做name**，**根据name找不到时**，**才会byType注入**。**byType注入时，某种类型的Bean只能有一个**。
+
+#### 2.6 Spring全注解开发
+
+全注解开发就是不再使用spring配置文件了，写一个配置类来代替配置文件。
+
+```java
+package com.yooome.spring6.config;
+
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+//@ComponentScan({"com.yooome.spring6.controller", "com.yooome.spring6.service","com.yooome.spring6.dao"})
+@ComponentScan("com.yooome.spring6")
+public class Spring6Config {
+}
+```
+
+测试类
+
+```java
+@Test
+public void testAllAnnotation(){
+    ApplicationContext context = new AnnotationConfigApplicationContext(Spring6Config.class);
+    UserController userController = context.getBean("userController", UserController.class);
+    userController.out();
+    logger.info("执行成功");
+}
+```
+
+### 三、原理-手写IOC
+
+我们都知道，Spring框架的IOC是基于Java反射机制实现的，下面我们先回顾一下 java 反射。
+
+#### 3.1 回顾Java反射
+
+Java 反射机制是在运行状态中，对于任意一个类，都能够知道这个类的所有属性和方法；对于任意一个对象，都能够调用它的任意方法和属性；这种动态获取信息以及动态调用对象方法的功能成为Java 语言的反射机制。简单来说，反射机制指的是程序在运行时能够获取自身的信息。
+
+要想解剖一个类，必须先要获取到该类的Class对象。而剖析一个类或用反射解决具体的问题就是使用相关API
+
+- java.lang.Class
+- java.lang.reflect。所以，Class对象是反射的根源。
+
+自定义类
+
+```java
+package com.yooome.reflect;
+
+public class Car {
+
+    //属性
+    private String name;
+    private int age;
+    private String color;
+
+    //无参数构造
+    public Car() {
+    }
+
+    //有参数构造
+    public Car(String name, int age, String color) {
+        this.name = name;
+        this.age = age;
+        this.color = color;
+    }
+
+    //普通方法
+    private void run() {
+        System.out.println("私有方法-run.....");
+    }
+
+    //get和set方法
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public int getAge() {
+        return age;
+    }
+    public void setAge(int age) {
+        this.age = age;
+    }
+    public String getColor() {
+        return color;
+    }
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    @Override
+    public String toString() {
+        return "Car{" +
+                "name='" + name + '\'' +
+                ", age=" + age +
+                ", color='" + color + '\'' +
+                '}';
+    }
+}
+```
+
+编写测试类
+
+```java
+package com.yooome.reflect;
+
+import org.junit.jupiter.api.Test;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+
+public class TestCar {
+
+    //1、获取Class对象多种方式
+    @Test
+    public void test01() throws Exception {
+        //1 类名.class
+        Class clazz1 = Car.class;
+
+        //2 对象.getClass()
+        Class clazz2 = new Car().getClass();
+
+        //3 Class.forName("全路径")
+        Class clazz3 = Class.forName("com.yooome.reflect.Car");
+
+        //实例化
+        Car car = (Car)clazz3.getConstructor().newInstance();
+        System.out.println(car);
+    }
+
+    //2、获取构造方法
+    @Test
+    public void test02() throws Exception {
+        Class clazz = Car.class;
+        //获取所有构造
+        // getConstructors()获取所有public的构造方法
+//        Constructor[] constructors = clazz.getConstructors();
+        // getDeclaredConstructors()获取所有的构造方法public  private
+        Constructor[] constructors = clazz.getDeclaredConstructors();
+        for (Constructor c:constructors) {
+            System.out.println("方法名称："+c.getName()+" 参数个数："+c.getParameterCount());
+        }
+
+        //指定有参数构造创建对象
+        //1 构造public
+//        Constructor c1 = clazz.getConstructor(String.class, int.class, String.class);
+//        Car car1 = (Car)c1.newInstance("夏利", 10, "红色");
+//        System.out.println(car1);
+        
+        //2 构造private
+        Constructor c2 = clazz.getDeclaredConstructor(String.class, int.class, String.class);
+        c2.setAccessible(true);
+        Car car2 = (Car)c2.newInstance("捷达", 15, "白色");
+        System.out.println(car2);
+    }
+
+    //3、获取属性
+    @Test
+    public void test03() throws Exception {
+        Class clazz = Car.class;
+        Car car = (Car)clazz.getDeclaredConstructor().newInstance();
+        //获取所有public属性
+        //Field[] fields = clazz.getFields();
+        //获取所有属性（包含私有属性）
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field:fields) {
+            if(field.getName().equals("name")) {
+                //设置允许访问
+                field.setAccessible(true);
+                field.set(car,"五菱宏光");
+                System.out.println(car);
+            }
+            System.out.println(field.getName());
+        }
+    }
+
+    //4、获取方法
+    @Test
+    public void test04() throws Exception {
+        Car car = new Car("奔驰",10,"黑色");
+        Class clazz = car.getClass();
+        //1 public方法
+        Method[] methods = clazz.getMethods();
+        for (Method m1:methods) {
+            //System.out.println(m1.getName());
+            //执行方法 toString
+            if(m1.getName().equals("toString")) {
+                String invoke = (String)m1.invoke(car);
+                //System.out.println("toString执行了："+invoke);
+            }
+        }
+
+        //2 private方法
+        Method[] methodsAll = clazz.getDeclaredMethods();
+        for (Method m:methodsAll) {
+            //执行方法 run
+            if(m.getName().equals("run")) {
+                m.setAccessible(true);
+                m.invoke(car);
+            }
+        }
+    }
+}
+```
+
+#### 3.2 实现Spring 的 Ioc
+
+我们知道，Ioc （控制反转）和DI（依赖注入）是Spring里面核心的东西，name，我们如何自己手写出这样的代码呢？下面我们就一步一步写出Spring框架最核心的部分。
+
+##### 3.2.1 搭建子模块
+
+搭建子模块：guigu-spring 搭建方式如其他Spring子模块。
+
+##### 3.2.2 准备测试需要的bean
+
+```xml
+<dependencies>
+    <!--junit5测试-->
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
+        <version>5.3.1</version>
+    </dependency>
+</dependencies>
+```
+
+创建UserDao接口
+
+```java
+public interface UserDao {
+  
+  public void print();
+}
+```
+
+创建UserDaoImpl实现
+
+```java
+public class UserDaoImpl implements UserDao {
+  @Override
+  public void print() {
+    System.out.println("Dao层执行结束");
+  }
+}
+```
+
+创建UserService接口
+
+```java
+public interface UserService {
+  public void out();
+}
+```
+
+创建UserServiceImpl实现类
+
+```java
+@Bean
+public class UserServiceImpl implements UserService {
+  @Override
+  public void out() {
+    System.out.println("Service层执行结束");
+  }
+}
+```
+
+③定义注解
+
+我们通过注解的形式加载bean实现依赖注入
+
+bean注解
+
+```java
+package com.yooome.spring.core.annotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Bean {
+}
+```
+
+依赖注入注解
+
+```java
+package com.yooome.spring.core.annotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target({ElementType.FIELD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Di {
+}
+```
+
+说明：上面两个注解可以随意取名
+
+④**定义bean容器接口**
+
+```java
+public interface ApplicationContext {
+  Object getBean(Class clazz);
+}
+```
+
+⑤编写注解bean容器接口实现
+
+AnnotationApplicationContext基于注解扫描bean
+
+```java
+public class AnnotationApplicationContext implements ApplicationContext {
+  
+  private HashMap<Class,Object> beanFactory = new HashMap<>();
+  
+  public Object getBean(Class clazz) {
+    return beanFactory.get(clazz);
+  }
+  
+  public AnnotationAplicationContext(String basePackage){
+    
+  }
+}
+```
+
+⑥编写扫描bean逻辑
+
+我们通过构造方法传入包的base路径扫描@Bean注解的 java 对象，完整代码如下：
+
+```java
+package com.yooome.spring.core;
+
+import com.yooome.spring.core.annotation.Bean;
+
+import java.io.File;
+import java.util.HashMap;
+
+public class AnnotationApplicationContext implements ApplicationContext {
+
+    //存储bean的容器
+    private HashMap<Class, Object> beanFactory = new HashMap<>();
+    private static String rootPath;
+
+    @Override
+    public Object getBean(Class clazz) {
+        return beanFactory.get(clazz);
+    }
+
+    /**
+     * 根据包扫描加载bean
+     * @param basePackage
+     */
+    public AnnotationApplicationContext(String basePackage) {
+       try {
+            String packageDirName = basePackage.replaceAll("\\.", "\\\\");
+            Enumeration<URL> dirs =Thread.currentThread().getContextClassLoader().getResources(packageDirName);
+            while (dirs.hasMoreElements()) {
+                URL url = dirs.nextElement();
+                String filePath = URLDecoder.decode(url.getFile(),"utf-8");
+                rootPath = filePath.substring(0, filePath.length()-packageDirName.length());
+                loadBean(new File(filePath));
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private  void loadBean(File fileParent) {
+        if (fileParent.isDirectory()) {
+            File[] childrenFiles = fileParent.listFiles();
+            if(childrenFiles == null || childrenFiles.length == 0){
+                return;
+            }
+            for (File child : childrenFiles) {
+                if (child.isDirectory()) {
+                    //如果是个文件夹就继续调用该方法,使用了递归
+                    loadBean(child);
+                } else {
+                    //通过文件路径转变成全类名,第一步把绝对路径部分去掉
+                    String pathWithClass = child.getAbsolutePath().substring(rootPath.length() - 1);
+                    //选中class文件
+                    if (pathWithClass.contains(".class")) {
+                        //    com.xinzhi.dao.UserDao
+                        //去掉.class后缀，并且把 \ 替换成 .
+                        String fullName = pathWithClass.replaceAll("\\\\", ".").replace(".class", "");
+                        try {
+                            Class<?> aClass = Class.forName(fullName);
+                            //把非接口的类实例化放在map中
+                            if(!aClass.isInterface()){
+                                Bean annotation = aClass.getAnnotation(Bean.class);
+                                if(annotation != null){
+                                    Object instance = aClass.newInstance();
+                                    //判断一下有没有接口
+                                    if(aClass.getInterfaces().length > 0) {
+                                        //如果有接口把接口的class当成key，实例对象当成value
+                                        System.out.println("正在加载【"+ aClass.getInterfaces()[0] +"】,实例对象是：" + instance.getClass().getName());
+                                        beanFactory.put(aClass.getInterfaces()[0], instance);
+                                    }else{
+                                        //如果有接口把自己的class当成key，实例对象当成value
+                                        System.out.println("正在加载【"+ aClass.getName() +"】,实例对象是：" + instance.getClass().getName());
+                                        beanFactory.put(aClass, instance);
+                                    }
+                                }
+                            }
+                        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+```
+
+⑦java类标识Bean注解
+
+```java
+@Bean
+public class UserServiceImpl implements UserService
+```
+
+```java
+@Bean
+public class UserDaoImpl implements UserDao
+```
+
+⑧测试Bean加载
+
+```java
+package com.yooome.spring;
+
+import com.yooome.spring.core.AnnotationApplicationContext;
+import com.yooome.spring.core.ApplicationContext;
+import com.yooome.spring.test.service.UserService;
+import org.junit.jupiter.api.Test;
+
+public class SpringIocTest {
+
+    @Test
+    public void testIoc() {
+        ApplicationContext applicationContext = new AnnotationApplicationContext("com.yooome.spring.test");
+        UserService userService = (UserService)applicationContext.getBean(UserService.class);
+        userService.out();
+        System.out.println("run success");
+    }
+}
+```
+
+控制台打印测试
+
+⑨依赖注入
+
+只要 userDao.print();调用成功，说明注入成功
+
+```java
+package com.yooome.spring.test.service.impl;
+
+import com.yooome.spring.core.annotation.Bean;
+import com.yooome.spring.core.annotation.Di;
+import com.yooome.spring.dao.UserDao;
+import com.yooome.spring.service.UserService;
+
+@Bean
+public class UserServiceImpl implements UserService {
+
+    @Di
+    private UserDao userDao;
+
+    @Override
+    public void out() {
+        userDao.print();
+        System.out.println("Service层执行结束");
+    }
+}
+```
+
+执行第八步：报错了，说明当前userDao是个空对象
+
+⑩**依赖注入实现**
+
+```java
+package com.yooome.spring.core;
+
+import com.yooome.spring.core.annotation.Bean;
+import com.yooome.spring.core.annotation.Di;
+
+import java.io.File;
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+
+public class AnnotationApplicationContext implements ApplicationContext {
+
+    //存储bean的容器
+    private HashMap<Class, Object> beanFactory = new HashMap<>();
+    private static String rootPath;
+
+    @Override
+    public Object getBean(Class clazz) {
+        return beanFactory.get(clazz);
+    }
+
+    /**
+     * 根据包扫描加载bean
+     * @param basePackage
+     */
+    public AnnotationApplicationContext(String basePackage) {
+        try {
+            String packageDirName = basePackage.replaceAll("\\.", "\\\\");
+            Enumeration<URL> dirs =Thread.currentThread().getContextClassLoader().getResources(packageDirName);
+            while (dirs.hasMoreElements()) {
+                URL url = dirs.nextElement();
+                String filePath = URLDecoder.decode(url.getFile(),"utf-8");
+                rootPath = filePath.substring(0, filePath.length()-packageDirName.length());
+                loadBean(new File(filePath));
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        
+        //依赖注入
+        loadDi();
+    }
+    
+    private  void loadBean(File fileParent) {
+        if (fileParent.isDirectory()) {
+            File[] childrenFiles = fileParent.listFiles();
+            if(childrenFiles == null || childrenFiles.length == 0){
+                return;
+            }
+            for (File child : childrenFiles) {
+                if (child.isDirectory()) {
+                    //如果是个文件夹就继续调用该方法,使用了递归
+                    loadBean(child);
+                } else {
+                    //通过文件路径转变成全类名,第一步把绝对路径部分去掉
+                    String pathWithClass = child.getAbsolutePath().substring(rootPath.length() - 1);
+                    //选中class文件
+                    if (pathWithClass.contains(".class")) {
+                        //    com.xinzhi.dao.UserDao
+                        //去掉.class后缀，并且把 \ 替换成 .
+                        String fullName = pathWithClass.replaceAll("\\\\", ".").replace(".class", "");
+                        try {
+                            Class<?> aClass = Class.forName(fullName);
+                            //把非接口的类实例化放在map中
+                            if(!aClass.isInterface()){
+                                Bean annotation = aClass.getAnnotation(Bean.class);
+                                if(annotation != null){
+                                    Object instance = aClass.newInstance();
+                                    //判断一下有没有接口
+                                    if(aClass.getInterfaces().length > 0) {
+                                        //如果有接口把接口的class当成key，实例对象当成value
+                                        System.out.println("正在加载【"+ aClass.getInterfaces()[0] +"】,实例对象是：" + instance.getClass().getName());
+                                        beanFactory.put(aClass.getInterfaces()[0], instance);
+                                    }else{
+                                        //如果有接口把自己的class当成key，实例对象当成value
+                                        System.out.println("正在加载【"+ aClass.getName() +"】,实例对象是：" + instance.getClass().getName());
+                                        beanFactory.put(aClass, instance);
+                                    }
+                                }
+                            }
+                        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void loadDi() {
+        for(Map.Entry<Class,Object> entry : beanFactory.entrySet()){
+            //就是咱们放在容器的对象
+            Object obj = entry.getValue();
+            Class<?> aClass = obj.getClass();
+            Field[] declaredFields = aClass.getDeclaredFields();
+            for (Field field : declaredFields){
+                Di annotation = field.getAnnotation(Di.class);
+                if( annotation != null ){
+                    field.setAccessible(true);
+                    try {
+                        System.out.println("正在给【"+obj.getClass().getName()+"】属性【" + field.getName() + "】注入值【"+ beanFactory.get(field.getType()).getClass().getName() +"】");
+                        field.set(obj,beanFactory.get(field.getType()));
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+}
+```
+
+执行第八步：执行成功，依赖注入成功。
+
+### 四、面向切面：AOP
+
+#### 5.1 场景模拟
+
+搭建子模块：spring6-aop
+
+##### 5.1.1 声明接口
+
+声明计算接口Calculator，包含加减乘除的抽象方法
+
+```java
+public interface Calculator {
+    
+    int add(int i, int j);
+    
+    int sub(int i, int j);
+    
+    int mul(int i, int j);
+    
+    int div(int i, int j);
+    
+}
+```
+
+##### 5.1.2 创建实现类
+
+```java
+public class CalculatorImpl implements Calculator {
+    
+    @Override
+    public int add(int i, int j) {
+    
+        int result = i + j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        return result;
+    }
+    
+    @Override
+    public int sub(int i, int j) {
+    
+        int result = i - j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        return result;
+    }
+    
+    @Override
+    public int mul(int i, int j) {
+    
+        int result = i * j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        return result;
+    }
+    
+    @Override
+    public int div(int i, int j) {
+    
+        int result = i / j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        return result;
+    }
+}
+```
+
+##### 5.1.3 创建带日志功能的实现类
+
+![img015](images/img015.png)
+
+```java
+public class CalculatorLogImpl implements Calculator {
+    
+    @Override
+    public int add(int i, int j) {
+    
+        System.out.println("[日志] add 方法开始了，参数是：" + i + "," + j);
+    
+        int result = i + j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        System.out.println("[日志] add 方法结束了，结果是：" + result);
+    
+        return result;
+    }
+    
+    @Override
+    public int sub(int i, int j) {
+    
+        System.out.println("[日志] sub 方法开始了，参数是：" + i + "," + j);
+    
+        int result = i - j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        System.out.println("[日志] sub 方法结束了，结果是：" + result);
+    
+        return result;
+    }
+    
+    @Override
+    public int mul(int i, int j) {
+    
+        System.out.println("[日志] mul 方法开始了，参数是：" + i + "," + j);
+    
+        int result = i * j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        System.out.println("[日志] mul 方法结束了，结果是：" + result);
+    
+        return result;
+    }
+    
+    @Override
+    public int div(int i, int j) {
+    
+        System.out.println("[日志] div 方法开始了，参数是：" + i + "," + j);
+    
+        int result = i / j;
+    
+        System.out.println("方法内部 result = " + result);
+    
+        System.out.println("[日志] div 方法结束了，结果是：" + result);
+    
+        return result;
+    }
+}
+```
+
+##### 5.1.4 提出问题
+
+**①现在代码缺陷**
+
+针对带日志功能的实现类，我们发现有如下缺陷：
+
+- 对核心业务功能有干扰，导致程序员在开发核心业务功能是分散了精力。
+- 附加功能分散在各个业务功能方法中不利于统一维护。
+
+②解决思路
+
+结局思路，核心就是：解耦。我们需要把附加功能从业务功能代码中抽取出来。
+
+③困难
+
+解决问题的困难：要抽取的代码在方法内部，靠以前把子类中的重复代码抽取到父类的方式没法解决。所以需要引入新的技术。
 
 
 
