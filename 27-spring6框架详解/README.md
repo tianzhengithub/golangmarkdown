@@ -3583,10 +3583,10 @@ public class UrlResourceDemo {
 ```java
 public static void main(String[] args) {
     //1 访问网络资源
-	//loadAndReadUrlResource("http://www.atguigu.com");
+	//loadAndReadUrlResource("http://www.yooome.com");
     
     //2 访问文件系统资源
-    loadAndReadUrlResource("file:atguigu.txt");
+    loadAndReadUrlResource("file:yooome.txt");
 }
 ```
 
@@ -3594,11 +3594,1047 @@ public static void main(String[] args) {
 
 ClassPathResource 用来访问类路径下的资源，相对于其他的 Resource 实现类，其主要优势是方便访问类加载路径里的资源，尤其对于 Web 应用，ClassPathResource 可自动搜索位于 classes 下的资源文件，无须使用绝对路径访问。
 
+实验：在类路径下创建文件 xxx.txt，使用 ClassPathResource访问
+
+![image-20221207103020854](images/image-20221207103020854.png)
+
+```java
+package com.yooome.spring6.resources;
+
+import org.springframework.core.io.ClassPathResource;
+import java.io.InputStream;
+
+public class ClassPathResourceDemo {
+
+    public static void loadAndReadUrlResource(String path) throws Exception{
+        // 创建一个 Resource 对象
+        ClassPathResource resource = new ClassPathResource(path);
+        // 获取文件名
+        System.out.println("resource.getFileName = " + resource.getFilename());
+        // 获取文件描述
+        System.out.println("resource.getDescription = "+ resource.getDescription());
+        //获取文件内容
+        InputStream in = resource.getInputStream();
+        byte[] b = new byte[1024];
+        while(in.read(b)!=-1) {
+            System.out.println(new String(b));
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        loadAndReadUrlResource("yooome.txt");
+    }
+}
+```
+
+ClassPathResource 实例可使用 ClassPathResource 构造器显示地创建，但更多的时候它都是隐式的创建的。当执行Spring的某个方法是，该刚发接受一个掉膘资源路径的字符串参数，当Spring识别该字符串中包含classpath:前缀后，系统会自动创建 ClassPathResource对象。
+
+##### 8.3.3 FileSystemResource 访问文件系统资源
+
+Spring 提供的 FileSystemResource 类用于访问文件系统资源，使用 FileSystemResource 来访问文件系统资源并没有太大的优势，因为Java提供的 File 类也可以用于访问文件系统资源。
+
+实验：使用 FileSystemResource 访问文件系统资源
+
+```java
+package com.yooome.spring6.resources;
+
+import org.springframework.core.io.FileSystemResource;
+
+import java.io.InputStream;
+
+public class FileSystemResourceDemo {
+
+    public static void loadAndReadUrlResource(String path) throws Exception{
+        //相对路径
+        FileSystemResource resource = new FileSystemResource("yooome.txt");
+        //绝对路径
+        //FileSystemResource resource = new FileSystemResource("C:\\yooome.txt");
+        // 获取文件名
+        System.out.println("resource.getFileName = " + resource.getFilename());
+        // 获取文件描述
+        System.out.println("resource.getDescription = "+ resource.getDescription());
+        //获取文件内容
+        InputStream in = resource.getInputStream();
+        byte[] b = new byte[1024];
+        while(in.read(b)!=-1) {
+            System.out.println(new String(b));
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        loadAndReadUrlResource("yooome.txt");
+    }
+}
+```
+
+FileSystemResource 实例可使用 FileSystemResource 构造器显示地创建，但更多的时候它都是隐式创建。执行 Spring 的某个方法时，该方法接受一个代表资源路径的字符串参数，当 Spring 识别该字符串参数中包含 file:前缀后，系统将会自动创建FileSystemResource对象。
+
+##### 8.3.4 ServletContextResource
+
+这是 ServletContext 资源的 Resource 实现，它解释相关Web应用程序根目录中的相对路径。它始终支持流(stream)访问和URL访问，但只有在扩展Web应用程序存档且资源实际位于文件系统上时才允许 java.io.File
+
+访问。无论它是在文件系统上扩展还是直接从 JAR 或其他地方(如数据库)访问，实际上都依赖Servlet容器。
+
+##### 8.3.5 InputStreamResource
+
+InputStreamResource 是给定的输入流（InputStream）的Resource实现。它的使用场景在没有特定的资源实现的时候使用（感觉和@Component的适用场景很相似）。与其他Resource实现相比，这是已打开资源的描述符。因此，它的isOpen()方法返回true。如果需要将资源描述符保留在某些或者需要多次读取流，请不要使用它。
+
+##### 8.3.6 ByteArrayResource
+
+字节数组的Resource实现类。通过给定的数组创建了一个 ByteArrayInputStream。它对于从任何给定的字节数组加载内容非常有用，而无需求助于单次使用的 InputStreamResource。
+
+#### 8.4 Resouce 类图
+
+上述 Resource 实现类与 Resource 顶级接口之间的关系可以用下面的 UML 关系模型来表示。
+
+![image-20221206232920494](images/image-20221206232920494.png)
 
 
 
+#### 8.5 ResourceLoader 接口
+
+##### 8.5.1 ResourceLoader 概述
+
+Spring 提供如下两个标志性接口：
+
+①：ResourceLoader：该接口实现类的实例可以获得一个 Resource 实例。
+
+②：ResourceLoaderAware：该接口实现类的实例将获得一个 ResourceLoader 的引用。
+
+在 ResourceLoader接口里有如下方法：
+
+1. Resource getResource（String location）：该接口仅有这个方法，用于返回一个 Resource 实例。ApplicationContext 实现类都实现 ResourceLoader 接口，因此ApplicationContext可直接获取 Resource 实例。
+
+##### 8.5.2 使用演示
+
+实验一：ClassPathXmlApplicationContext 获取 Resource 实例
+
+```java
+package com.yooome.spring6.resouceloader;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.core.io.Resource;
+
+public class Demo1 {
+
+    public static void main(String[] args) {
+        ApplicationContext ctx = new ClassPathXmlApplicationContext();
+//        通过ApplicationContext访问资源
+//        ApplicationContext实例获取Resource实例时，
+//        默认采用与ApplicationContext相同的资源访问策略
+        Resource res = ctx.getResource("yooome.txt");
+        System.out.println(res.getFilename());
+    }
+}
+```
+
+实验二：FileSystemApplicationContext 获取 Resource 实例
+
+```java
+package com.yooome.spring6.resouceloader;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
+import org.springframework.core.io.Resource;
+
+public class Demo2 {
+
+    public static void main(String[] args) {
+        ApplicationContext ctx = new FileSystemXmlApplicationContext();
+        Resource res = ctx.getResource("yooome.txt");
+        System.out.println(res.getFilename());
+    }
+}
+```
+
+##### 8.5.3 ResourceLoader 总结
+
+Spring 将采用和ApplicationContext 相同的策略来访问资源。也就是说，如果ApplicationContext是FileSystemXmlApplicationContext, res 就是 FileSystemResource 实例；如果 ApplicationContext 是 ClassPathApplicationContext， res 就是 ClassPathResource 实例。
+
+当 Spring 应用需要进行资源访问时，实际上并不需要直接使用 Resource 实现类，而是调用 ResourceLoader 实例的 getResource() 方法来获得资源，ResourceLoader 将会负责选择 Resource 实习哪类，也就是确定具体的资源访问策略，从而将应用策划功能性和具体的资源访问策略分离开来。
+
+另外，使用ApplicationContext访问资源时，可通过不同前缀指定强制使用指定的 ClassPathResource 、FileSystemResource 等实现类。
+
+```java
+Resource res = ctx.getResource("calsspath:bean.xml");
+Resrouce res = ctx.getResource("file:bean.xml");
+Resource res = ctx.getResource("http://localhost:8080/beans.xml");
+```
+
+#### 8.6 ResourceLoaderAware 接口
+
+ResourceLoaderAware接口实现类的实例将获得一个ResourceLoader的引用，ResourceLoaderAware接口也提供了一个setResourceLoader()方法，该方法将由Spring容器负责调用，Spring容器会将一个ResourceLoader对象作为该方法的参数传入。
+
+如果把实现ResourceLoaderAware接口的Bean类部署在Spring容器中，Spring容器会将自身当成ResourceLoader作为setResourceLoader()方法的参数传入。由于ApplicationContext的实现类都实现了ResourceLoader接口，Spring容器自身完全可作为ResorceLoader使用。
+
+**实验：演示ResourceLoaderAware使用**
+
+**第一步 创建类，实现ResourceLoaderAware接口**
+
+```java
+package com.yooome.spring6.resouceloader;
+
+import org.springframework.context.ResourceLoaderAware;
+import org.springframework.core.io.ResourceLoader;
+
+public class TestBean implements ResourceLoaderAware {
+
+    private ResourceLoader resourceLoader;
+
+    //实现ResourceLoaderAware接口必须实现的方法
+	//如果把该Bean部署在Spring容器中，该方法将会有Spring容器负责调用。
+	//SPring容器调用该方法时，Spring会将自身作为参数传给该方法。
+    public void setResourceLoader(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+
+    //返回ResourceLoader对象的应用
+    public ResourceLoader getResourceLoader(){
+        return this.resourceLoader;
+    }
+
+}
+```
+
+**第二步 创建bean.xml文件，配置TestBean**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="testBean" class="com.yooome.spring6.resouceloader.TestBean"></bean>
+</beans>
+```
+
+**第三步 测试**
+
+```java
+package com.yooome.spring6.resouceloader;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
+
+public class Demo3 {
+
+    public static void main(String[] args) {
+        //Spring容器会将一个ResourceLoader对象作为该方法的参数传入
+        ApplicationContext ctx = new ClassPathXmlApplicationContext("bean.xml");
+        TestBean testBean = ctx.getBean("testBean",TestBean.class);
+        //获取ResourceLoader对象
+        ResourceLoader resourceLoader = testBean.getResourceLoader();
+        System.out.println("Spring容器将自身注入到ResourceLoaderAware Bean 中 ？ ：" + (resourceLoader == ctx));
+        //加载其他资源
+        Resource resource = resourceLoader.getResource("yooome.txt");
+        System.out.println(resource.getFilename());
+        System.out.println(resource.getDescription());
+    }
+}
+```
+
+#### 8.7 使用 Resource 作为属性
+
+前面介绍了 Spring 提供的资源访问策略，但这些依赖访问策略要么需要使用 Resource 实现类，要么需要使用 ApplicationContext 来获取资源。实际上，当应用程序中的 Bean 实例需要访问资源时，Spring 有根号的解决方法：直接利用依赖注入。从这个意义上来看，Spring 框架不仅充分利用了策略模式来简化资源访问，而且还将策略模式和IOC进行充分的结合，最大程度地简化了 spring 资源访问。归纳起来，如果 Bean 实例需要访问资源，有如下两种解决方案：
+
+- 代码中获取 Resource 实例。
+- 使用依赖注入。
+
+对于第一种方式，当程序获取 Resource 实例时，总需要提供 Resource 所在的位置，不管通过 FileSystemResource 创建实例，还是通过 ClassPathResource 创建实例，或者通过 ApplicationContext 的 getResource() 方法获取实例，都需要提供资源位置。这意味着：资源所在的物理位置江北耦合到代码中，如果资源位置发生改变，则必须改写程序。因此，通常建议采用第二种方法，让Srping 为 Bean 实例依赖注入资源。
+
+**实验：让Spring位Bean实例依赖注入资源**
+
+**第一步 创建依赖注入类，定义属性和方法**
+
+```java
+package com.yooome.yooome.resouceloader;
+
+import org.springframework.core.io.Resource;
+
+public class ResourceBean {
+    
+    private Resource res;
+    
+    public void setRes(Resource res) {
+        this.res = res;
+    }
+    public Resource getRes() {
+        return res;
+    }
+    
+    public void parse(){
+        System.out.println(res.getFilename());
+        System.out.println(res.getDescription());
+    }
+}
+```
+
+**第二步 创建spring配置文件，配置依赖注入**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="resourceBean" class="com.yooome.yooome.resouceloader.ResourceBean" >
+      <!-- 可以使用file:、http:、ftp:等前缀强制Spring采用对应的资源访问策略 -->
+      <!-- 如果不采用任何前缀，则Spring将采用与该ApplicationContext相同的资源访问策略来访问资源 -->
+        <property name="res" value="classpath:yooome.txt"/>
+    </bean>
+</beans>
+```
+
+**第三步 测试**
+
+```java
+package com.yooome.spring6.resouceloader;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class Demo4 {
+
+    public static void main(String[] args) {
+        ApplicationContext ctx =
+                new ClassPathXmlApplicationContext("bean.xml");
+        ResourceBean resourceBean = ctx.getBean("resourceBean",ResourceBean.class);
+        resourceBean.parse();
+    }
+}
+```
+
+#### 8.8 应用程序上下文和资源路径
+
+##### 8.8.1、概述
+
+不管以怎样的方式创建ApplicationContext实例，都需要为ApplicationContext指定配置文件，Spring允许使用一份或多分XML配置文件。当程序创建ApplicationContext实例时，通常也是以Resource的方式来访问配置文件的，所以ApplicationContext完全支持ClassPathResource、FileSystemResource、ServletContextResource等资源访问方式。
+
+**ApplicationContext确定资源访问策略通常有两种方法：**
+
+**（1）使用ApplicationContext实现类指定访问策略。**
+
+**（2）使用前缀指定访问策略。**
+
+##### 8.8.2、ApplicationContext实现类指定访问策略
+
+创建ApplicationContext对象时，通常可以使用如下实现类：
+
+（1） ClassPathXMLApplicationContext : 对应使用ClassPathResource进行资源访问。
+
+（2）FileSystemXmlApplicationContext ： 对应使用FileSystemResource进行资源访问。
+
+（3）XmlWebApplicationContext ： 对应使用ServletContextResource进行资源访问。
+
+当使用ApplicationContext的不同实现类时，就意味着Spring使用响应的资源访问策略。
+
+效果前面已经演示
+
+##### 8.8.3、使用前缀指定访问策略
+
+**实验一：classpath前缀使用**
+
+```java
+package com.yooome.spring6.context;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
+import org.springframework.core.io.Resource;
+
+public class Demo1 {
+
+    public static void main(String[] args) {
+        /*
+         * 通过搜索文件系统路径下的xml文件创建ApplicationContext，
+         * 但通过指定classpath:前缀强制搜索类加载路径
+         * classpath:bean.xml
+         * */
+        ApplicationContext ctx =
+                new ClassPathXmlApplicationContext("classpath:bean.xml");
+        System.out.println(ctx);
+        Resource resource = ctx.getResource("yooome.txt");
+        System.out.println(resource.getFilename());
+        System.out.println(resource.getDescription());
+    }
+}
+```
 
 
+
+**实验二：classpath通配符使用**
+
+classpath  :前缀提供了加载多个XML配置文件的能力，当使用classpath*:前缀来指定XML配置文件时，系统将搜索类加载路径，找到所有与文件名匹配的文件，分别加载文件中的配置定义，最后合并成一个ApplicationContext。
+
+```java
+ApplicationContext ctx = new ClassPathXmlApplicationContext("classpath*:bean.xml");
+System.out.println(ctx);
+```
+
+当使用classpath  :前缀时，Spring将会搜索类加载路径下所有满足该规则的配置文件。
+
+如果不是采用classpath :前缀，而是改为使用classpath:前缀，Spring则只加载第一个符合条件的XML文件
+
+**注意 ：** 
+
+classpath  : 前缀仅对ApplicationContext有效。实际情况是，创建ApplicationContext时，分别访问多个配置文件(通过ClassLoader的getResource方法实现)。因此，classpath :前缀不可用于Resource。
+
+
+
+**使用三：通配符其他使用**
+
+一次性加载多个配置文件的方式：指定配置文件时使用通配符
+
+```java
+ApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:bean.xml");
+```
+
+Spring允许将classpath:前缀和通配符结合使用：
+
+```java
+ApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:bean.xml");
+```
+
+
+
+### 九、国际化：i18n
+
+#### 9.1 i18n概述
+
+国际化也称作i18n，其来源是英文单词 internationalization的首末字符i和n，18为中间的字符数。由于软件发行可能面向多个国家，对于不同国家的用户，软件显示不同语言的过程就是国际化。通常来讲，软件中的国际化是通过配置文件来实现的，假设要支撑两种语言，那么就需要两个版本的配置文件。
+
+#### 9.2 Java国际化
+
+（1）Java自身是支持国际化的，java.util.Locale用于指定当前用户所属的语言环境等信息，java.util.ResourceBundle用于查找绑定对应的资源文件。Locale包含了language信息和country信息，Locale创建默认locale对象时使用的静态方法：
+
+```java
+    /**
+     * This method must be called only for creating the Locale.*
+     * constants due to making shortcuts.
+     */
+    private static Locale createConstant(String lang, String country) {
+        BaseLocale base = BaseLocale.createInstance(lang, country);
+        return getInstance(base, null);
+    }
+```
+
+（2）配置文件命名规则：
+ **basename_language_country.properties**
+ 必须遵循以上的命名规则，java才会识别。其中，basename是必须的，语言和国家是可选的。这里存在一个优先级概念，如果同时提供了messages.properties和messages_zh_CN.propertes两个配置文件，如果提供的locale符合en_CN，那么优先查找messages_en_CN.propertes配置文件，如果没查找到，再查找messages.properties配置文件。最后，提示下，所有的配置文件必须放在classpath中，一般放在resources目录下
+
+**（3）实验：演示Java国际化**
+
+**第一步 创建子模块spring6-i18n，引入spring依赖**
+
+![image-20221207122500801](images/image-20221207122500801.png)
+
+**第二步 在resource目录下创建两个配置文件：messages_zh_CN.propertes和messages_en_GB.propertes**
+
+![image-20221207124839565](images/image-20221207124839565.png)
+
+
+
+**第三步 测试**
+
+```java
+package com.yooome.spring6.javai18n;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.ResourceBundle;
+
+public class Demo1 {
+
+    public static void main(String[] args) {
+        System.out.println(ResourceBundle.getBundle("messages",
+                new Locale("en","GB")).getString("test"));
+
+        System.out.println(ResourceBundle.getBundle("messages",
+                new Locale("zh","CN")).getString("test"));
+    }
+}
+```
+
+#### 9.3 Spring6国际化
+
+##### 9.3.1 MessageSource接口
+
+spring中国际化是通过MessageSource这个接口来支持的
+
+**常见实现类**
+
+**ResourceBundleMessageSource**
+
+这个是基于Java的ResourceBundle基础类实现，允许仅通过资源名加载国际化资源
+
+**ReloadableResourceBundleMessageSource**
+
+这个功能和第一个类的功能类似，多了定时刷新功能，允许在不重启系统的情况下，更新资源的信息
+
+**StaticMessageSource**
+
+它允许通过编程的方式提供国际化信息，一会我们可以通过这个来实现db中存储国际化信息的功能。
+
+
+
+##### 9.3.2 使用Spring6国际化
+
+**第一步 创建资源文件**
+
+**国际化文件命名格式：基本名称 _ 语言 _ 国家.properties**
+
+**{0},{1}这样内容，就是动态参数**
+
+![image-20221207140024056](images/image-20221207140024056.png)
+
+①：创建yooome_en_US.properties
+
+```properties
+www.yooome.com=welcome {0},时间:{1}
+```
+
+②：创建 yooome_zh_CN.properties
+
+```properties
+www.yooome.com=欢迎 {0},时间:{1}
+```
+
+**第二步 创建spring配置文件，配置MessageSource**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="messageSource"
+          class="org.springframework.context.support.ResourceBundleMessageSource">
+        <property name="basenames">
+            <list>
+                <value>yooome</value>
+            </list>
+        </property>
+        <property name="defaultEncoding">
+            <value>utf-8</value>
+        </property>
+    </bean>
+</beans>
+```
+
+**第三创建测试类**
+
+```java
+package com.yooome.spring6.javai18n;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import java.util.Date;
+import java.util.Locale;
+
+public class Demo2 {
+
+    public static void main(String[] args) {
+        
+        ApplicationContext context = new ClassPathXmlApplicationContext("beans.xml");
+        
+        //传递动态参数，使用数组形式对应{0} {1}顺序
+        Object[] objs = new Object[]{"yooome",new Date().toString()};
+
+        //www.yooome.com为资源文件的key值,
+        //objs为资源文件value值所需要的参数,Local.CHINA为国际化为语言
+        String str=context.getMessage("www.yooome.com", objs, Locale.CHINA);
+        System.out.println(str);
+    }
+}
+```
+
+### 十、数据校验：Validation
+
+![image-20221218154808754](images/image-20221218154808754.png)
+
+#### 10.1 Spring Validation概述
+
+![image-20221206220207266](images/image-20221206220207266.png)
+
+在开发中，我们经常遇到参数校验的需求，比如用户注册的时候，要校验用户名不能为空、用户名长度不超过20个字符、手机号是合法的手机号格式等等。如果使用普通方式，我们会把校验的代码和真正的业务处理逻辑耦合在一起，而且如果未来要新增一种校验逻辑也需要在修改多个地方。而spring validation允许通过注解的方式来定义对象校验规则，把校验和业务逻辑分离开，让代码编写更加方便。Spring Validation其实就是对Hibernate Validator进一步的封装，方便在Spring中使用。
+
+在Spring中有多种校验的方式
+
+**第一种是通过实现org.springframework.validation.Validator接口，然后在代码中调用这个类**
+
+**第二种是按照Bean Validation方式来进行校验，即通过注解的方式。**
+
+**第三种是基于方法实现校验**
+
+**除此之外，还可以实现自定义校验**
+
+
+
+#### 10.2、实验一：通过Validator接口实现
+
+**第一步 创建子模块 spring6-validator**
+
+![image-20221206221002615](images/image-20221206221002615.png)
+
+
+
+**第二步 引入相关依赖**
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.hibernate.validator</groupId>
+        <artifactId>hibernate-validator</artifactId>
+        <version>7.0.5.Final</version>
+    </dependency>
+
+    <dependency>
+        <groupId>org.glassfish</groupId>
+        <artifactId>jakarta.el</artifactId>
+        <version>4.0.1</version>
+    </dependency>
+</dependencies>
+```
+
+
+
+**第三步 创建实体类，定义属性和方法**
+
+```java
+package com.yooome.spring6.validation.method1;
+
+public class Person {
+    private String name;
+    private int age;
+
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public int getAge() {
+        return age;
+    }
+    public void setAge(int age) {
+        this.age = age;
+    }
+}
+```
+
+
+
+**第四步 创建类实现Validator接口，实现接口方法指定校验规则**
+
+```java
+package com.yooome.spring6.validation.method1;
+
+import org.springframework.validation.Errors;
+import org.springframework.validation.ValidationUtils;
+import org.springframework.validation.Validator;
+
+public class PersonValidator implements Validator {
+
+    @Override
+    public boolean supports(Class<?> clazz) {
+        return Person.class.equals(clazz);
+    }
+
+    @Override
+    public void validate(Object object, Errors errors) {
+        ValidationUtils.rejectIfEmpty(errors, "name", "name.empty");
+        Person p = (Person) object;
+        if (p.getAge() < 0) {
+            errors.rejectValue("age", "error value < 0");
+        } else if (p.getAge() > 110) {
+            errors.rejectValue("age", "error value too old");
+        }
+    }
+}
+```
+
+上面定义的类，其实就是实现接口中对应的方法，
+
+supports方法用来表示此校验用在哪个类型上，
+
+validate是设置校验逻辑的地点，其中ValidationUtils，是Spring封装的校验工具类，帮助快速实现校验。
+
+
+
+**第五步 使用上述Validator进行测试**
+
+```java
+package com.yooome.spring6.validation.method1;
+
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.DataBinder;
+
+public class TestMethod1 {
+
+    public static void main(String[] args) {
+        //创建person对象
+        Person person = new Person();
+        person.setName("lucy");
+        person.setAge(-1);
+        
+        // 创建Person对应的DataBinder
+        DataBinder binder = new DataBinder(person);
+
+        // 设置校验
+        binder.setValidator(new PersonValidator());
+
+        // 由于Person对象中的属性为空，所以校验不通过
+        binder.validate();
+
+        //输出结果
+        BindingResult results = binder.getBindingResult();
+        System.out.println(results.getAllErrors());
+    }
+}
+```
+
+
+
+#### 10.3 实验二：Bean Validation注解实现
+
+使用Bean Validation校验方式，就是如何将Bean Validation需要使用的javax.validation.ValidatorFactory 和javax.validation.Validator注入到容器中。spring默认有一个实现类LocalValidatorFactoryBean，它实现了上面Bean Validation中的接口，并且也实现了org.springframework.validation.Validator接口。
+
+**第一步 创建配置类，配置LocalValidatorFactoryBean**
+
+```java
+@Configuration
+@ComponentScan("com.yooome.spring6.validation.method2")
+public class ValidationConfig {
+
+    @Bean
+    public LocalValidatorFactoryBean validator() {
+        return new LocalValidatorFactoryBean();
+    }
+}
+```
+
+
+
+**第二步 创建实体类，使用注解定义校验规则**
+
+```java
+package com.yooome.spring6.validation.method2;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public class User {
+
+    @NotNull
+    private String name;
+
+    @Min(0)
+    @Max(120)
+    private int age;
+
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public int getAge() {
+        return age;
+    }
+    public void setAge(int age) {
+        this.age = age;
+    }
+}
+```
+
+**常用注解说明**
+@NotNull	限制必须不为null
+@NotEmpty	只作用于字符串类型，字符串不为空，并且长度不为0
+@NotBlank	只作用于字符串类型，字符串不为空，并且trim()后不为空串
+@DecimalMax(value)	限制必须为一个不大于指定值的数字
+@DecimalMin(value)	限制必须为一个不小于指定值的数字
+@Max(value)	限制必须为一个不大于指定值的数字
+@Min(value)	限制必须为一个不小于指定值的数字
+@Pattern(value)	限制必须符合指定的正则表达式
+@Size(max,min)	限制字符长度必须在min到max之间
+@Email	验证注解的元素值是Email，也可以通过正则表达式和flag指定自定义的email格式
+
+
+
+**第三步 使用两种不同的校验器实现**
+
+**（1）使用jakarta.validation.Validator校验**
+
+```java
+package com.yooome.spring6.validation.method2;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.Set;
+
+@Service
+public class MyService1 {
+
+    @Autowired
+    private Validator validator;
+
+    public  boolean validator(User user){
+        Set<ConstraintViolation<User>> sets =  validator.validate(user);
+        return sets.isEmpty();
+    }
+
+}
+```
+
+**（2）使用org.springframework.validation.Validator校验**
+
+```java
+package com.yooome.spring6.validation.method2;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.validation.BindException;
+import org.springframework.validation.Validator;
+
+@Service
+public class MyService2 {
+
+    @Autowired
+    private Validator validator;
+
+    public boolean validaPersonByValidator(User user) {
+        BindException bindException = new BindException(user, user.getName());
+        validator.validate(user, bindException);
+        return bindException.hasErrors();
+    }
+}
+```
+
+
+
+**第四步 测试**
+
+```java
+package com.yooome.spring6.validation.method2;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class TestMethod2 {
+
+    @Test
+    public void testMyService1() {
+        ApplicationContext context = new AnnotationConfigApplicationContext(ValidationConfig.class);
+        MyService1 myService = context.getBean(MyService1.class);
+        User user = new User();
+        user.setAge(-1);
+        boolean validator = myService.validator(user);
+        System.out.println(validator);
+    }
+
+    @Test
+    public void testMyService2() {
+        ApplicationContext context = new AnnotationConfigApplicationContext(ValidationConfig.class);
+        MyService2 myService = context.getBean(MyService2.class);
+        User user = new User();
+        user.setName("lucy");
+        user.setAge(130);
+        user.setAge(-1);
+        boolean validator = myService.validaPersonByValidator(user);
+        System.out.println(validator);
+    }
+}
+```
+
+
+
+#### 10.4 实验三：基于方法实现校验
+
+**第一步 创建配置类，配置MethodValidationPostProcessor**
+
+```java
+package com.yooome.spring6.validation.method3;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.validation.beanvalidation.MethodValidationPostProcessor;
+
+@Configuration
+@ComponentScan("com.yooome.spring6.validation.method3")
+public class ValidationConfig {
+
+    @Bean
+    public MethodValidationPostProcessor validationPostProcessor() {
+        return new MethodValidationPostProcessor();
+    }
+}
+```
+
+**第二步 创建实体类，使用注解设置校验规则**
+
+```java
+package com.yooome.spring6.validation.method3;
+
+import jakarta.validation.constraints.*;
+
+public class User {
+
+    @NotNull
+    private String name;
+
+    @Min(0)
+    @Max(120)
+    private int age;
+
+    @Pattern(regexp = "^1(3|4|5|7|8)\\d{9}$",message = "手机号码格式错误")
+    @NotBlank(message = "手机号码不能为空")
+    private String phone;
+
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public int getAge() {
+        return age;
+    }
+    public void setAge(int age) {
+        this.age = age;
+    }
+    public String getPhone() {
+        return phone;
+    }
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+}
+```
+
+**第三步 定义Service类，通过注解操作对象**
+
+```java
+package com.yooome.spring6.validation.method3;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
+
+@Service
+@Validated
+public class MyService {
+    
+    public String testParams(@NotNull @Valid User user) {
+        return user.toString();
+    }
+
+}
+```
+
+**第四步 测试**
+
+```java
+package com.yooome.spring6.validation.method3;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+public class TestMethod3 {
+
+    @Test
+    public void testMyService1() {
+        ApplicationContext context = new AnnotationConfigApplicationContext(ValidationConfig.class);
+        MyService myService = context.getBean(MyService.class);
+        User user = new User();
+        user.setAge(-1);
+        myService.testParams(user);
+    }
+}
+```
+
+
+
+#### 10.5 实验四：实现自定义校验
+
+**第一步 自定义校验注解**
+
+```java
+package com.yooome.spring6.validation.method4;
+
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
+import java.lang.annotation.*;
+
+@Target({ElementType.METHOD, ElementType.FIELD, ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.PARAMETER})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Constraint(validatedBy = {CannotBlankValidator.class})
+public @interface CannotBlank {
+    //默认错误消息
+    String message() default "不能包含空格";
+
+    //分组
+    Class<?>[] groups() default {};
+
+    //负载
+    Class<? extends Payload>[] payload() default {};
+
+    //指定多个时使用
+    @Target({ElementType.METHOD, ElementType.FIELD, ElementType.ANNOTATION_TYPE, ElementType.CONSTRUCTOR, ElementType.PARAMETER, ElementType.TYPE_USE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @Documented
+    @interface List {
+        CannotBlank[] value();
+    }
+}
+```
+
+**第二步 编写真正的校验类**
+
+```java
+package com.yooome.spring6.validation.method4;
+
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
+
+public class CannotBlankValidator implements ConstraintValidator<CannotBlank, String> {
+
+        @Override
+        public void initialize(CannotBlank constraintAnnotation) {
+        }
+
+        @Override
+        public boolean isValid(String value, ConstraintValidatorContext context) {
+                //null时不进行校验
+                if (value != null && value.contains(" ")) {
+                        //获取默认提示信息
+                        String defaultConstraintMessageTemplate = context.getDefaultConstraintMessageTemplate();
+                        System.out.println("default message :" + defaultConstraintMessageTemplate);
+                        //禁用默认提示信息
+                        context.disableDefaultConstraintViolation();
+                        //设置提示语
+                        context.buildConstraintViolationWithTemplate("can not contains blank").addConstraintViolation();
+                        return false;
+                }
+                return true;
+        }
+}
+```
+
+
+
+## 11、提前编译：AOT
 
 
 
